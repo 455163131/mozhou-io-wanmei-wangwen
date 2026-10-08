@@ -27,6 +27,8 @@ export interface MzBridge {
     list(): Promise<IpcInvokeMap['project:list']['res']>;
     save(): Promise<IpcInvokeMap['project:save']['res']>;
     volumes(): Promise<IpcInvokeMap['project:volumes']['res']>;
+    createVolume(title: string): Promise<IpcInvokeMap['project:create-volume']['res']>;
+    reorderVolumes(ids: string[]): Promise<IpcInvokeMap['project:reorder-volumes']['res']>;
   };
 
   // 章节
@@ -34,6 +36,8 @@ export interface MzBridge {
     list(): Promise<IpcInvokeMap['chapter:list']['res']>;
     get(chapterId: string): Promise<IpcInvokeMap['chapter:get']['res']>;
     update(chapterId: string, body: string, expectedRev: number): Promise<IpcInvokeMap['chapter:update']['res']>;
+    reorder(ids: string[]): Promise<IpcInvokeMap['chapter:reorder']['res']>;
+    setVolume(chapterId: string, volumeId: string | null): Promise<IpcInvokeMap['chapter:set-volume']['res']>;
   };
 
   // 体检（只读）
@@ -141,9 +145,13 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'project:list',
   'project:save',
   'project:volumes',
+  'project:create-volume',
+  'project:reorder-volumes',
   'chapter:list',
   'chapter:get',
   'chapter:update',
+  'chapter:reorder',
+  'chapter:set-volume',
   'health:analyze',
   'health:report',
   'health:locate',

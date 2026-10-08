@@ -55,6 +55,13 @@ function handle<K extends IpcChannel>(channel: K, fn: Handler<K>, services: AppS
   });
 }
 
+/** 拖拽排序入参的形状校验：必须是一串字符串 id。排列完不完整由 repo 判。 */
+function assertIdList(ids: unknown): asserts ids is string[] {
+  if (!Array.isArray(ids) || ids.some((x) => typeof x !== 'string')) {
+    throw new MzError('E_INVALID_ARGS', '排序列表必须是一串 id');
+  }
+}
+
 export function registerAllIpc(services: AppServices, getWindow: () => BrowserWindow | null): void {
   // ── app ──
   handle('app:getPaths', () => ({
@@ -120,6 +127,34 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     return services.projectRepo.volumes(services.project.id);
   }, services);
 
+  // ── 分卷：建卷与拖拽排序（§4 第 4 条）──
+  // repo 的 createVolume/insertVolume 早就写好了，但全仓零调用方 ——
+  // 通道补齐之前，「分卷」在 UI 上是一张只能看的卡。
+  handle('project:create-volume', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    if (typeof p.title !== 'string') throw new MzError('E_INVALID_ARGS', '卷名必须是字符串');
+    try {
+      const vol = s.projectRepo.createVolume(s.project.id, p.title);
+      s.backup.noteEdit();
+      return vol;
+    } catch (e) {
+      // 这里 repo 抛出来的只可能是入参校验（空卷名），如实转成用户可读的错误
+      throw new MzError('E_INVALID_ARGS', e instanceof Error ? e.message : String(e));
+    }
+  }, services);
+
+  handle('project:reorder-volumes', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    assertIdList(p.ids);
+    try {
+      const vols = s.projectRepo.reorderVolumes(s.project.id, p.ids);
+      s.backup.noteEdit();
+      return vols;
+    } catch (e) {
+      throw new MzError('E_INVALID_ARGS', e instanceof Error ? e.message : String(e));
+    }
+  }, services);
+
   // ── chapter ──
   handle('chapter:list', () => {
     if (!services.project) return [];
@@ -144,6 +179,34 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
         throw new MzError('E_REVISION_CONFLICT', e.message);
       }
       throw e;
+    }
+  }, services);
+
+  handle('chapter:reorder', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    assertIdList(p.ids);
+    try {
+      // 只改 ord：拖一下顺序不该把编辑器的乐观锁搅乱
+      const metas = s.chapterRepo.reorder(s.project.id, p.ids);
+      s.backup.noteEdit();
+      return metas;
+    } catch (e) {
+      throw new MzError('E_INVALID_ARGS', e instanceof Error ? e.message : String(e));
+    }
+  }, services);
+
+  handle('chapter:set-volume', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    if (typeof p.chapterId !== 'string') throw new MzError('E_INVALID_ARGS', 'chapterId 必须是字符串');
+    if (p.volumeId !== null && typeof p.volumeId !== 'string') {
+      throw new MzError('E_INVALID_ARGS', 'volumeId 只能是卷 id 或 null');
+    }
+    try {
+      const meta = s.chapterRepo.setVolume(p.chapterId, p.volumeId);
+      s.backup.noteEdit();
+      return meta;
+    } catch (e) {
+      throw new MzError('E_INVALID_ARGS', e instanceof Error ? e.message : String(e));
     }
   }, services);
 

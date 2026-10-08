@@ -45,6 +45,29 @@
   background: var(--mz-accent-soft);
   box-shadow: inset 2px 0 0 var(--mz-accent);
 }
+
+/* 拖拽态：被拖起的章减淡；落点章加外描边（与 .active 的内左条区分开） */
+.nodeDrag {
+  opacity: 0.4;
+}
+.nodeOver {
+  outline: 1px solid var(--mz-accent);
+  outline-offset: -1px;
+}
+.volume.volumeOver > .volumeTitle {
+  color: var(--mz-accent);
+  border-bottom-color: var(--mz-accent);
+}
+.err {
+  padding: 5px 7px;
+  margin-bottom: 4px;
+  border-radius: var(--mz-radius-xs);
+  background: var(--mz-sem-warn-bg);
+  border: 1px solid var(--mz-sem-warn-border);
+  color: var(--mz-sem-warn-fg);
+  font-size: var(--mz-fs-xs);
+  line-height: 1.6;
+}
 .status {
   color: var(--mz-text-tertiary);
   flex: none;

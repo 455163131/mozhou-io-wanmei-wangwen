@@ -72,6 +72,8 @@ const bridge: MzBridge = {
     list: () => invoke('project:list'),
     save: () => invoke('project:save'),
     volumes: () => invoke('project:volumes'),
+    createVolume: (title) => invoke('project:create-volume', { title }),
+    reorderVolumes: (ids) => invoke('project:reorder-volumes', { ids }),
   },
 
   chapter: {
@@ -79,6 +81,8 @@ const bridge: MzBridge = {
     get: (chapterId) => invoke('chapter:get', { chapterId }),
     update: (chapterId, body, expectedRev) =>
       invoke('chapter:update', { chapterId, body, expectedRev }),
+    reorder: (ids) => invoke('chapter:reorder', { ids }),
+    setVolume: (chapterId, volumeId) => invoke('chapter:set-volume', { chapterId, volumeId }),
   },
 
   health: {

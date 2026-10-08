@@ -43,6 +43,32 @@ function toMeta(r: ChapterRow): ChapterMeta {
  */
 const IN_CLAUSE_CHUNK = 500;
 
+/**
+ * 拖拽排序的统一前置校验：前端传来的 id 列表必须**恰好**等于库里现有的那一套。
+ *
+ * 为什么宁抛不宽容：
+ *   · 少给一条 → 那条的 ord 保持旧值，很可能与新的某条撞上，`ORDER BY ord` 从此不确定；
+ *   · 多给一条（别的项目的 id，或前端列表过期）→ 会把别人的顺序改掉。
+ * 两种都是"看起来成功了"的静默数据损坏，比一次报错难查一个数量级。
+ *
+ * @param kind 错误消息里的对象名（卷 / 章节）
+ */
+function assertExactIdSet(existingIds: string[], orderedIds: readonly string[], kind: string): void {
+  const existing = new Set(existingIds);
+  const given = new Set(orderedIds);
+  if (given.size !== orderedIds.length) {
+    throw new Error(`重排${kind}的列表里有重复 id`);
+  }
+  const missing = existingIds.filter((id) => !given.has(id));
+  const extra = orderedIds.filter((id) => !existing.has(id));
+  if (missing.length > 0 || extra.length > 0) {
+    const parts: string[] = [];
+    if (missing.length > 0) parts.push(`漏了 ${missing.length} 个${kind}`);
+    if (extra.length > 0) parts.push(`${extra.length} 个${kind}不属于本项目`);
+    throw new Error(`重排${kind}被拒绝：${parts.join('，')}（列表可能已过期，请刷新后重试）`);
+  }
+}
+
 export class ChapterRepo {
   constructor(private readonly db: Database) {}
 
@@ -182,6 +208,48 @@ export class ChapterRepo {
   }
 
   /** 缓存指标（500 章仅 0.25MB，可全量缓存） */
+  /**
+   * 拖拽重排：`orderedIds` 必须是本项目全部章节的**恰好一个排列**。
+   *
+   * 只改 `ord`。正文、`rev`、`updated_at` 一律不碰 —— 排序不是编辑：
+   * 动了 `rev` 会让编辑器里那份未保存的正文在下次保存时撞上乐观锁，
+   * 用户感知就是"我就拖了一下顺序，怎么写不回去了"。
+   */
+  reorder(projectId: string, orderedIds: readonly string[]): ChapterMeta[] {
+    const rows = this.db
+      .prepare('SELECT id FROM chapters WHERE project_id = ?')
+      .all(projectId) as Array<{ id: string }>;
+    assertExactIdSet(rows.map((r) => r.id), orderedIds, '章节');
+    const upd = this.db.prepare('UPDATE chapters SET ord = ? WHERE id = ? AND project_id = ?');
+    // 一个事务：中途抛出去的话，半新半旧的顺序比原顺序更难解释
+    this.db.transaction(() => {
+      orderedIds.forEach((id, i) => upd.run(i, id, projectId));
+    })();
+    return this.listMeta(projectId);
+  }
+
+  /**
+   * 把一章挪进某一卷；`volumeId = null` 表示「未分卷」。
+   * 卷必须属于同一本书 —— 否则是拿 A 书的卷 id 改 B 书的章（跨项目越权写入）。
+   */
+  setVolume(chapterId: string, volumeId: string | null): ChapterMeta {
+    const row = this.db.prepare('SELECT * FROM chapters WHERE id = ?').get(chapterId) as
+      | ChapterRow
+      | undefined;
+    if (!row) throw new Error(`章节不存在：${chapterId}`);
+    if (volumeId !== null) {
+      const vol = this.db.prepare('SELECT project_id FROM volumes WHERE id = ?').get(volumeId) as
+        | { project_id: string }
+        | undefined;
+      if (!vol) throw new Error(`卷不存在：${volumeId}`);
+      if (vol.project_id !== row.project_id) throw new Error('该卷不属于当前项目');
+    }
+    this.db.prepare('UPDATE chapters SET volume_id = ? WHERE id = ?').run(volumeId, chapterId);
+    const meta = this.listMeta(row.project_id).find((c) => c.id === chapterId);
+    if (!meta) throw new Error(`章节状态读取失败：${chapterId}`);
+    return meta;
+  }
+
   saveMetrics(m: ChapterMetrics): void {
     this.db
       .prepare(
@@ -284,6 +352,36 @@ export class ProjectRepo {
       .prepare('INSERT INTO volumes(id, project_id, title, ord) VALUES(?,?,?,?)')
       .run(id, projectId, title, order);
     return { id, projectId, title, order };
+  }
+
+  /**
+   * 新建一卷，ord 追加到末尾（由库自己算 MAX，调用方不数）。
+   *
+   * ★ 这是 §4 第 4 条的正主：`insertVolume` 早就写好了，但全仓零调用方 ——
+   *   UI 没入口、IPC 没通道、Agent 没工具，所以「分卷」一直是只读展示。
+   *   标题在这里裁空白并拒绝空值：卷名是用户能直接看到的文本，
+   *   空卷名会在规划视图里渲染成一张没有名字的卡。
+   */
+  createVolume(projectId: string, title: string): Volume {
+    const clean = title.trim();
+    if (!clean) throw new Error('卷名不能为空');
+    const next = this.db
+      .prepare('SELECT COALESCE(MAX(ord), -1) + 1 AS next FROM volumes WHERE project_id = ?')
+      .get(projectId) as { next: number };
+    return this.insertVolume(projectId, clean, next.next);
+  }
+
+  /** 拖拽重排卷册。规则与 ChapterRepo.reorder 相同：整表全给、一个事务、越界即抛。 */
+  reorderVolumes(projectId: string, orderedIds: readonly string[]): Volume[] {
+    const rows = this.db
+      .prepare('SELECT id FROM volumes WHERE project_id = ?')
+      .all(projectId) as Array<{ id: string }>;
+    assertExactIdSet(rows.map((r) => r.id), orderedIds, '卷');
+    const upd = this.db.prepare('UPDATE volumes SET ord = ? WHERE id = ? AND project_id = ?');
+    this.db.transaction(() => {
+      orderedIds.forEach((id, i) => upd.run(i, id, projectId));
+    })();
+    return this.volumes(projectId);
   }
 }
 

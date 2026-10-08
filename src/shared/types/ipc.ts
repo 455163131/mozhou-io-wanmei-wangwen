@@ -84,10 +84,21 @@ export interface IpcInvokeMap {
   'project:list': { req: void; res: Project[] };
   'project:save': { req: void; res: Project };
   'project:volumes': { req: void; res: Volume[] };
+  /** 新建一卷（ord 由主进程追加，渲染层不数） */
+  'project:create-volume': { req: { title: string }; res: Volume };
+  /** 拖拽重排卷册：ids 必须是当前全部卷的一个排列 */
+  'project:reorder-volumes': { req: { ids: string[] }; res: Volume[] };
 
   'chapter:list': { req: void; res: ChapterMeta[] };
   'chapter:get': { req: { chapterId: string }; res: Chapter };
   'chapter:update': { req: SaveChapterPayload; res: ChapterMeta };
+  /** 拖拽重排章节：只改 ord，不动正文与 rev */
+  'chapter:reorder': { req: { ids: string[] }; res: ChapterMeta[] };
+  /** 把章挪进某卷；volumeId=null 表示移出到「未分卷」 */
+  'chapter:set-volume': {
+    req: { chapterId: string; volumeId: string | null };
+    res: ChapterMeta;
+  };
 
   'health:analyze': { req: { chapterIds?: string[] }; res: ChapterAnalysis[] };
   'health:report': { req: { chapterIds?: string[] }; res: HealthReport };
@@ -325,9 +336,13 @@ export const IPC_CHANNELS = [
   'project:list',
   'project:save',
   'project:volumes',
+  'project:create-volume',
+  'project:reorder-volumes',
   'chapter:list',
   'chapter:get',
   'chapter:update',
+  'chapter:reorder',
+  'chapter:set-volume',
   'health:analyze',
   'health:report',
   'health:locate',
