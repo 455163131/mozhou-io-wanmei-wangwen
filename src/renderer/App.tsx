@@ -23,12 +23,13 @@ import { ReviewView } from './components/views/ReviewView';
 import { DashboardView } from './components/views/DashboardView';
 import type { LlmStatus } from '@shared/types/provider';
 import type { DashStats } from '@shared/types/ipc';
+import { APP_BRAND_NAME } from '@shared/constants/brand';
 import styles from './App.module.css';
 
 type Mode = 'write' | 'plan' | 'lore' | 'review' | 'dash';
 type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
 
-/** 模式导航（icon path 与文枢定稿的 SVG sprite 同源） */
+/** 模式导航（icon path 与品牌定稿的 SVG sprite 同源） */
 const MODES: { id: Mode; label: string; d: string }[] = [
   { id: 'write', label: '写作', d: 'M4 20l1-4L16.5 4.5a2.1 2.1 0 013 3L8 19l-4 1z' },
   { id: 'plan', label: '规划', d: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z' },
@@ -155,7 +156,7 @@ export function App(): JSX.Element {
   return (
     <div className={styles.shell}>
       <nav className={styles.rail} aria-label="模式导航">
-        <div className={styles.mark} title="文枢"><Mark /></div>
+        <div className={styles.mark} title={APP_BRAND_NAME}><Mark /></div>
         <div className={styles.railModes}>
           {MODES.map((m) => (
             <button

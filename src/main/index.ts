@@ -35,7 +35,8 @@ let dbClosed = false;
 const QUIT_BACKUP_TIMEOUT_MS = 8_000;
 
 // ★ 便携版数据目录（§4 第 8 条）：修复前 portable 目标打了，但全仓没人读
-//   PORTABLE_EXECUTABLE_DIR，数据永远写 %APPDATA%\墨舟写作台 —— 拷进 U 盘带走，
+//   PORTABLE_EXECUTABLE_DIR，数据永远写 %APPDATA%\mozhou-agent（目录名来自
+//   package.json 的 name，实测见 docs/PROJECT-STATUS.md §4 第 14 条）—— 拷进 U 盘带走，
 //   换台电脑双击同一个 exe 打开的是空项目列表。
 //   只在这里改一次：db（services.ts:85）、备份（:92）、凭据（keyring.ts:21）、
 //   app:getPaths（ipc/register.ts:61）都从同一个 app.getPath('userData') 取值。

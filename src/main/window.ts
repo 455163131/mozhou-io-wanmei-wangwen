@@ -12,6 +12,7 @@
 import { BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { applyCsp } from './security';
+import { APP_BRAND_NAME } from '@shared/constants/brand';
 import type { AppServices } from './services';
 
 export function createWindow(services: AppServices): BrowserWindow {
@@ -22,7 +23,7 @@ export function createWindow(services: AppServices): BrowserWindow {
     minHeight: 800,
     show: false,
     backgroundColor: '#0E1116',
-    title: '墨舟写作台',
+    title: APP_BRAND_NAME,
     autoHideMenuBar: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

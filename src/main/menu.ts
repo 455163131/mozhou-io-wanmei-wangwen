@@ -3,7 +3,8 @@
  * 大部分菜单项只发 IPC 给渲染层，让 UI 自己决定怎么响应——
  * 菜单不直接调主进程逻辑，避免两套入口行为不一致。
  */
-import { Menu, app, type BrowserWindow } from 'electron';
+import { Menu, type BrowserWindow } from 'electron';
+import { APP_BRAND_NAME } from '@shared/constants/brand';
 
 export function buildMenu(win: BrowserWindow): void {
   const isMac = process.platform === 'darwin';
@@ -12,9 +13,9 @@ export function buildMenu(win: BrowserWindow): void {
     ...(isMac
       ? [
           {
-            label: app.name,
+            label: APP_BRAND_NAME,
             submenu: [
-              { role: 'about' as const, label: '关于墨舟写作台' },
+              { role: 'about' as const, label: `关于${APP_BRAND_NAME}` },
               { type: 'separator' as const },
               { role: 'hide' as const, label: '隐藏' },
               { role: 'hideOthers' as const, label: '隐藏其它' },
