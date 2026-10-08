@@ -222,6 +222,69 @@ export class ChapterRepo {
     };
   }
 
+  /**
+   * 新建一章（§4 第 17 条）。此前 `insert()` 全仓**零调用方**，
+   * 于是 UI、IPC、Agent 三条路上都没有建章入口，`chapters` 表恒为空。
+   *
+   * ★ 章节号（也就是主键 `id`）在这里算，**不由调用方传**：
+   *   把主键交给界面决定，双击就多一章、或两次拿到同一个号撞主键。
+   *   口径 = 现有可解析为数字的最大号 + 1（不是"条数 + 1"——删过一章就不该把号退回去）；
+   *   非数字 id（楔子、番外这类占位）不参与算号。
+   *   `ord` 由库里的 `MAX(ord)+1` 算，追加到全书末尾。
+   */
+  createChapter(
+    projectId: string,
+    opts: { title?: string; volumeId?: string | null } = {},
+  ): ChapterMeta {
+    if (!projectId) throw new Error('新建章节被拒绝：没有打开项目');
+    const proj = this.db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId) as
+      | { id: string }
+      | undefined;
+    if (!proj) throw new Error(`新建章节被拒绝：项目不存在 ${projectId}`);
+
+    const volumeId = opts.volumeId ?? null;
+    if (volumeId !== null) {
+      const v = this.db.prepare('SELECT project_id FROM volumes WHERE id = ?').get(volumeId) as
+        | { project_id: string }
+        | undefined;
+      if (!v) throw new Error(`新建章节被拒绝：卷不存在 ${volumeId}`);
+      if (v.project_id !== projectId) {
+        throw new Error(`卷「${volumeId}」不属于本项目，不能把章建进去`);
+      }
+    }
+
+    const rows = this.db
+      .prepare('SELECT id, project_id FROM chapters')
+      .all() as Array<{ id: string; project_id: string }>;
+    let maxNo = 0;
+    const taken = new Set<string>();
+    for (const r of rows) {
+      taken.add(r.id);
+      if (r.project_id !== projectId) continue;
+      const n = Number(r.id);
+      if (Number.isFinite(n) && n > maxNo) maxNo = n;
+    }
+    // 章节号就是主键，而 `chapters.id` 是**单列**主键（不是 (project_id, id) 复合键），
+    // 所以本机另一本书已经占用的号必须跳过，否则第二本书建第一章直接撞 UNIQUE。
+    // 代价是第二本书从别的书的号接着往下编 —— 修它要换主键，见 PROJECT-STATUS.md §4。
+    let no = maxNo + 1;
+    while (taken.has(String(no))) no += 1;
+
+    const next = this.db
+      .prepare('SELECT COALESCE(MAX(ord), -1) + 1 AS n FROM chapters WHERE project_id = ?')
+      .get(projectId) as { n: number };
+
+    return this.insert({
+      id: String(no),
+      projectId,
+      title: (opts.title ?? '').trim(),
+      volumeId,
+      order: next.n,
+      status: 'draft',
+      body: '',
+    });
+  }
+
   /** 缓存指标（500 章仅 0.25MB，可全量缓存） */
   /**
    * 拖拽重排：`orderedIds` 必须是本项目全部章节的**恰好一个排列**。

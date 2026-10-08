@@ -100,3 +100,47 @@
   font-size: var(--mz-fs-sm);
   line-height: 1.8;
 }
+
+/* 建章入口（§4 第 17 条）：侧栏窄，标题框和按钮竖着排 */
+.newform {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+.input {
+  width: 100%;
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-sm);
+  padding: 5px 8px;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-primary);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.input:focus {
+  border-color: var(--mz-accent);
+}
+.btn {
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-primary);
+  border-radius: var(--mz-radius-sm);
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--mz-accent);
+  outline-offset: 1px;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

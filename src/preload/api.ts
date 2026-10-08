@@ -38,6 +38,8 @@ export interface MzBridge {
     list(): Promise<IpcInvokeMap['chapter:list']['res']>;
     get(chapterId: string): Promise<IpcInvokeMap['chapter:get']['res']>;
     update(chapterId: string, body: string, expectedRev: number): Promise<IpcInvokeMap['chapter:update']['res']>;
+    /** 新建一章。章节号由主进程算，这里只给标题和归属卷 */
+    create(payload: IpcInvokeMap['chapter:create']['req']): Promise<IpcInvokeMap['chapter:create']['res']>;
     reorder(ids: string[]): Promise<IpcInvokeMap['chapter:reorder']['res']>;
     setVolume(chapterId: string, volumeId: string | null): Promise<IpcInvokeMap['chapter:set-volume']['res']>;
   };
@@ -154,6 +156,7 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'chapter:list',
   'chapter:get',
   'chapter:update',
+  'chapter:create',
   'chapter:reorder',
   'chapter:set-volume',
   'health:analyze',

@@ -195,6 +195,25 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     }
   }, services);
 
+  handle('chapter:create', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    if (typeof p.title !== 'string') throw new MzError('E_INVALID_ARGS', '标题必须是字符串');
+    if (p.volumeId !== null && typeof p.volumeId !== 'string') {
+      throw new MzError('E_INVALID_ARGS', 'volumeId 只能是卷 id 或 null');
+    }
+    try {
+      // 章节号（主键）在 repo 里算，这里不传：见 IpcInvokeMap['chapter:create'] 的注释
+      const meta = s.chapterRepo.createChapter(s.project.id, {
+        title: p.title,
+        volumeId: p.volumeId,
+      });
+      s.backup.noteEdit();
+      return meta;
+    } catch (e) {
+      throw new MzError('E_INVALID_ARGS', e instanceof Error ? e.message : String(e));
+    }
+  }, services);
+
   handle('chapter:reorder', (p, s) => {
     if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
     assertIdList(p.ids);

@@ -82,6 +82,7 @@ const bridge: MzBridge = {
     get: (chapterId) => invoke('chapter:get', { chapterId }),
     update: (chapterId, body, expectedRev) =>
       invoke('chapter:update', { chapterId, body, expectedRev }),
+    create: (payload) => invoke('chapter:create', payload),
     reorder: (ids) => invoke('chapter:reorder', { ids }),
     setVolume: (chapterId, volumeId) => invoke('chapter:set-volume', { chapterId, volumeId }),
   },

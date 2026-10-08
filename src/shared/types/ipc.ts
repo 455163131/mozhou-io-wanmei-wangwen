@@ -97,6 +97,15 @@ export interface IpcInvokeMap {
   'chapter:list': { req: void; res: ChapterMeta[] };
   'chapter:get': { req: { chapterId: string }; res: Chapter };
   'chapter:update': { req: SaveChapterPayload; res: ChapterMeta };
+  /**
+   * 新建一章。★ 请求体里故意**没有章节号**：id 就是主键也是章节号，
+   * 由主进程按"现有最大号 + 1"算——让界面传主键，双击就是两条同号章或撞主键。
+   * 空标题允许（先建章再想名字是常态），界面按 `第N章` 兜底显示。
+   */
+  'chapter:create': {
+    req: { title: string; volumeId: string | null };
+    res: ChapterMeta;
+  };
   /** 拖拽重排章节：只改 ord，不动正文与 rev */
   'chapter:reorder': { req: { ids: string[] }; res: ChapterMeta[] };
   /** 把章挪进某卷；volumeId=null 表示移出到「未分卷」 */
@@ -359,6 +368,7 @@ export const IPC_CHANNELS = [
   'chapter:list',
   'chapter:get',
   'chapter:update',
+  'chapter:create',
   'chapter:reorder',
   'chapter:set-volume',
   'health:analyze',

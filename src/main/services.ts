@@ -682,8 +682,8 @@ export class AppServices {
       project,
       volumes: this.projectRepo.volumes(project.id),
       chapters,
-      // 账本当前是内存态（docs/REMAINING.md §1.4），一并落进备份，
-      // 至少守住「重启不丢」这条底线。
+      // 账本来自 `ledger_*` 真表（§4 第 13 条修前这四个数组恒为空）。
+      // ★ 目前只有写出的方向：`readBackup()` 在 src 里零调用方，没有把备份灌回库的还原路径。
       ledger: {
         characters: this.characters(project.id),
         numbers: this.numbers(project.id),
