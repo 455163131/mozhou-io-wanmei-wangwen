@@ -1,0 +1,56 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--mz-bg-editor);
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  flex: none;
+}
+.chapterTitle {
+  font-size: var(--mz-fs-sm);
+  color: var(--mz-text-primary);
+  font-weight: var(--mz-fw-medium);
+}
+.stats {
+  flex: 1;
+  font-family: var(--mz-font-numeric);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+}
+.dirty {
+  color: var(--mz-sem-ai-fg);
+}
+.saving {
+  color: var(--mz-text-tertiary);
+}
+.saveBtn {
+  font-size: var(--mz-fs-xs);
+  padding: 3px 12px;
+}
+.area {
+  flex: 1;
+  width: 100%;
+  padding: 24px 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--mz-text-body);
+  font-family: var(--mz-editor-font-novel);
+  font-size: var(--mz-editor-size-novel);
+  line-height: var(--mz-editor-lh-novel);
+  letter-spacing: var(--mz-tracking-cjk);
+  line-break: strict;
+  resize: none;
+  text-align: center;
+  outline: none;
+}
+.area:focus {
+  border: none;
+}

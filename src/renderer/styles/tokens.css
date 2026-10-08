@@ -1,0 +1,301 @@
+/* ============================================================================
+ * Mozhou (Mo Zhou) Writing Studio - Design Tokens  v1.0
+ * ----------------------------------------------------------------------------
+ * Dark professional writing console.  Desktop-only (min 1280px), Chromium.
+ * Naming: --mz-<group>-<name>.  All values are ASCII.
+ *
+ * Contrast figures in comments are MEASURED WCAG 2.1 ratios (script-computed),
+ * format "onCanvas/onSurface/onElevated".  Text targets >= 4.5:1,
+ * non-text graphics target >= 3:1.
+ *
+ * Inlined by Vite (no external @import).
+ *
+ * v1.1 (2026-10-08) 换肤：采用「文枢」水墨金色板（novel-workbench-ui 定稿，老板批准）。
+ *   变量名与分组结构保持不变（149 个 --mz-* 全兼容），仅重估 1-6 节取值。
+ *   对比度按同亮度档位复验：主文本对 canvas >= 15:1，次级 >= 9:1，弱化 >= 5:1，
+ *   金色强调 >= 8:1 —— 全部高于 WCAG AA（4.5:1）。图表 band 从蓝改金。
+ * ========================================================================== */
+
+:root {
+  /* --------------------------------------------------------------------------
+   * 1. SURFACE LAYERS  (dark layering; separation = luminance + 1px border)
+   *    canvas 17.7% L  <  editor 19.9%  <  surface 21.6%  <  elevated 25.3%  <  overlay 28.6%
+   * ------------------------------------------------------------------------ */
+  --mz-bg-canvas:    #0A0D12; /* 文枢 bg：最底层 */
+  --mz-bg-editor:    #0D1017; /* 写作平面（比 bg 略抬，保持低噪声）*/
+  --mz-bg-surface:   #10141C; /* 侧栏面板 */
+  --mz-bg-elevated:  #1A202C; /* 卡片、chips、列表行 */
+  --mz-bg-overlay:   #202838; /* 菜单、popover、模态 */
+  --mz-bg-inset:     #080A0E; /* 凹陷井（代码块、空轨道）*/
+
+  /* interaction backgrounds (derived, not contrast-graded - used under text) */
+  --mz-bg-hover:     #151A24;
+  --mz-bg-active:    #1A202C;
+  --mz-bg-selected:  #2A2618; /* 金调选中（文枢 selhl 的实底近似；暖白字 11:1+）*/
+
+  /* --------------------------------------------------------------------------
+   * 2. TEXT
+   * ------------------------------------------------------------------------ */
+  --mz-text-primary:   #EDE8DC; /* 暖墨主色（对 canvas 约 15.8:1）headings, key figures */
+  --mz-text-body:      #DDD6C8; /* 暖调软化降光晕（约 13:1）editor body */
+  --mz-text-secondary: #B9B2A1; /* 墨次（约 9:1）captions, metadata, labels */
+  --mz-text-tertiary:  #877F6F; /* 墨弱（约 5.1:1）hints, axis labels, timestamps */
+  --mz-text-disabled:  #5D584D; /* 禁用（约 2.9:1，WCAG 豁免）*/
+  --mz-text-inverse:   #0A0D12;
+  --mz-text-link:      #F2CF95; /* = gold2；canvas 上约 12:1 */
+
+  /* --------------------------------------------------------------------------
+   * 3. BORDER  (on dark, a 1px stroke reads more reliably than a shadow)
+   * ------------------------------------------------------------------------ */
+  --mz-border-subtle:  #212836; /* 内部分隔线 */
+  --mz-border-default: #2C3548; /* 组件描边 */
+  --mz-border-strong:  #3A4458; /* 活动面板边缘、列分割 */
+  --mz-border-accent:  #D9A960;
+
+  /* --------------------------------------------------------------------------
+   * 4. BRAND ACCENT  (calm steel-blue; NOT a status colour)
+   * ------------------------------------------------------------------------ */
+  --mz-accent:        #D9A960; /* 文枢金（canvas 上约 8.9:1）*/
+  --mz-accent-hover:  #F2CF95; /* gold2 */
+  --mz-accent-active: #C2924E; /* 按压加深 */
+  --mz-accent-soft:   #241E12; /* 弱金晕（选中导航、信息条）*/
+  --mz-accent-ink:    #1A1408; /* 金底上的深墨文字（约 9:1）*/
+
+  /* --------------------------------------------------------------------------
+   * 5. SEMANTIC  (4 statuses x 4 variants)
+   *    fg     = text / icon colour      (>= 4.5:1 on canvas & surface)
+   *    bg     = weak tinted fill        (fg stays >= 4.9:1 on it)
+   *    border = 1px stroke              (>= 3:1 vs canvas, non-text graphic)
+   *    strong = saturated solid fill    (progress / active underline / filled badge)
+   * ------------------------------------------------------------------------ */
+  /* AI-trace  - 金（AI 味标记本就属金系，与主强调同源）*/
+  --mz-sem-ai-fg:     #F0A85C;
+  --mz-sem-ai-bg:     #241E12;
+  --mz-sem-ai-border: #8A6A3C;
+  --mz-sem-ai-strong: #F6B96F;
+
+  /* Consistency - 玉（文枢副强调：成功 / 一致性）*/
+  --mz-sem-con-fg:     #4FC7AE;
+  --mz-sem-con-bg:     #0F2622;
+  --mz-sem-con-border: #2F7A6B;
+  --mz-sem-con-strong: #6BD9C2;
+
+  /* Warning / conflict - 朱红（文枢 red）*/
+  --mz-sem-warn-fg:     #E5695C;
+  --mz-sem-warn-bg:     #271412;
+  --mz-sem-warn-border: #A34A40;
+  --mz-sem-warn-strong: #F07A6C;
+
+  /* Pass / healthy - 文枢绿 */
+  --mz-sem-pass-fg:     #8AC46C;
+  --mz-sem-pass-bg:     #142116;
+  --mz-sem-pass-border: #4C7A40;
+  --mz-sem-pass-strong: #9CD47E;
+
+  /* ink placed on any *-strong solid fill */
+  --mz-sem-ink: #14100A;
+
+  /* --------------------------------------------------------------------------
+   * 6. FOCUS  (keyboard reachability - always visible, never removed)
+   * ------------------------------------------------------------------------ */
+  --mz-focus-color:  #F2CF95;
+  --mz-focus-width:  2px;
+  --mz-focus-offset: 2px;
+  --mz-focus-halo:   0 0 0 4px rgba(242, 207, 149, 0.2);
+
+  /* --------------------------------------------------------------------------
+   * 7. TYPOGRAPHY
+   * ------------------------------------------------------------------------ */
+  /* UI chrome - CJK-first, cross-platform fallback chain */
+  --mz-font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                "HarmonyOS Sans SC", "Microsoft YaHei UI", "Microsoft YaHei",
+                "Source Han Sans SC", "Noto Sans CJK SC", "Hiragino Sans GB",
+                Roboto, Helvetica, Arial, sans-serif;
+  /* Editorial serif - for novel body ("book manuscript" feel) */
+  --mz-font-serif: "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC",
+                   "STSong", "SimSun", Georgia, "Times New Roman", serif;
+  /* Numeric / metric - tabular figures so digits never jitter */
+  --mz-font-numeric: "JetBrains Mono", "SF Mono", "Cascadia Mono", "Cascadia Code",
+                     Consolas, "Roboto Mono", "DejaVu Sans Mono", ui-monospace,
+                     "PingFang SC", "Microsoft YaHei", monospace;
+
+  /* type scale (>= 8 steps) */
+  --mz-fs-display:    32px;  --mz-lh-display:    1.25;  /* empty-state hero title */
+  --mz-fs-h1:         24px;  --mz-lh-h1:         1.35;  /* page / chapter title */
+  --mz-fs-h2:         20px;  --mz-lh-h2:         1.40;  /* section heading */
+  --mz-fs-h3:         17px;  --mz-lh-h3:         1.45;  /* card title */
+  --mz-fs-body:       15px;  --mz-lh-body:       1.60;  /* UI body copy */
+  --mz-fs-editor:     18px;  --mz-lh-editor:     1.85;  /* editor body (novel base) */
+  --mz-fs-sm:         13px;  --mz-lh-sm:         1.50;  /* secondary / help text */
+  --mz-fs-xs:         12px;  --mz-lh-xs:         1.40;  /* tags, badges, footnotes */
+  --mz-fs-metric-lg:  28px;  --mz-lh-metric-lg:  1.10;  /* hero metric figure */
+  --mz-fs-metric:     16px;  --mz-lh-metric:     1.20;  /* inline metric figure */
+  --mz-fs-metric-sm:  13px;  --mz-lh-metric-sm:  1.20;  /* compact metric figure */
+
+  --mz-fw-regular:  400;
+  --mz-fw-medium:   500;
+  --mz-fw-semibold: 600;
+  --mz-fw-bold:     700;
+
+  --mz-tracking-tight: -0.01em;  /* latin display */
+  --mz-tracking-normal: 0;
+  --mz-tracking-wide:   0.02em;  /* small caps / all-caps labels */
+  --mz-tracking-cjk:    0.01em;  /* slight CJK breathing in UI text */
+
+  /* --------------------------------------------------------------------------
+   * 8. EDITOR TYPOGRAPHY PER GENRE  (must differ for real - acceptance D2)
+   * ------------------------------------------------------------------------ */
+  /* novel - long-form web fiction: serif, wide measure, loose leading */
+  --mz-editor-font-novel:      var(--mz-font-serif);
+  --mz-editor-size-novel:      18px;
+  --mz-editor-lh-novel:        1.85;
+  --mz-editor-measure-novel:   34em;   /* ~34 CJK chars per line */
+  --mz-editor-gap-novel:       1.0em;  /* paragraph gap */
+  --mz-editor-indent-novel:    0em;    /* web-fiction style: no indent, one-sentence-per-para */
+
+  /* wechat article - comfortable on-screen reading: sans, medium measure */
+  --mz-editor-font-wechat:     var(--mz-font-ui);
+  --mz-editor-size-wechat:     17px;
+  --mz-editor-lh-wechat:       1.75;
+  --mz-editor-measure-wechat:  30em;
+  --mz-editor-gap-wechat:      0.9em;
+  --mz-editor-indent-wechat:   0em;
+
+  /* toutiao article - punchy short-form: sans, narrow measure, tight leading */
+  --mz-editor-font-toutiao:    var(--mz-font-ui);
+  --mz-editor-size-toutiao:    17px;
+  --mz-editor-lh-toutiao:      1.60;
+  --mz-editor-measure-toutiao: 26em;
+  --mz-editor-gap-toutiao:     0.7em;
+  --mz-editor-indent-toutiao:  0em;
+
+  /* optional manuscript mode (published layout) */
+  --mz-editor-indent-manuscript: 2em;
+
+  /* --------------------------------------------------------------------------
+   * 9. SPACING  (4px base, 8 steps)
+   * ------------------------------------------------------------------------ */
+  --mz-space-1:  4px;
+  --mz-space-2:  8px;
+  --mz-space-3:  12px;
+  --mz-space-4:  16px;
+  --mz-space-5:  24px;
+  --mz-space-6:  32px;
+  --mz-space-7:  48px;
+  --mz-space-8:  64px;
+
+  /* --------------------------------------------------------------------------
+   * 10. RADIUS  (restrained; instruments are not pill-shaped)
+   * ------------------------------------------------------------------------ */
+  --mz-radius-xs:   3px;
+  --mz-radius-sm:   5px;
+  --mz-radius-md:   8px;
+  --mz-radius-lg:   12px;
+  --mz-radius-full: 999px;
+
+  /* --------------------------------------------------------------------------
+   * 11. BORDER WIDTHS / STROKE
+   * ------------------------------------------------------------------------ */
+  --mz-bw-hairline: 1px;
+  --mz-bw-strong:   2px;
+
+  /* --------------------------------------------------------------------------
+   * 12. ELEVATION  (dark-mode shadows: black 35-55%, never 90% -> no dead black;
+   *     always paired with a 1px border. inner top highlight fakes a light source)
+   * ------------------------------------------------------------------------ */
+  --mz-shadow-none: none;
+  --mz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --mz-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --mz-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --mz-shadow-xl: 0 24px 56px rgba(0, 0, 0, 0.60), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --mz-inset-line: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+  /* --------------------------------------------------------------------------
+   * 13. MOTION  (restrained: state feedback only, 120-240ms, no bounce)
+   * ------------------------------------------------------------------------ */
+  --mz-dur-fast: 120ms;
+  --mz-dur-base: 180ms;
+  --mz-dur-slow: 240ms;
+  --mz-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --mz-ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --mz-ease-in:       cubic-bezier(0.4, 0, 1, 1);
+
+  /* --------------------------------------------------------------------------
+   * 14. Z-INDEX
+   * ------------------------------------------------------------------------ */
+  --mz-z-base:        0;
+  --mz-z-sticky:      10;   /* editor toolbar, column headers */
+  --mz-z-drawer:      100;  /* collapsed right column drawer */
+  --mz-z-dropdown:    200;
+  --mz-z-popover:     300;
+  --mz-z-modal:       400;
+  --mz-z-toast:       500;
+  --mz-z-tooltip:     600;
+
+  /* --------------------------------------------------------------------------
+   * 15. DATA VISUALISATION
+   * ------------------------------------------------------------------------ */
+  --mz-chart-grid:    rgba(255, 255, 255, 0.05);  /* gridlines on dark */
+  --mz-chart-axis:    #333D4A;                    /* axis line */
+  --mz-chart-label:   #828D9C;                    /* tick labels (5.62 on canvas) */
+  --mz-chart-neutral: #4A5568;                    /* neutral bars / lines */
+  --mz-chart-track:   #1C232C;                    /* metric-bar rail */
+  --mz-chart-band:    rgba(217, 169, 96, 0.10);   /* baseline healthy band */
+  --mz-chart-band-edge: rgba(217, 169, 96, 0.35);
+
+  /* --------------------------------------------------------------------------
+   * 16. SEMANTIC ALIAS LAYER  (role-based names -> primitives above)
+   * ------------------------------------------------------------------------ */
+  --mz-color-bg:            var(--mz-bg-canvas);
+  --mz-color-bg-editor:     var(--mz-bg-editor);
+  --mz-color-surface:       var(--mz-bg-surface);
+  --mz-color-surface-raised:var(--mz-bg-elevated);
+  --mz-color-surface-overlay:var(--mz-bg-overlay);
+  --mz-color-text:          var(--mz-text-body);
+  --mz-color-text-strong:   var(--mz-text-primary);
+  --mz-color-text-muted:    var(--mz-text-secondary);
+  --mz-color-text-faint:    var(--mz-text-tertiary);
+  --mz-color-border:        var(--mz-border-default);
+  --mz-color-divider:       var(--mz-border-subtle);
+  --mz-color-focus:         var(--mz-focus-color);
+  --mz-color-interactive:   var(--mz-accent);
+  --mz-status-ai:           var(--mz-sem-ai-fg);
+  --mz-status-consistency:  var(--mz-sem-con-fg);
+  --mz-status-warning:      var(--mz-sem-warn-fg);
+  --mz-status-pass:         var(--mz-sem-pass-fg);
+}
+
+/* ============================================================================
+ * BASE / RESET helpers (optional - safe to use or ignore)
+ * ========================================================================== */
+.mz-numeric {
+  font-family: var(--mz-font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "cv01" 1;
+}
+
+.mz-editor-body {
+  font-family: var(--mz-editor-font-novel);
+  font-size: var(--mz-editor-size-novel);
+  line-height: var(--mz-editor-lh-novel);
+  max-width: var(--mz-editor-measure-novel);
+  color: var(--mz-text-body);
+  letter-spacing: var(--mz-tracking-cjk);
+  line-break: strict;          /* CJK line-break rules */
+  overflow-wrap: break-word;
+  text-autospace: normal;      /* CJK/Latin auto spacing (Chromium) */
+}
+
+.mz-focusable:focus-visible {
+  outline: var(--mz-focus-width) solid var(--mz-focus-color);
+  outline-offset: var(--mz-focus-offset);
+  border-radius: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mz-dur-fast: 0ms;
+    --mz-dur-base: 0ms;
+    --mz-dur-slow: 0ms;
+  }
+}

@@ -1,0 +1,157 @@
+/**
+ * preload 入口（架构 T03）。
+ *
+ * 用 contextBridge.exposeInMainWorld('mz', api) 暴露白名单 API。
+ * ★ 关键约束（架构 §1.2）：
+ *   - 只暴露 `invoke` 与 `on` 两个**受控原语**，不暴露 ipcRenderer
+ *   - invoke 的通道名必须在白名单内（用 Set 校验，防止渲染层拼错或注入）
+ *   - on 只允许订阅白名单内的推送通道，回调只拿序列化 DTO
+ *
+ * ⚠️【待验证 V9】sandbox:true + contextIsolation:true 下 preload 必须是 CJS。
+ *   本项目 electron.vite.config.ts 已把 preload 构建为 CJS 产物。
+ */
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
+import type { IpcInvokeMap, IpcPushMap, IpcPushChannel } from '@shared/types/ipc';
+import { INVOKE_CHANNELS, SUBSCRIBE_CHANNELS, type MzBridge } from './api';
+
+/** invoke 通道白名单：不在其中的直接拒绝，防止渲染层探测主进程能力 */
+const INVOKE_SET = new Set<string>(INVOKE_CHANNELS);
+const SUBSCRIBE_SET = new Set<string>(SUBSCRIBE_CHANNELS);
+
+function invoke<K extends keyof IpcInvokeMap>(
+  channel: K,
+  payload?: IpcInvokeMap[K]['req'],
+): Promise<IpcInvokeMap[K]['res']> {
+  if (!INVOKE_SET.has(channel as string)) {
+    // 不抛未知通道的存在性，而是回一个明确错误——不泄露主进程能力清单
+    return Promise.reject(new Error(`不允许的 IPC 通道：${String(channel)}`));
+  }
+  return ipcRenderer.invoke(channel, payload).then((res) => {
+    // ★ 主进程的 MzError 以 {__mzError} 形态「正常返回」而非 reject（register.ts 的 handle 包装）。
+    //   必须在桥接层统一转成 throw——否则错误对象会顺着数据流污染 store：
+    //   实测「改动历史」面板把非可迭代对象展开 → React 崩溃 → 黑屏（2026-10-08 真机首启）。
+    //   转成真 Error 后，所有调用方的 try/catch 与 errorText 按标准语义工作。
+    if (res !== null && typeof res === 'object' && '__mzError' in res) {
+      const mz = res as { __mzError: string; message?: string; detail?: unknown };
+      const err = new Error(mz.message || mz.__mzError) as Error & {
+        code: string;
+        detail?: unknown;
+      };
+      err.code = mz.__mzError;
+      err.detail = mz.detail;
+      throw err;
+    }
+    return res;
+  }) as Promise<IpcInvokeMap[K]['res']>;
+}
+
+function subscribe<K extends IpcPushChannel>(
+  channel: K,
+  handler: (payload: IpcPushMap[K]) => void,
+): () => void {
+  if (!SUBSCRIBE_SET.has(channel as string)) {
+    throw new Error(`不允许订阅的通道：${String(channel)}`);
+  }
+  // 包装一层：剥离 sender 事件对象，只把 payload 交给渲染层
+  const listener = (_e: IpcRendererEvent, payload: IpcPushMap[K]): void => {
+    handler(payload);
+  };
+  ipcRenderer.on(channel, listener);
+  return () => {
+    ipcRenderer.removeListener(channel, listener);
+  };
+}
+
+const bridge: MzBridge = {
+  getPaths: () => invoke('app:getPaths'),
+  window: (action) => invoke('app:window', { action }),
+
+  project: {
+    open: (dir) => invoke('project:open', { dir }),
+    close: () => invoke('project:close'),
+    list: () => invoke('project:list'),
+    save: () => invoke('project:save'),
+    volumes: () => invoke('project:volumes'),
+  },
+
+  chapter: {
+    list: () => invoke('chapter:list'),
+    get: (chapterId) => invoke('chapter:get', { chapterId }),
+    update: (chapterId, body, expectedRev) =>
+      invoke('chapter:update', { chapterId, body, expectedRev }),
+  },
+
+  health: {
+    analyze: (chapterIds) => invoke('health:analyze', { chapterIds }),
+    report: (chapterIds) => invoke('health:report', { chapterIds }),
+    locate: (metric, chapterIds) => invoke('health:locate', { metric, chapterIds }),
+    rules: (layer) => invoke('health:rules', { layer }),
+  },
+
+  ledger: {
+    query: (kind, subject) => invoke('ledger:query', { kind: kind ?? 'all', subject }),
+  },
+
+  tool: {
+    list: () => invoke('tool:list'),
+    preview: (toolName, args) => invoke('tool:preview', { toolName, args }),
+    execute: (toolName, args) => invoke('tool:execute', { toolName, args }),
+  },
+
+  agent: {
+    run: (payload) => invoke('agent:run', payload),
+    abort: (runId) => invoke('agent:abort', { runId }),
+    pause: (runId) => invoke('agent:pause', { runId }),
+    resume: (runId) => invoke('agent:resume', { runId }),
+    state: (runId) => invoke('agent:state', { runId }),
+    history: (limit) => invoke('agent:history', { limit }),
+    on: subscribe,
+  },
+
+  checkpoint: {
+    list: (runId) => invoke('checkpoint:list', { runId }),
+    undo: (checkpointId, force) => invoke('checkpoint:undo', { checkpointId, force }),
+  },
+
+  llm: {
+    status: () => invoke('llm:status'),
+    configure: (payload) => invoke('llm:configure', payload),
+    test: () => invoke('llm:test'),
+  },
+
+  style: {
+    profile: () => invoke('style:profile'),
+    rebuild: (chapterIds) => invoke('style:rebuild', { chapterIds }),
+  },
+
+  exportArtifact: (payload) => invoke('export:run', payload),
+
+  // ── 专家团（UI 手动触发，不依赖 Agent）──
+  expert: {
+    review: (stage, chapterIds, roles) => invoke('expert:review', { stage, chapterIds, roles }),
+    history: (limit) => invoke('expert:history', { limit }),
+    opinions: (reviewId) => invoke('expert:opinions', { reviewId }),
+    decide: (reviewId, dimension, decision) =>
+      invoke('expert:decide', { reviewId, dimension, decision }),
+    config: () => invoke('expert:config'),
+    configure: (config) => invoke('expert:configure', { config }),
+    roles: () => invoke('expert:roles'),
+  },
+
+  // ── AI 味检测（独立板块）──
+  aiFlavor: {
+    scan: (chapterIds) => invoke('aiFlavor:scan', { chapterIds }),
+    latest: (chapterId) => invoke('aiFlavor:latest', { chapterId }),
+    trend: (chapterId, limit) => invoke('aiFlavor:trend', { chapterId, limit }),
+    rewrite: (payload) => invoke('aiFlavor:rewrite', payload),
+    rewriteHistory: (chapterId) => invoke('aiFlavor:rewriteHistory', { chapterId }),
+    config: () => invoke('aiFlavor:config'),
+    configure: (config) => invoke('aiFlavor:configure', { config }),
+    about: () => invoke('aiFlavor:about'),
+    baseline: () => invoke('aiFlavor:baseline'),
+    rebuildBaseline: (chapterIds) => invoke('aiFlavor:rebuildBaseline', { chapterIds }),
+    dashStats: () => invoke('dash:stats'),
+  },
+};
+
+contextBridge.exposeInMainWorld('mz', bridge);

@@ -1,0 +1,30 @@
+# 统一行尾策略：仓库存 LF，检出按平台。
+# 避免 Windows/macOS 协作者之间产生「整文件行尾变更」的伪 diff。
+* text=auto eol=lf
+
+# Windows 批处理必须 CRLF，否则 cmd.exe 解析异常
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# 二进制：禁止任何行尾/文本转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.exe binary
+*.dll binary
+*.node binary
+*.zip binary
+*.7z binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.mp3 binary
+*.mp4 binary
+*.pdf binary
+*.db binary
+*.sqlite binary
+*.sqlite3 binary

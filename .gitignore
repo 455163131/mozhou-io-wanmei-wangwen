@@ -1,0 +1,17 @@
+node_modules/
+out/
+dist/
+.tmp/
+release/
+*.log
+
+# 增量编译缓存：可由 tsc 重建，且体积大、diff 无意义
+*.tsbuildinfo
+
+# vitest 异常退出时残留的临时转译产物（正常退出会自动清理）
+vitest.config.ts.timestamp-*.mjs
+
+# 引擎打包产物：由 scripts/lib-engine-bundle.mjs 在缺失/过期时**按需自动重建**，
+# 是构建中间物、非源码，勿提交（避免又变成「人得记得先建 bundle」的隐藏前置步骤）。
+# 三份同源：.engine-bundle（compute/verify 共用）、.builder-bundle、.baseline-bundle
+scripts/.*-bundle.mjs

@@ -1,0 +1,38 @@
+appId: com.mozhou.writer
+productName: 墨舟写作台
+copyright: Copyright © 2026 墨舟
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+asarUnpack:
+  # better-sqlite3 是原生模块，必须解包（架构 §5.2 V8：ABI 兼容性待实测）
+  - node_modules/better-sqlite3/**/*
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  # 未签名 exe 会被杀软误报（架构 §5.2 V6：只能实测）
+  createDesktopShortcut: always
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+
+# 原生模块需重建到 Electron 的 ABI
+npmRebuild: true
+buildDependenciesFromSource: false

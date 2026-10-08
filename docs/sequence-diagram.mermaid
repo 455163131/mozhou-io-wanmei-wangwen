@@ -1,0 +1,41 @@
+sequenceDiagram
+  autonumber
+  participant UI as FlavorPanel
+  participant IPC as ipc/register
+  participant SVC as AIFlavorService
+  participant BL as BaselineBuilder
+  participant ENG as Engine(纯函数)
+  participant DB as SQLite
+
+  Note over UI,DB: 场景一：检测（含基线解析）
+  UI->>IPC: aiFlavor:scan {chapterIds}
+  IPC->>SVC: flavorBaseline()
+  SVC->>DB: loadBaseline(projectId)
+  alt 有用户基线 且 sampleChapters>=门槛
+    DB-->>SVC: user baseline
+  else 否则
+    SVC-->>SVC: DEFAULT_FLAVOR_BASELINE
+  end
+  SVC-->>IPC: baseline
+  loop 每章
+    IPC->>ENG: detectFlavor(body, id, cfg, baseline)
+    ENG-->>IPC: FlavorReport(calibrated/deviations)
+    IPC->>DB: saveScan(report)
+  end
+  IPC-->>UI: FlavorReport[]
+
+  Note over UI,DB: 场景二：用户自建基线
+  UI->>IPC: aiFlavor:rebuildBaseline {chapterIds?}
+  IPC->>SVC: rebuildFlavorBaseline(ids)
+  SVC->>DB: getBodies(ids)
+  DB-->>SVC: chapter texts
+  SVC->>BL: buildFlavorBaseline(samples, opts)
+  loop 每章
+    BL->>ENG: extractFlavorFeatures(text)
+    ENG-->>BL: FlavorFeatures
+  end
+  BL->>BL: percentiles() 逐维度/marker
+  BL-->>SVC: FlavorBaseline(user)
+  SVC->>DB: saveBaseline(projectId, baseline)
+  SVC-->>IPC: baseline
+  IPC-->>UI: {source, sampleChapters}

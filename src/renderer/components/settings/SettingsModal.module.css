@@ -1,0 +1,197 @@
+/* 模型设置弹窗。沿用全局设计令牌，不引新色系。 */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.card {
+  width: 460px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--mz-bg-surface, #161b22);
+  border: 1px solid var(--mz-border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--mz-text-primary, #e6edf3);
+}
+
+.close {
+  border: none;
+  background: none;
+  color: var(--mz-text-secondary, #8b949e);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.close:hover {
+  background: var(--mz-bg-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.warn {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(217, 119, 6, 0.1);
+  border-left: 3px solid var(--mz-status-warn, #d97706);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--mz-text-primary, #e6edf3);
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--mz-text-secondary, #8b949e);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dotOk {
+  background: var(--mz-status-ok, #16a34a);
+}
+
+.dotWarn {
+  background: var(--mz-status-warn, #d97706);
+}
+
+.mode {
+  font-size: 11px;
+  color: var(--mz-text-secondary, #8b949e);
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--mz-text-secondary, #8b949e);
+}
+
+.input {
+  background: var(--mz-bg-canvas, #0d1117);
+  border: 1px solid var(--mz-border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--mz-text-primary, #e6edf3);
+  outline: none;
+  font-family: inherit;
+}
+
+.input:focus {
+  border-color: var(--mz-accent-ink, #4c8dff);
+}
+
+.keyRow {
+  display: flex;
+  gap: 6px;
+}
+
+.keyRow .input {
+  flex: 1;
+}
+
+.eye {
+  border: 1px solid var(--mz-border-subtle, rgba(255, 255, 255, 0.12));
+  background: var(--mz-bg-surface, #161b22);
+  color: var(--mz-text-secondary, #8b949e);
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+  cursor: pointer;
+  flex: none;
+}
+
+.masked {
+  color: var(--mz-status-ok, #16a34a);
+  font-size: 11px;
+}
+
+.note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--mz-text-secondary, #8b949e);
+}
+
+.ok {
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgba(22, 163, 74, 0.1);
+  border-left: 3px solid var(--mz-status-ok, #16a34a);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.err {
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgba(220, 38, 38, 0.1);
+  border-left: 3px solid var(--mz-status-risk, #dc2626);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.btn {
+  border: 1px solid var(--mz-border-subtle, rgba(255, 255, 255, 0.12));
+  background: var(--mz-bg-surface, #161b22);
+  color: var(--mz-text-primary, #e6edf3);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--mz-accent-ink, #4c8dff);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  background: var(--mz-accent-ink, #4c8dff);
+  color: var(--mz-bg-canvas, #0d1117);
+  border-color: var(--mz-accent-ink, #4c8dff);
+  font-weight: 600;
+}

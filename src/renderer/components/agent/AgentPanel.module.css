@@ -1,0 +1,345 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  padding: 12px;
+  background: var(--mz-bg-surface);
+  border-left: 1px solid var(--mz-border-subtle);
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  font-size: var(--mz-fs-h3);
+  font-weight: var(--mz-fw-semibold);
+  color: var(--mz-text-primary);
+}
+
+/* ── Provider 四态徽标 ── */
+.providerBadge {
+  font-size: var(--mz-fs-xs);
+  padding: 2px 8px;
+  border-radius: var(--mz-radius-full);
+  border: 1px solid var(--mz-border-default);
+  white-space: nowrap;
+  cursor: help;
+}
+.providerBadge.ok {
+  color: var(--mz-sem-pass-fg);
+  background: var(--mz-sem-pass-bg);
+  border-color: var(--mz-sem-pass-border);
+}
+.providerBadge.warn {
+  color: var(--mz-sem-ai-fg);
+  background: var(--mz-sem-ai-bg);
+  border-color: var(--mz-sem-ai-border);
+}
+.providerBadge.risk {
+  color: var(--mz-sem-warn-fg);
+  background: var(--mz-sem-warn-bg);
+  border-color: var(--mz-sem-warn-border);
+}
+.providerBadge.muted {
+  color: var(--mz-text-tertiary);
+}
+
+/* ── 输入 ── */
+.inputRow {
+  display: flex;
+  gap: 6px;
+}
+.input {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--mz-fs-sm);
+}
+.runBtn {
+  flex: none;
+  background: var(--mz-accent);
+  color: var(--mz-accent-ink);
+  border-color: var(--mz-accent);
+  font-weight: var(--mz-fw-medium);
+}
+.runBtn:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+}
+
+/* ── 三态控件：叫停 与 回滚 视觉上必须区分 ── */
+.controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.abortBtn {
+  color: var(--mz-sem-ai-fg);
+  background: var(--mz-sem-ai-bg);
+  border-color: var(--mz-sem-ai-border);
+  font-size: var(--mz-fs-xs);
+}
+.rollbackBtn {
+  color: var(--mz-sem-warn-fg);
+  background: var(--mz-sem-warn-bg);
+  border-color: var(--mz-sem-warn-border);
+  font-size: var(--mz-fs-xs);
+}
+
+/* ── 计划 ── */
+.planBox {
+  padding: 8px;
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-sm);
+}
+.planGoal {
+  font-size: var(--mz-fs-sm);
+  color: var(--mz-text-primary);
+  margin-bottom: 6px;
+  font-weight: var(--mz-fw-medium);
+}
+.planSteps {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+  line-height: 1.7;
+}
+.planSteps em {
+  color: var(--mz-text-tertiary);
+  font-style: normal;
+}
+.skippedBox {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--mz-border-subtle);
+}
+.skippedTitle {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-sem-con-fg);
+  margin-bottom: 3px;
+}
+.skippedItem {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+  line-height: 1.6;
+}
+
+/* ── 预算仪表 ── */
+.budget {
+  display: flex;
+  gap: 10px;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+  padding: 4px 6px;
+  background: var(--mz-bg-inset);
+  border-radius: var(--mz-radius-xs);
+  font-family: var(--mz-font-numeric);
+}
+
+/* ── 轨迹 ── */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.empty {
+  padding: 16px 8px;
+  text-align: center;
+  color: var(--mz-text-tertiary);
+  font-size: var(--mz-fs-sm);
+}
+
+.step {
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-sm);
+  padding: 6px 8px;
+  background: var(--mz-bg-elevated);
+}
+.step.succeeded {
+  border-left: 2px solid var(--mz-sem-pass-strong);
+}
+.step.failed {
+  border-left: 2px solid var(--mz-sem-warn-strong);
+}
+.step.running {
+  border-left: 2px solid var(--mz-accent);
+}
+.step.rolled-back {
+  border-left: 2px solid var(--mz-text-tertiary);
+  opacity: 0.7;
+}
+
+.stepHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.stepHead:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+.stepIcon {
+  width: 14px;
+  flex: none;
+  color: var(--mz-text-secondary);
+}
+.stepNo {
+  font-family: var(--mz-font-numeric);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+  flex: none;
+}
+.toolName {
+  font-family: var(--mz-font-numeric);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dur {
+  font-family: var(--mz-font-numeric);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+  flex: none;
+}
+
+.resultSummary {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+  margin-top: 2px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+.rationale {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-sem-con-fg);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+/* 副作用卡片：说明哪条规则被撤回、为什么 */
+.sideEffect {
+  margin-top: 4px;
+  padding: 5px 6px;
+  background: var(--mz-sem-warn-bg);
+  border: 1px solid var(--mz-sem-warn-border);
+  border-radius: var(--mz-radius-xs);
+}
+.sideEffectTitle {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-sem-warn-fg);
+  margin-bottom: 2px;
+}
+.sideEffectItem {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+  line-height: 1.5;
+}
+
+/* 失败不隐藏 */
+.errorBox {
+  margin-top: 4px;
+  padding: 5px 6px;
+  background: var(--mz-sem-warn-bg);
+  border-radius: var(--mz-radius-xs);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-primary);
+  line-height: 1.5;
+}
+.attempts {
+  margin-top: 3px;
+  color: var(--mz-text-tertiary);
+}
+
+/* 展开详情 */
+.detail {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--mz-border-subtle);
+  font-size: var(--mz-fs-xs);
+}
+.detailRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 3px;
+  color: var(--mz-text-tertiary);
+}
+.detailRow code {
+  font-family: var(--mz-font-numeric);
+  color: var(--mz-text-secondary);
+  word-break: break-all;
+}
+.editList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.editItem {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+}
+.before {
+  color: var(--mz-sem-warn-fg);
+  text-decoration: line-through;
+}
+.arrow {
+  color: var(--mz-text-tertiary);
+}
+.after {
+  color: var(--mz-sem-pass-fg);
+}
+.more {
+  color: var(--mz-text-tertiary);
+}
+
+/* ── 终止徽标 ── */
+.termination {
+  padding: 8px;
+  border-radius: var(--mz-radius-sm);
+  border: 1px solid var(--mz-border-default);
+}
+.termination.ok {
+  background: var(--mz-sem-pass-bg);
+  border-color: var(--mz-sem-pass-border);
+}
+.termination.warn {
+  background: var(--mz-sem-ai-bg);
+  border-color: var(--mz-sem-ai-border);
+}
+.termination.risk {
+  background: var(--mz-sem-warn-bg);
+  border-color: var(--mz-sem-warn-border);
+}
+.termTitle {
+  font-size: var(--mz-fs-sm);
+  font-weight: var(--mz-fw-semibold);
+  color: var(--mz-text-primary);
+}
+.termDetail {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+.keptNote {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--mz-border-subtle);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+  line-height: 1.5;
+}

@@ -1,0 +1,61 @@
+classDiagram
+  class FlavorBaselineSpec {
+    +string label
+    +string unit
+    +FlavorDir dir
+    +string mode
+    +number p05, p25, p50, p75, p95
+    +number mean, sd
+    +number corpusMaxCount, denomCount
+    +number n
+    +boolean calibrated
+    +FlavorConfidence confidence
+    +string skipPolicy
+  }
+  class FlavorMarkerBaseline { +number p50 +number p95 +boolean calibrated }
+  class FlavorBaseline {
+    +string id
+    +string kind
+    +string source
+    +number sampleChapters
+    +number medianChapterChars, medianChapterSents
+    +string engineVersion
+    +Record dims
+    +Record markers
+    +number sat
+  }
+  class DimensionScore {
+    +FlavorDimension dimension
+    +number score
+    +number deviation
+    +boolean calibrated
+    +FlavorConfidence confidence
+  }
+  class FlavorReport { +number index +string baselineId +number calibratedRatio }
+  class FlavorFeatures {
+    +number sentCv, paraCv, ttr, triRepeat
+    +number dialogParaRatio, commaPeriodRatio
+    +Record markerPer1000
+  }
+  class Engine {
+    <<module>> extractFlavorFeatures(text) FlavorFeatures
+    <<module>> scoreByDeviation(v, spec, sat) Score
+    <<module>> detectFlavor(text, id, cfg, baseline) FlavorReport
+  }
+  class BaselineBuilder { buildFlavorBaseline(samples, opts) FlavorBaseline }
+  class FlavorBaselineRepo { saveBaseline() loadBaseline() clearBaseline() }
+  class FlavorRepo { saveScan() scoreTrend() }
+  class AIFlavorService { flavorBaseline() rebuildFlavorBaseline() }
+
+  FlavorBaseline *-- FlavorBaselineSpec
+  FlavorBaseline *-- FlavorMarkerBaseline
+  FlavorReport *-- DimensionScore
+  Engine ..> FlavorFeatures : 提取
+  Engine ..> FlavorBaselineSpec : 读取
+  Engine ..> FlavorReport : 产出
+  BaselineBuilder ..> Engine : 复用 extractFlavorFeatures
+  BaselineBuilder ..> FlavorBaseline : 构建
+  AIFlavorService ..> BaselineBuilder
+  AIFlavorService ..> Engine : 注入 baseline 调用
+  AIFlavorService ..> FlavorBaselineRepo
+  FlavorBaselineRepo ..> FlavorBaseline

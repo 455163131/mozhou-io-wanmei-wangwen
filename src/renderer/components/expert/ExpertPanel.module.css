@@ -1,0 +1,236 @@
+/* 专家团面板样式。冲突是最有价值的信息，故视觉上最突出。 */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--mz-text-primary);
+  overflow-y: auto;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.btn,
+.btnPrimary {
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-primary);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btnPrimary {
+  background: var(--mz-accent-ink);
+  color: var(--mz-bg-canvas);
+  border-color: var(--mz-accent-ink);
+  font-weight: 600;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.chip {
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-secondary);
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--mz-accent-ink);
+}
+
+.chipOn {
+  background: var(--mz-accent-ink);
+  color: var(--mz-bg-canvas);
+  border-color: var(--mz-accent-ink);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--mz-border-subtle);
+}
+
+.sectionTitle {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--mz-text-secondary);
+}
+
+.summary {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--mz-text-secondary);
+}
+
+.hot {
+  color: var(--mz-status-warn, #d97706);
+  font-weight: 600;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+.card {
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--mz-bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ★ 冲突卡片左侧加粗警示条——用户扫一眼就能找到需要决策的地方 */
+.cardConflict {
+  border-left: 3px solid var(--mz-status-warn, #d97706);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.dimTag {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.conflictTag {
+  font-size: 11px;
+  color: var(--mz-status-warn, #d97706);
+  font-weight: 600;
+}
+
+.decisionTag {
+  font-size: 11px;
+  color: var(--mz-text-secondary);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: 4px;
+  padding: 0 5px;
+}
+
+.conf {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--mz-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.conflictBody {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-left: 2px solid var(--mz-border-subtle);
+  padding-left: 8px;
+}
+
+.opinion {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--mz-text-secondary);
+}
+
+.sev {
+  color: var(--mz-status-risk, #dc2626);
+  margin-left: 3px;
+}
+
+.cross {
+  margin-left: 5px;
+  font-size: 10px;
+  color: var(--mz-status-warn, #d97706);
+  border: 1px dashed var(--mz-status-warn, #d97706);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+.opText {
+  color: var(--mz-text-primary);
+  margin-top: 2px;
+}
+
+.suggestion {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--mz-text-primary);
+}
+
+.decideRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px dashed var(--mz-border-subtle);
+}
+
+.needYou {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--mz-status-warn, #d97706);
+}
+
+.decided {
+  font-size: 11px;
+  color: var(--mz-status-ok, #16a34a);
+}
+
+.note {
+  margin: 0;
+  color: var(--mz-text-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.warn,
+.err {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(217, 119, 6, 0.08);
+  border-left: 3px solid var(--mz-status-warn, #d97706);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.err {
+  background: rgba(220, 38, 38, 0.08);
+  border-left-color: var(--mz-status-risk, #dc2626);
+}

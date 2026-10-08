@@ -1,0 +1,119 @@
+@import './tokens.css';
+
+/* 全局基础样式。令牌全部来自 tokens.css（149 个 --mz-* 变量，从原型迁移）。 */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--mz-font-ui);
+  font-size: var(--mz-fs-body);
+  line-height: var(--mz-lh-body);
+  color: var(--mz-text-body);
+  background: var(--mz-bg-canvas);
+  /* 文枢环境光：左上金晕 + 右下玉晕（极低透明度，只给「纸有纹理」的暗示）*/
+  background-image:
+    radial-gradient(1200px 600px at 20% -10%, rgba(217, 169, 96, 0.05), transparent 60%),
+    radial-gradient(900px 500px at 95% 110%, rgba(70, 195, 170, 0.04), transparent 60%);
+  /* 桌面应用不需要字体抗锯齿以外的系统字体缩放 */
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* 文字选区：金调（文枢 selhl）*/
+::selection {
+  background: rgba(217, 169, 96, 0.26);
+  color: var(--mz-text-primary);
+}
+
+/* 滚动条：与暗色主题协调 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--mz-border-default);
+  border-radius: var(--mz-radius-full);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mz-border-strong);
+  background-clip: padding-box;
+}
+
+/* 焦点可见性：键盘导航必须有可见焦点，且永不移除 */
+:focus-visible {
+  outline: var(--mz-focus-width) solid var(--mz-focus-color);
+  outline-offset: var(--mz-focus-offset);
+}
+
+/* 数字统一等宽，避免指标跳动时数字宽度变化导致布局抖动 */
+.mz-num {
+  font-family: var(--mz-font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* 编辑器正文：长文可读性 */
+.mz-prose {
+  font-family: var(--mz-editor-font-novel);
+  font-size: var(--mz-editor-size-novel);
+  line-height: var(--mz-editor-lh-novel);
+  max-width: var(--mz-editor-measure-novel);
+  color: var(--mz-text-body);
+  letter-spacing: var(--mz-tracking-cjk);
+  line-break: strict;
+  overflow-wrap: break-word;
+  text-autospace: normal;
+}
+
+/* 表单元素跟随暗色主题 */
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+input,
+textarea {
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-sm);
+  padding: 6px 10px;
+}
+input:focus,
+textarea:focus {
+  border-color: var(--mz-accent);
+}
+
+button {
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-sm);
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background var(--mz-dur-fast) var(--mz-ease-standard);
+}
+button:hover:not(:disabled) {
+  background: var(--mz-bg-hover);
+}
+button:disabled {
+  color: var(--mz-text-disabled);
+  cursor: not-allowed;
+}
