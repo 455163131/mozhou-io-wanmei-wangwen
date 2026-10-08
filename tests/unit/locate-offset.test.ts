@@ -94,3 +94,98 @@ describe('★ 段落定位：重复段落不许都指向第一次出现处', () 
     );
   });
 });
+
+/**
+ * ★ 句子分支（§4 第 12 条）：同一个缺陷的另一半。
+ *
+ * `avgSent` / `sentCv` 用的也是 `body.indexOf(s)` 反查（修复前 analyze.ts:254），
+ * 而 `indexOf` 永远从 0 起找，所以**同一段落内重复的句子**两条命中指向同一个位置。
+ *
+ * §4 原文的另一半猜测是对的，这里用实测把它钉住（node 复核过 split 边界）：
+ * `split(/(?<=[。！？…])/)` 是**在终止符之后**断开，换行符归**下一个**片段，
+ * 于是跨段的重复句文字自带 `\n` 前缀、整段文本唯一 → indexOf 恰好给对位置。
+ * 所以这个缺陷只在段内重复时暴露，跨段那一半边原本是对的，不能弄坏（最后一条用例）。
+ *
+ * 语义上不需要新决策：修复前的代码本来就把同一句的两次出现各报一条
+ * （只是两条都指向首次出现处），本条只把 `at` 改对，命中条数与排序口径不变。
+ * 累加口径与段落分支差 1：句子片段自带终止符、片段之间没有被吃掉的分隔符，
+ * 所以只加 `s.length`；段落分支按 `\n` 连接要加 `p.length + 1`。
+ */
+function sentOffsets(parts: string[]): number[] {
+  const at: number[] = [];
+  let o = 0;
+  for (const s of parts) {
+    at.push(o);
+    o += s.length;
+  }
+  return at;
+}
+
+async function runSentOn(body: string, metric: string) {
+  const deps: ReadOnlyDeps = {
+    getBodies: async () => new Map([['c1', body]]),
+    chapterTitle: () => '第一章',
+    allChapterIds: async () => ['c1'],
+    baseline: () => ({ source: 'test', metrics: {}, markerDensity: {} }),
+  };
+  const res = await locateIssues({ metric, chapterIds: ['c1'] }, CTX, deps);
+  expect(res.ok, `locate_issues(${metric}) 失败：${res.error?.message}`).toBe(true);
+  return { body, locations: res.data?.locations ?? [] };
+}
+
+// 全部句子在同一段落内（body 里没有 \n）：DUP 出现在第 2 与第 4 句。
+const SENT_MID = '中间这句最长，用来占住排序第一位。';
+const SENT_DUP = '这句在同一段里重复出现两次。';
+const SENT_SHORT = '短句。';
+const SENTS = [SENT_MID, SENT_DUP, SENT_SHORT, SENT_DUP];
+
+async function runSent(metric: string) {
+  return runSentOn(SENTS.join(''), metric);
+}
+
+describe('★ 句子定位：段内重复句不许都指向第一次出现处', () => {
+  it('avgSent：同一句的两次命中落在各自的真实起点', async () => {
+    const { body, locations } = await runSent('avgSent');
+    const expected = sentOffsets(SENTS);
+    const dupHits = locations.filter((l) => body.slice(l.at, l.at + SENT_DUP.length) === SENT_DUP);
+
+    expect(dupHits.length, '重复句应被命中两次').toBe(2);
+    // 修复前两条都是 17（indexOf 从 0 起找，两次都回指首次出现处）
+    expect(dupHits.map((l) => l.at).sort((a, b) => a - b)).toEqual(
+      [expected[1], expected[3]].sort((a, b) => a - b),
+    );
+    expect(new Set(locations.map((l) => l.at)).size, '偏移重复').toBe(locations.length);
+  });
+
+  it('avgSent：每条命中的 at 处逐字等于被选中的句子', async () => {
+    const { body, locations } = await runSent('avgSent');
+    for (const l of locations) {
+      const hit = [SENT_MID, SENT_DUP, SENT_SHORT].find(
+        (s) => body.slice(l.at, l.at + s.length) === s,
+      );
+      expect(hit, `at=${l.at} 处不是任何一句的起点`).toBeTruthy();
+    }
+  });
+
+  it('sentCv：与 avgSent 同一分支，偏移同样精确', async () => {
+    const { body, locations } = await runSent('sentCv');
+    const expected = sentOffsets(SENTS);
+    const dupHits = locations.filter((l) => body.slice(l.at, l.at + SENT_DUP.length) === SENT_DUP);
+    expect(dupHits.map((l) => l.at).sort((a, b) => a - b)).toEqual(
+      [expected[1], expected[3]].sort((a, b) => a - b),
+    );
+  });
+
+  it('跨段重复句：片段自带 \\n 前缀使文本唯一，累加不许弄坏原本对的那半边', async () => {
+    // 断言用 indexOf 独立反查真位置——这里能信，正是因为三个片段文本互不相同
+    // （换行归下一片段）。这条在修复前后都应为绿，是「修 A 不许坏 B」的护栏。
+    const body = `${SENT_DUP}\n过渡一句。\n${SENT_DUP}\n`;
+    const frags = [SENT_DUP, '\n过渡一句。', `\n${SENT_DUP}`];
+    const { locations } = await runSentOn(body, 'avgSent');
+
+    expect(frags.map((f) => body.indexOf(f))).toEqual([0, SENT_DUP.length, SENT_DUP.length + 6]);
+    expect(locations.map((l) => l.at).sort((a, b) => a - b)).toEqual(
+      frags.map((f) => body.indexOf(f)).sort((a, b) => a - b),
+    );
+  });
+});

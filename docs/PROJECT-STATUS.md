@@ -15,7 +15,7 @@
 | 模型接入 | ✅ 6 家 Provider（DeepSeek/OpenRouter/本地等）+ safeStorage 加密 Key + 连接测试 |
 | 检查点回滚 | ✅ Agent 每步快照，改动历史可回滚 |
 | 便携版 | ⚠️ `墨舟写作台-0.1.0-portable.exe`（74MB 免安装，双击即用）**但**：`release/` 里那个产物是 §4 第 8 条修复**之前**打的，数据仍写 %APPDATA%。要让数据真的跟着 exe 走，须按第六节重新 `npx electron-builder --win portable --x64`（重新打包后需实测，见第 14 条） |
-| 测试基线 | ✅ 470 用例全通（29 文件，2026-10-09 实测。旧文档的「281」是 10-08 前的口径，其后修复提交新增了大量用例）+ 验收脚本 9 项。**必须走 `npm test`**，见第五节 |
+| 测试基线 | ✅ 474 用例全通（29 文件，2026-10-09 实测。旧文档的「281」是 10-08 前的口径，其后修复提交新增了大量用例）+ 验收脚本 9 项。**必须走 `npm test`**，见第五节 |
 | UI 设计定稿 | ✅ 「文枢」水墨金风格（五模式外壳已移植进 React 渲染层）|
 
 ---
@@ -78,7 +78,7 @@ Electron 33.4.11  +  React 19  +  TypeScript 5.8  +  Zustand 5(persist)
 | 13 | **账本无任何写入路径（新发现，未修）** | 复核 §1.4 时确认：`memCharacters/memNumbers/memTimeline/memForeshadows` 四个 Map 全仓**只有读、没有 `.set()`**，`ledger_*` 五张表只有 `db/migrate.ts` 里的 DDL、没有 repo。后果比文档原写的「重启丢失」严重——账本**会话内也恒为空**，`query_ledger` 永远返回空集合，S2 跨章一致性对账无数据来源。详见 `REMAINING.md` §1.4（已同步修正） | 中 |
 | 10 | ~~事件载荷硬编码~~ ✅ **已修（2026-10-09）** | `loop.ts` 的 `agent:tool-call` 写死 `danger: 1` 与 `writePolicy: 'auto-with-undo'`，与实际 `spec.danger` / 本次 run 解析出的策略无关 → ★2~★5 一律报成 ★1、用户切过的策略一律报成老板默认值。已按 `setIdempotentTools` 的既有注入模式补 `loop.setToolReport(toolSpecs, writePolicy.policy)`，事件字段类型收紧为 `ToolDanger \| null` / `WritePolicy \| null`（未注入时如实给 null，绝不编数字），`ipc.ts` 契约同步。**更正本条原写的「界面显示不真实」**：全仓 grep 确认渲染层没有任何订阅方（`preload/api.ts:195` 只是把通道名加进白名单），所以此前无用户可见的错误显示——但虚假载荷确实每条都跨过了一条白名单 IPC 通道，任何未来接入方一上手就拿到错值。补 `tests/integration/tool-call-payload.test.ts`（5 条，起真 AgentHost + 真 registry，断言对外事件本身） | ~~低~~ — |
 | 11 | ~~`locate_issues` 段落定位错位~~ ✅ **已修（2026-10-09）** | `analyze.ts` 段落分支（`avgPara`/`sentsPerPara`）的 `offset` 是死变量（`map` 从不累加），位置全靠 `body.indexOf(段落)` 兜底 → 重复段落的两条命中都落到**首次出现处**，后续 `replace_phrase` 会改错地方。已改为按文档顺序逐段累加、删掉 `indexOf` 兜底，并补 `tests/unit/locate-offset.test.ts`（3 条） | ~~低~~ — |
-| 12 | **句子分支同病（新发现，未修）** | 紧挨着 #11 的 `avgSent`/`sentCv` 分支仍是 `body.indexOf(s)` 从 0 反查。跨行重复句恰好因片段自带 `\n` 前缀而不会撞车，但**同一段落内的重复句会**：实测 body=`B+A+A+B`（B 长 17、A 长 4）时返回 `at = 0, 0, 17`，第二条 B（真实位置 25）指向了 0。修法与 #11 一致（改为累加偏移），但需先确认是否要保住「同一句在段内重复时只报一次」的语义 | 低 |
+| 12 | ~~句子分支同病~~ ✅ **已修（2026-10-09）** | 紧挨着 #11 的 `avgSent`/`sentCv` 分支仍是 `body.indexOf(s)` 从 0 反查（修复前 `analyze.ts:254`）。实测 body=`B+A+A+B`（B 长 17、A 长 4）时返回 `at = 0, 0, 17`，第二条 B（真实位置 25）指向了 0。已改为按 `split` 顺序逐句累加。**原条目里两句猜测，一句应验、一句需要澄清**：① 「跨行重复句因片段自带 `\n` 前缀而不会撞车」**成立**——`split(/(?<=[。！？…])/)` 在终止符之后断开，换行归**下一个**片段，所以跨段重复句的片段文本唯一、`indexOf` 恰好给对位置（node 复核过边界），这一半边本来就对，因此新增一条护栏用例钉住「修句子分支不许弄坏跨段那半边」；② 「需先确认是否要保住段内重复只报一次的语义」**不必再等决策**——修复前代码本就把同一句的两次出现各报一条，本次只改 `at`，命中条数与排序口径一字未动。累加口径与段落分支差 1（句子片段之间没有被吃掉的分隔符，只加 `s.length`）。补 4 条用例进 `tests/unit/locate-offset.test.ts`（红阶段实测：两条 DUP 都是 17） | ~~低~~ — |
 
 ---
 

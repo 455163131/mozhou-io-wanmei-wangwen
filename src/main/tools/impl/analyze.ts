@@ -248,10 +248,17 @@ function locateInChapter(chapterId: string, body: string, metric: string): Issue
 
   // 结构类指标：定位最长句/最长段（偏离的主要来源）
   if (metric === 'avgSent' || metric === 'sentCv') {
-    // 最长的几句
+    // 最长的几句。偏移必须按 split 顺序逐句累加：`body.indexOf(句子)` 永远从 0 起找，
+    // 同一句重复出现时两条命中都指向首次出现处（§4 第 12 条，与段落分支同病）。
+    // 与段落分支的累加口径差 1：句子片段自带终止符，片段之间没有被吃掉的分隔符。
+    let offset = 0;
     const sentences = body
       .split(/(?<=[。！？…])/)
-      .map((s) => ({ s, at: body.indexOf(s) }))
+      .map((s) => {
+        const at = offset;
+        offset += s.length;
+        return { s, at };
+      })
       .filter((x) => x.s.trim().length > 0)
       .sort((x, y) => y.s.length - x.s.length)
       .slice(0, 3);
