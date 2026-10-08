@@ -12,7 +12,7 @@
  *
  * 退出码：0 = 全部通过；非 0 = 有环节失败（可直接用于 CI 门禁）。
  */
-import { existsSync, rmSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, rmSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -120,6 +120,18 @@ function listTestFiles() {
   return out.sort();
 }
 
+/**
+ * 解析 vitest 输出里的「实际执行用例数」。
+ *
+ * ⚠️ 当前**没有调用方**：本脚本在本机沙箱下被禁止 spawn 子进程
+ * （`spawnSync('node', ...)` 返回 EBUSY），故不代跑 vitest，只做静态检查
+ * （见 README「冒烟自检」一节）。在能 spawn 的正常终端里，本函数用于把
+ * 「静态声明的用例数」与「实际执行数」对齐——项目曾被 vitest 静默漏跑坑过
+ * （REMAINING.md §3.6：报「1 文件 / 19 用例全通过」而实际有 44 个）。
+ *
+ * 保留而非删除：它承载的是那个教训的防线。若将来 smoke 恢复代跑 vitest，直接接上。
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 见上方说明：沙箱禁止 spawn 期间暂无调用方
 function countExecutedTests(output) {
   const clean = output.replace(/\[[0-9;]*m/g, '');
   const m = clean.match(/Tests\s+(\d+)\s+passed/);

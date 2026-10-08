@@ -228,6 +228,9 @@ export class BackupManager {
 
 /** Windows/POSIX 都不允许的文件名字符，统一换成下划线 */
 function sanitizeForFileName(name: string): string {
+  // C0 控制字符必须一并清掉：它们能出现在用户自取的项目名里（复制粘贴带入），
+  // 留着会让文件名在终端/资源管理器里表现诡异，也可能截断日志。
+  // eslint-disable-next-line no-control-regex -- 刻意匹配控制字符，见上
   const cleaned = name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').trim();
   // 兜底：全被清洗掉或为空时给个稳定占位，避免产出 `__2026-....mzproj` 这类怪名字
   return cleaned.length > 0 ? cleaned.slice(0, 60) : 'project';

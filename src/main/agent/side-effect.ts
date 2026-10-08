@@ -188,7 +188,7 @@ export function sweepSideEffects(
 ): SideEffectSweepResult {
   const accepted: RuleApplication[] = [];
   const rejected: SideEffectSweepResult['rejected'] = [];
-  let acceptedIds: string[] = [];
+  const acceptedIds: string[] = [];
 
   for (const app of perRule) {
     // 逐条复检：把当前这条规则叠加到已接受的结果上，看是否引入副作用

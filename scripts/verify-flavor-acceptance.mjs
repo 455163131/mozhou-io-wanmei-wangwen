@@ -90,7 +90,6 @@ const {
 } = builder;
 const {
   DEFAULT_FLAVOR_BASELINE,
-  isBaselineStale,
 } = baselineMod;
 
 const { detectFlavor, FLAVOR_ENGINE_VERSION, FLAVOR_FEATURE_VERSION } = engine;

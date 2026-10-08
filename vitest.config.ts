@@ -61,6 +61,53 @@ export default defineConfig({
     // 用例数随功能增长（当前 15 文件 / 277 个），串行的耗时可接受，换来确定性。
     pool: 'forks',
     poolOptions: { forks: { singleFork: true } },
+
+    /**
+     * ★★ 覆盖率：让「用例全绿但根本没测到」这件事可见 ★★
+     *
+     * 引入前本项目**完全没有覆盖率工具**（无 coverage 配置、无 test:coverage 脚本、
+     * 无 @vitest/coverage-v8 依赖）。于是「281 全绿」这个数字不含任何覆盖率语义：
+     * 实测 src/main 有 15 个文件从未被任何测试加载、16 个仅被传递加载而自身行为
+     * 无断言，渲染层 3308 行是配置级不可能被测（environment:'node' 且无 jsdom）。
+     *
+     * 后果是具体的：9 个阻断级缺陷全部位于「装配层」——算法都对，但没接上。
+     * ipc/register.ts(775行)、services.ts(692行)、tools/sandbox.ts(281行，
+     * 文件头自称「唯一防线」)、fs/project-fs.ts(resolveInProject 是唯一的
+     * 目录穿越防线)、llm/keyring.ts、security.ts 此前全是零覆盖。
+     *
+     * 阈值刻意设得**低于当前实际值**：先让门能过、把趋势锁住（只许涨不许跌），
+     * 再随装配层测试补齐逐步上调。一上来设高阈值只会让人加 --no-verify。
+     *
+     * ⚠️ 已知环境限制（2026-10-09 实测）：在本机 WorkBuddy 沙箱下 `npm run test:coverage`
+     *   会以 Unhandled Rejection 失败——v8 provider 往临时目录写 coverage-N.json 时
+     *   报 ENOENT，**预先创建该目录也无效**。这与本文件头部记录的 fs shim 问题同源
+     *   （`node-brokered-fs-shim.cjs` 代理层），不是配置错误：同样的配置在正常终端
+     *   与 CI 下可用。故 `npm test`（不带 --coverage）仍是本机的验收命令，
+     *   覆盖率门请在 CI 或本地正常终端执行。
+     */
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      // ★ 必须用绝对路径：写成相对路径时报告目录会相对 root 二次解析，
+      //   与本项目 include 那条「必须用正斜杠相对 glob」的坑同源。
+      //   注：vitest 2.1 的 CoverageV8Options **没有** tempDirectory 选项
+      //   （v8 provider 固定用 `<reportsDirectory>/.tmp`），故此处不设。
+      reportsDirectory: resolve(__dirname, '.tmp/coverage'),
+      include: ['src/**/*.ts', 'src/**/*.tsx'],
+      exclude: [
+        'src/**/*.d.ts',
+        'src/renderer/**', // environment:'node' 下无法执行，计入只会得到恒 0 的噪声
+        'src/main/index.ts', // 顶层副作用入口，依赖 Electron app 生命周期
+        'src/main/menu.ts',
+      ],
+      // 起点阈值（2026-10-09 实测后设定）：只许涨不许跌
+      thresholds: {
+        lines: 45,
+        functions: 45,
+        branches: 35,
+        statements: 45,
+      },
+    },
   },
   resolve: {
     alias: {

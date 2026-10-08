@@ -82,30 +82,42 @@ export function App(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    void bootstrap();
-  }, []);
-
-  async function bootstrap(): Promise<void> {
-    if (!hasBridge()) {
-      setError('preload 未加载成功 —— 无法与主进程通信。请检查 preload 构建格式是否为 CJS。');
-      return;
-    }
-    try {
-      const list = await bridge().project.list();
-      if (list.length > 0) {
-        const p = await bridge().project.open(list[0].rootDir);
-        useProjectStore.getState().setProject(p);
-        const chapters = await bridge().chapter.list();
-        useProjectStore.getState().setChapters(chapters);
-        useProjectStore.getState().setVolumes(await bridge().project.volumes());
+    /**
+     * 定义在 effect **内部**：它只被这里调用一次。
+     *
+     * 修复前它定义在组件体内、而 effect 依赖数组是空的 —— `exhaustive-deps`
+     * 会报缺失依赖（本项目此前无 lint，故无人发现）。而「加进依赖数组」是错的解法：
+     * 组件每次渲染都会重建这个函数，加进依赖会让 effect 每轮重跑、反复打开项目。
+     * 正确解法是把只用一次的函数移进 effect。
+     *
+     * StrictMode 下 effect 仍会双跑，但 `services.openProject` 已加同项目幂等守卫，
+     * 重复 open 不再重置主进程单例、也不再重推事件，故这里是安全的。
+     */
+    async function bootstrap(): Promise<void> {
+      if (!hasBridge()) {
+        setError('preload 未加载成功 —— 无法与主进程通信。请检查 preload 构建格式是否为 CJS。');
+        return;
       }
-      setLlmStatus(await bridge().llm.status());
-      await loadDash();
-      useProjectStore.getState().setLoading(false);
-    } catch (e) {
-      setError(errorText(e));
+      try {
+        const list = await bridge().project.list();
+        if (list.length > 0) {
+          const p = await bridge().project.open(list[0].rootDir);
+          useProjectStore.getState().setProject(p);
+          const chapters = await bridge().chapter.list();
+          useProjectStore.getState().setChapters(chapters);
+          useProjectStore.getState().setVolumes(await bridge().project.volumes());
+        }
+        setLlmStatus(await bridge().llm.status());
+        await loadDash();
+        useProjectStore.getState().setLoading(false);
+      } catch (e) {
+        setError(errorText(e));
+      }
     }
-  }
+
+    void bootstrap();
+    // loadDash 是 useCallback([])、setError 是 zustand action，两者引用恒定
+  }, [loadDash, setError]);
 
   async function openProject(): Promise<void> {
     try {

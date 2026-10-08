@@ -84,7 +84,7 @@ function cvOf(a) {
  * 仅供「偏差根因解释」用的标点集合（**不是引擎口径**）。
  * 旧基线把标点排除在句长之外；此正则用于复现旧口径以证明偏差来源。
  */
-const ALT_PUNCT = /[。！？…，,、；;：:“”"「」『』（）()—–\-]/g;
+const ALT_PUNCT = /[。！？…，,、；;：:“”"「」『』（）()—–-]/g;
 
 /** 线性插值分位数（numpy 默认口径）。sorted 必须已升序 */
 function percentile(sorted, p) {
