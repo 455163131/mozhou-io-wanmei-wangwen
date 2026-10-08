@@ -13,6 +13,7 @@ import { analyzeChapter, getHealthReport, locateIssues, listFixRules } from './i
 import { applyFixTool, type FixDeps } from './impl/fix';
 import { replacePhrase, type PhraseDeps } from './impl/phrase';
 import { queryLedger, type LedgerDeps } from './impl/ledger-query';
+import { updateLedger, type UpdateLedgerArgs } from './impl/ledger-update';
 import { scanProject, type ScanDeps } from './impl/scan';
 import { distillReferenceWork, type DigestDeps } from './impl/digest';
 import { undoToCheckpoint, rollbackSideEffect, type UndoDeps } from './impl/undo';
@@ -194,6 +195,44 @@ export class ToolRegistry {
         300,
       ),
       (args, ctx) => queryLedger(args as { kind?: string; subject?: string }, ctx, d),
+    );
+
+    // ── update_ledger（★1 写工具，写的是账本表不是正文，故不占正文 checkpoint 预算）──
+    //
+    // ★ 这条工具是 §4 第 13 条的正解：账本此前"表建好了、逻辑写好了、没人喂"。
+    //   登记必须带原文出处（章 + 逐字引文），系统会读真正文核验并回填 offset，
+    //   核验不过整批不写——宁可让模型重来一次，也不收下没有证据的"设定"。
+    this.reg(
+      {
+        name: 'update_ledger',
+        displayName: '登记情节记忆',
+        description:
+          '把读到的人物设定、数字锚点、时间线事件、伏笔登记进账本，供后续章节引用与跨章一致性对账。' +
+          '每条都必须带出处 refs:[{chapterId, quote}]，quote 要能在该章正文里逐字找到。' +
+          '同一人物（同名）/同一锚点重复登记会覆盖旧条目，不会多出一条互相矛盾的"事实"。',
+        params: [
+          {
+            name: 'entries',
+            type: 'object',
+            required: true,
+            maxLength: 16 * 1024,
+            description:
+              '形如 { characters:[{name,role,age,note,refs:[{chapterId,quote}]}], ' +
+              'numbers:[{value,subject,unit,refs:[…]}], timeline:[{when,what,refs:[…]}], ' +
+              'foreshadows:[{plantedChapterId,plantedQuote,status,resolvedChapterId,resolvedQuote}] }。' +
+              '四类都可省略，但给了的每一条都要有 refs。数字的 value 保留原文写法（如「3.5万」），' +
+              '可选 numeric 给归一值（35000）；不传 numeric 时系统自己折算。id 一律不许传，由系统生成。',
+          },
+        ],
+        danger: ToolDanger.Precise,
+        reversible: false,
+        maxAffectedBytes: 0,
+        crossChapter: false,
+        costHintMs: 120,
+        idempotent: true,
+        writes: true,
+      },
+      (args, ctx) => updateLedger(args as UpdateLedgerArgs, ctx, d),
     );
 
     this.reg(

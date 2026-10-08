@@ -78,3 +78,24 @@ export interface LedgerQuery {
   subject?: string;
   limit?: number;
 }
+
+/**
+ * 一次批量登记的载荷（§4 第 13 条）。
+ *
+ * ★ 四类都可省略：Agent 读到一条人物设定就想登记，不该被迫同时凑齐四类。
+ *   但每一类一旦给了就必须整类合法——半批非法整批不写（见 LedgerRepo 事务注释）。
+ */
+export interface LedgerEntries {
+  characters?: CharacterProfile[];
+  numbers?: NumberAnchor[];
+  timeline?: TimelineEvent[];
+  foreshadows?: Foreshadow[];
+}
+
+/** 登记后各类的实际条数（整表计数，不是"本批写了几条"），用于回执与 UI 刷新 */
+export interface LedgerCounts {
+  characters: number;
+  numbers: number;
+  timeline: number;
+  foreshadows: number;
+}

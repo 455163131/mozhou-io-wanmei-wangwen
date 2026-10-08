@@ -8,7 +8,7 @@ import type { LlmStatus } from './provider';
 import type { Chapter, ChapterMeta, Project, Volume, StyleProfile } from './project';
 import type { ChapterAnalysis, HealthReport, IssueLocation, RuleInfo } from './health';
 import type { ChangeSet, ToolSpec } from './tool';
-import type { LedgerQuery, LedgerConflict, CharacterProfile } from './ledger';
+import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, LedgerCounts } from './ledger';
 import type { Checkpoint, RollbackResult } from './checkpoint';
 import type { RunState, TerminationReason, RunStats, StepRecord } from './agent';
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
@@ -106,7 +106,7 @@ export interface IpcInvokeMap {
   'health:rules': { req: { layer?: string }; res: RuleInfo[] };
 
   'ledger:query': { req: LedgerQuery; res: { conflicts: LedgerConflict[]; characters: CharacterProfile[] } };
-  'ledger:upsert': { req: { character: CharacterProfile }; res: CharacterProfile };
+  'ledger:upsert': { req: { entries: LedgerEntries }; res: LedgerCounts };
 
   'tool:list': { req: void; res: ToolSpec[] };
   'tool:preview': { req: ToolPreviewPayload; res: ChangeSet };

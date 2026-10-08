@@ -9,13 +9,13 @@
 
 | 事项 | 状态 |
 |---|---|
-| 核心链路 | ✅ 全通：五模式 UI + 51 条 invoke 通道 + 14 条订阅通道 + SQLite 持久化 + Agent 循环 |
+| 核心链路 | ✅ 全通：五模式 UI + 55 条 invoke 通道 + 14 条订阅通道 + SQLite 持久化 + Agent 循环 |
 | AI 味检测 | ✅ 10 维度引擎 + 语料基线校准（715 章真实语料）+ 用户自建基线 |
 | 专家团评审 | ✅ 6 角色（结构/人物/对白/文字/读者/类型）+ 冲突并列 + 作者裁决 |
 | 模型接入 | ✅ 6 家 Provider（DeepSeek/OpenRouter/本地等）+ safeStorage 加密 Key + 连接测试 |
 | 检查点回滚 | ✅ Agent 每步快照，改动历史可回滚 |
 | 便携版 | ⚠️ `release/` 里现存的 `墨舟写作台-0.1.0-portable.exe`（74MB，2026-10-08 07:56 打）**两处过时**：① 是 §4 第 8 条修复**之前**的产物，数据仍写 %APPDATA%；② 文件名带着第 6 条修复**之前**的旧 productName。重新打包后产物名变为 `木萱网文写作台-0.1.0-portable.exe`，须按第六节 `npx electron-builder --win portable --x64`，且重新打包后需实测（见第 14 条） |
-| 测试基线 | ✅ **527 用例全绿（33 文件，2026-10-09 05:05 实测**，含第 6 条 brand-naming 7 条 + 第 5 条 app-icon 9 条 + 第 4 条 volume-order 15 条与 wiring 22 条）+ 验收脚本 9 项。**必须走 `npm test`**，见第五节。旧文档的「281」是 10-08 前的口径 |
+| 测试基线 | ✅ **570 用例全绿（36 文件，2026-10-09 05:27 实测**，含第 6 条 brand-naming 7 条 + 第 5 条 app-icon 9 条 + 第 4 条 volume-order 15 条与 wiring 22 条 + 第 13 条 ledger-repo 18 条、ledger-update-tool 13 条与 write-wiring 12 条）+ 验收脚本 9 项。**必须走 `npm test`**，见第五节。旧文档的「281」「527」是修复前的口径 |
 | UI 设计定稿 | ✅ 配色 v2.0「素笺·朱批」（浅色纸面 + 浓墨 + 朱砂单一强调，见 `styles/tokens.css:2`）；外壳为布局 v2（竖排模式导航 + 可折叠双栏）。旧设计代号「文枢」已**不再作为对外品牌**出现（第 6 条）|
 | 对外品牌名 | ✅ 统一为「木萱网文写作台」，单一来源 `src/shared/constants/brand.ts`（第 6 条）。内部标识（`package.json name=mozhou-agent`、`appId=com.mozhou.writer`）与 Agent 笔名「墨舟」**故意保留** |
 
@@ -44,14 +44,14 @@ Electron 33.4.11  +  React 19  +  TypeScript 5.8  +  Zustand 5(persist)
 
 | 域 | 通道 | 说明 |
 |---|---|---|
-| 项目 | `project:open/close/list/save/volumes` | 项目生命周期与分卷 |
-| 章节 | `chapter:list/get/update` | 章节元数据与正文（乐观锁 rev）|
+| 项目 | `project:open/close/list/save/volumes/create-volume/reorder-volumes` | 项目生命周期、分卷与卷序重排 |
+| 章节 | `chapter:list/get/update/reorder/set-volume` | 章节元数据与正文（乐观锁 rev）、章序重排、换卷 |
 | Agent | `agent:run/abort/state/history` | Agent 循环（runId + 事件推送）|
 | 检查点 | `checkpoint:list/undo` | 改动历史与回滚 |
 | AI 味 | `aiFlavor:scan/latest/trend/rewrite/config/baseline/rebuildBaseline` | 检测/改写/基线 |
 | 专家团 | `expert:roles/review/history/decide/config` | 角色注册表/评审/裁决 |
 | 模型 | `llm:status/configure/test` | Provider 状态/配置/连通测试 |
-| 设定 | `ledger:query` | 设定账本（人物/数字锚点/时间线/伏笔冲突）|
+| 设定 | `ledger:query` / `ledger:upsert` | 设定账本读（人物/数字锚点/时间线/伏笔/冲突）与写（entries → 四类计数）|
 | 仪表盘 | `dash:stats` | 全书统计（状态计数/卷进度/检查点数/LLM 用量）|
 | 导出 | `export:run` | 稿件导出 |
 
@@ -75,8 +75,8 @@ Electron 33.4.11  +  React 19  +  TypeScript 5.8  +  Zustand 5(persist)
 | 7 | 审稿模式行内标注 | 现为报告式；行内 wavy 标注需把命中 offset 映射回编辑器 | 高 |
 | 8 | ~~便携版数据目录~~ ✅ **已修（2026-10-09）** | `electron-builder.yml:21` 打了 `portable` 目标，但主进程从没读过启动器注入的 `PORTABLE_EXECUTABLE_DIR`（= exe 所在目录）→ 数据永远写 `%APPDATA%\mozhou-agent`（本条原写「`%APPDATA%\墨舟写作台`」是**错的**，实测目录名来自 `package.json` 的 `name`，与 productName 无关），「便携」名不副实。新增纯函数 `src/main/data-dir.ts:portableDataDir()`（只吃 env，可注入测试），入口 `index.ts` 在**第一个 `app.getPath('userData')` 被读之前** `app.setPath`。四个消费点（`services.ts:85` db、`:92` 备份、`keyring.ts:21` 凭据、`ipc/register.ts:61` `app:getPaths`）实测全部走同一个 getter，所以改一处全体生效、无需逐个加分支；递归建目录 + `try/catch` 兜底，写保护介质上退回默认目录而不是双击没反应。未设变量的 NSIS 版/开发模式返回值恒为 `null`，行为零变化。补 `tests/integration/portable-data-dir.test.ts`（10 条：6 行为 + 4 装配哨兵，含「设置必须早于 `new AppServices()`」的顺序断言）。**遗留见第 14 条** | ~~低~~ — |
 | 14 | **便携版换目录后的旧数据与旧凭据（新发现，待定夺）** | ① 已在用旧便携版的用户升级到本次修复后的构建，exe 旁边会新建一个空的 `mozhou-data`，书稿仍留在上一台机器的 %APPDATA% 里 → 表现为「项目列表空了」，需要一份「把旧 userData 整体搬到 exe 旁」的说明或一次性迁移（迁移涉及覆盖既有 db，不能顺手做）。② `safeStorage` 的密钥是**按机器/按用户**的（DPAPI），便携包换机器后旧 `llm-credentials.bin` 必然解不开；已实测降级路径是安全的（`keyring.ts:51-53` catch 后返回 `undefined`，不崩），但用户需重输一次 Key | 低-中 |
-| 9 | ~~账本摘要未并入状态指纹~~ ✅ **已修（2026-10-09）** | `services.ts` 的 `computeStateHash()` 调 `ledgerDigest([])` 传空数组，注释承诺的「只改账本也能被检测到」从未生效 → 判据 B 会把「只改账本」误判为 `no-effect`。已抽出 `util/hash.ts:ledgerStateEntries()` 把四类账本摊平接进指纹，补 `tests/integration/ledger-statehash-wiring.test.ts`（7 条：4 条行为 + 3 条装配哨兵）。**但注意**：写入侧仍缺失，见第 13 条，故本条修完暂无可观测行为变化 | ~~低~~ — |
-| 13 | **账本无任何写入路径（新发现，未修）** | 复核 §1.4 时确认：`memCharacters/memNumbers/memTimeline/memForeshadows` 四个 Map 全仓**只有读、没有 `.set()`**，`ledger_*` 五张表只有 `db/migrate.ts` 里的 DDL、没有 repo。后果比文档原写的「重启丢失」严重——账本**会话内也恒为空**，`query_ledger` 永远返回空集合，S2 跨章一致性对账无数据来源。详见 `REMAINING.md` §1.4（已同步修正） | 中 |
+| 9 | ~~账本摘要未并入状态指纹~~ ✅ **已修（2026-10-09）** | `services.ts` 的 `computeStateHash()` 调 `ledgerDigest([])` 传空数组，注释承诺的「只改账本也能被检测到」从未生效 → 判据 B 会把「只改账本」误判为 `no-effect`。已抽出 `util/hash.ts:ledgerStateEntries()` 把四类账本摊平接进指纹，补 `tests/integration/ledger-statehash-wiring.test.ts`（7 条：4 条行为 + 3 条装配哨兵）。**当时**写入侧还缺失（本条修完暂无可观测行为变化）；第 13 条已把写入侧接通，指纹现在吃的是真账本 | ~~低~~ — |
+| 13 | ~~账本无任何写入路径~~ ✅ **已修（2026-10-09）** | 复核 §1.4 时确认的三个"零调用方"全部实测过：`memCharacters/memNumbers/memTimeline/memForeshadows` 四个 Map **只有 get、没有 `.set()`**；`db/migrate.ts` version 3 建的 `ledger_*` 五张表没有任何 repo；`handle('ledger:upsert', ...)` 是**回显桩**（把入参 `p.character` 原样返回，对外宣称"已登记"、落库 0 条）；连 `detectConflicts()` 都零调用方。后果比原文档写的「重启丢失」严重——账本**会话内也恒为空**，`query_ledger` 永远返回空集合，S2 跨章一致性对账无数据来源。本次四层补齐：① 新增 `db/repos/ledger-repo.ts`——实体整体 JSON 存 `payload`，同时把 name/subject/when/status/planted_chapter 拆成真实列（只存 payload 等于白建索引），主键 `id` ⇒ upsert 即覆盖，一类一条事务，`assertIdNotTakenByOtherProject` 拦住"把别项目的条目搬过来"；② `services.ts` 四个内存 Map 彻底退场，读写一律走 `ledgerRepo`，新增 `upsertLedger()`，**`conflicts()` 终于接上 `detectConflicts`**（此前恒返回写死的 `[]`）；③ 新增 Agent 工具 `update_ledger`（`tools/impl/ledger-update.ts`）——这是"真有人写"的那半边：id 一律系统生成（模型自编 id 会让同一人物变成两条事实）、**每条必须带出处** `refs:[{chapterId,quote}]`，工具会真去读那一章确认引文逐字存在并回填 offset，核验不过**整批一条不写**，同名人物复用旧 id 所以重复登记幂等；④ IPC 四处同步改契约：`ledger:upsert` 从 `{character}` 改为 `{entries: LedgerEntries}` → `LedgerCounts`，preload 桥加 `upsert()`。测试：`tests/unit/ledger-repo.test.ts` 18 条 + `tests/unit/ledger-update-tool.test.ts` 13 条 + `tests/integration/ledger-write-wiring.test.ts` 12 条装配哨兵。**未做 / 需要老板知道**：`ledger_conflicts` 表仍然没人写——冲突改为按最新账本**现算**（存下来会留下一份过期的"待裁决"记录去打扰用户），所以那张表目前是空壳 DDL；`ledger-query.ts` 的 `makeRef()` 仍零调用方（它服务的是"只有偏移没有引文"的场景，本条用不上，没为它硬造调用点）；`LoreView` 界面还没有"手工登记"入口，用户侧写入口只有 Agent 工具 | ~~中~~ — |
 | 10 | ~~事件载荷硬编码~~ ✅ **已修（2026-10-09）** | `loop.ts` 的 `agent:tool-call` 写死 `danger: 1` 与 `writePolicy: 'auto-with-undo'`，与实际 `spec.danger` / 本次 run 解析出的策略无关 → ★2~★5 一律报成 ★1、用户切过的策略一律报成老板默认值。已按 `setIdempotentTools` 的既有注入模式补 `loop.setToolReport(toolSpecs, writePolicy.policy)`，事件字段类型收紧为 `ToolDanger \| null` / `WritePolicy \| null`（未注入时如实给 null，绝不编数字），`ipc.ts` 契约同步。**更正本条原写的「界面显示不真实」**：全仓 grep 确认渲染层没有任何订阅方（`preload/api.ts:195` 只是把通道名加进白名单），所以此前无用户可见的错误显示——但虚假载荷确实每条都跨过了一条白名单 IPC 通道，任何未来接入方一上手就拿到错值。补 `tests/integration/tool-call-payload.test.ts`（5 条，起真 AgentHost + 真 registry，断言对外事件本身） | ~~低~~ — |
 | 11 | ~~`locate_issues` 段落定位错位~~ ✅ **已修（2026-10-09）** | `analyze.ts` 段落分支（`avgPara`/`sentsPerPara`）的 `offset` 是死变量（`map` 从不累加），位置全靠 `body.indexOf(段落)` 兜底 → 重复段落的两条命中都落到**首次出现处**，后续 `replace_phrase` 会改错地方。已改为按文档顺序逐段累加、删掉 `indexOf` 兜底，并补 `tests/unit/locate-offset.test.ts`（3 条） | ~~低~~ — |
 | 12 | ~~句子分支同病~~ ✅ **已修（2026-10-09）** | 紧挨着 #11 的 `avgSent`/`sentCv` 分支仍是 `body.indexOf(s)` 从 0 反查（修复前 `analyze.ts:254`）。实测 body=`B+A+A+B`（B 长 17、A 长 4）时返回 `at = 0, 0, 17`，第二条 B（真实位置 25）指向了 0。已改为按 `split` 顺序逐句累加。**原条目里两句猜测，一句应验、一句需要澄清**：① 「跨行重复句因片段自带 `\n` 前缀而不会撞车」**成立**——`split(/(?<=[。！？…])/)` 在终止符之后断开，换行归**下一个**片段，所以跨段重复句的片段文本唯一、`indexOf` 恰好给对位置（node 复核过边界），这一半边本来就对，因此新增一条护栏用例钉住「修句子分支不许弄坏跨段那半边」；② 「需先确认是否要保住段内重复只报一次的语义」**不必再等决策**——修复前代码本就把同一句的两次出现各报一条，本次只改 `at`，命中条数与排序口径一字未动。累加口径与段落分支差 1（句子片段之间没有被吃掉的分隔符，只加 `s.length`）。补 4 条用例进 `tests/unit/locate-offset.test.ts`（红阶段实测：两条 DUP 都是 17） | ~~低~~ — |
@@ -98,14 +98,14 @@ Electron 33.4.11  +  React 19  +  TypeScript 5.8  +  Zustand 5(persist)
 cd C:\Users\Administrator\WorkBuddy\2026-10-07-19-01-04\MozhouAgent
 npm install          # 已装则跳过
 npm run dev          # 开发模式（开发期 CSP 已放行 vite 内联脚本）
-npm test             # 527 用例（必须用这个，见第五节坑 1）
+npm test             # 570 用例（必须用这个，见第五节坑 1）
 npm run typecheck    # 三段 tsc
 npx electron-vite build          # 三段构建
 node scripts\make-icon.mjs       # 重画 build/icon.ico（图标改动时才需要）
 npx electron-builder --win portable --x64   # 便携版（带镜像变量）
 ```
 
-**验收四关**（改完必须全过）：`typecheck 0 错` → `npm run lint`（0 error，warning 不新增）→ `npm test 527 全绿` → `node scripts\verify-flavor-acceptance.mjs`（9 项校准验收，退出码接 CI）。
+**验收四关**（改完必须全过）：`typecheck 0 错` → `npm run lint`（0 error，warning 不新增）→ `npm test 570 全绿` → `node scripts\verify-flavor-acceptance.mjs`（9 项校准验收，退出码接 CI）。
 
 > ⚠️ `npm run test:coverage` 在本机 WorkBuddy 沙箱下会因 v8 provider 写临时文件失败而报错，
 > 与代码无关（详见 `vitest.config.ts` 内注释）。覆盖率门请在 CI 或正常终端执行。

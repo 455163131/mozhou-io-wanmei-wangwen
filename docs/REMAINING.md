@@ -14,9 +14,9 @@
 - **1.2 `VALIDATION_FAILED`** — `BudgetGuard` 新增独立计数器 `validationFailures`（上限 2），与 `consecutiveFailures` 分开。`AgentLoop` 按错误码分流：`E_INVALID_ARGS` / `E_TOOL_NOT_FOUND` 走校验通道，未达上限时把逐项错误回喂让模型自纠，达上限则终止并带 `errors`（如 `args.chapterNo: expected number, got string`）。
 - **1.3 native tool_calls** — **真相是 (a) 接线漏了**：client 层一直完整（`buildBody` 发 tools、`parseJson` 解析 `tool_calls`），但 `doSelect` 从未传 `req.tools`，导致 `client.ts:196` 的 `if` 恒假。已在 `doSelect` 按三条路径分流，`native` 分支传 `tools` + `tool_choice:'auto'` 并读 `res.toolCalls[0]`；模型编造工具名时明确报错而不静默取第一个。
 
-### 1.4 账本走内存，未接 DB
+### ✅ 1.4 账本走内存、未接 DB —— 已修复（2026-10-09，见 PROJECT-STATUS.md §4 第 13 条）
 
-**现状**：`services.ts` 的 `memCharacters` / `memNumbers` 等是内存 `Map`，`ledger_*` 表已建但未读写。
+**原现状**：`services.ts` 的 `memCharacters` / `memNumbers` 等是内存 `Map`，`ledger_*` 表已建但未读写。
 
 **★ 2026-10-09 复核修正（此前低估了）**：全仓 **没有任何一处向这四个 Map 写入**
 （`mem*.set(...)` 零命中；`ledger_*` 表只有 `db/migrate.ts` 的 DDL，无 repo）。
@@ -26,16 +26,23 @@
 **影响**：不是「重启后账本丢失」，而是**账本在当前构建里恒为空**——
 会话内也拿不到任何人物/数字/时间线/伏笔，`query_ledger` 永远返回空集合，
 跨章一致性对账（S2）因此整条链路无数据来源。
-连带影响：判据 B 的状态指纹虽已接上账本（见 PROJECT-STATUS.md §4 第 9 条，已修），
+连带影响：判据 B 的状态指纹虽已接上账本（见 §4 第 9 条，已修），
 在写入侧补齐之前仍然检测不到任何账本变化。
 
-**顺序**：先补写入路径（工具 + repo 落 `ledger_*` 表），再谈持久化与对账。
+**修复内容**（按原计划「先补写入路径，再谈持久化」一次做完）：新增 `db/repos/ledger-repo.ts`
+接上四张 `ledger_*` 表；四个内存 Map 彻底退场，读写一律走 repo；`conflicts()` 接上此前零调用方的
+`detectConflicts`；新增 Agent 工具 `update_ledger`（每条必须带出处，工具会真去那一章逐字核验引文，
+核验不过整批不写）；`ledger:upsert` 从回显桩改为真落库，契约四处同步。
+测试 +43 条（`ledger-repo` 18 / `ledger-update-tool` 13 / `ledger-write-wiring` 12）。
+
+**仍然缺的**（不属于本条，别当成已完工）：`LoreView` 没有用户手工登记入口，写入侧只有 Agent 工具；
+`ledger_conflicts` 表仍是空壳 DDL（冲突改为按最新账本现算，避免留下过期的「待裁决」记录）。
 
 ### 1.5 T11 / T12 / T22–T25 / T28 未做
 
 | 任务 | 内容 | 现状 |
 |---|---|---|
-| T11 | 章节树拖拽分组 | 有虚拟化窗口 50 章，无拖拽 |
+| T11 | 章节树拖拽分组 | ✅ 拖拽已接（章拖到章=改全局序，章拖到卷名=换卷，见 §4 第 4 条）；⚠️ 因全书没有建章入口（§4 第 17 条），真实数据上暂无可拖的对象 |
 | T12 | CodeMirror 6 | textarea（V1 未验证，见下） |
 | T22 | 风格指纹 UI + 情节记忆 | `rebuildBaseline()` 已实现，无 UI 入口 |
 | T23 | 导出页 + 拆书页 | 导出走 IPC `export:run`，无页面 |

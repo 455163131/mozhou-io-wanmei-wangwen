@@ -94,6 +94,7 @@ const bridge: MzBridge = {
 
   ledger: {
     query: (kind, subject) => invoke('ledger:query', { kind: kind ?? 'all', subject }),
+    upsert: (entries) => invoke('ledger:upsert', { entries }),
   },
 
   tool: {

@@ -5,7 +5,15 @@
  *   让 Agent 引用人物设定时能给出证据，而不是凭空断言。
  */
 import type { ToolContext, ToolResult } from '@shared/types/tool';
-import type { CharacterProfile, LedgerConflict, NumberAnchor, TimelineEvent, Foreshadow } from '@shared/types/ledger';
+import type {
+  CharacterProfile,
+  LedgerConflict,
+  LedgerCounts,
+  LedgerEntries,
+  NumberAnchor,
+  TimelineEvent,
+  Foreshadow,
+} from '@shared/types/ledger';
 import { snippetAround } from '@shared/util/text-zh';
 
 export interface LedgerDeps {
@@ -14,6 +22,11 @@ export interface LedgerDeps {
   timeline: (projectId: string) => TimelineEvent[];
   foreshadows: (projectId: string) => Foreshadow[];
   conflicts: (projectId: string, kind?: string) => LedgerConflict[];
+  /**
+   * 写入口（§4 第 13 条）。此前四个 mem* Map 只有读、没有写，
+   * 所以账本连会话内都恒为空——这个方法是那条缺失的边。
+   */
+  upsertLedger: (projectId: string, entries: LedgerEntries) => LedgerCounts;
   currentProjectId: () => string | null;
 }
 

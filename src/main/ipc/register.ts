@@ -253,7 +253,18 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     };
   }, services);
 
-  handle('ledger:upsert', (p) => p.character, services);
+  // ★ 修复前这个 handler 是个回显桩：把入参 p.character 原样返回，一条都没落库（§4 第 13 条）。
+  handle('ledger:upsert', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    if (!p.entries || typeof p.entries !== 'object') {
+      throw new MzError('E_INVALID_ARGS', 'entries 必须是 { characters?, numbers?, timeline?, foreshadows? } 对象');
+    }
+    try {
+      return s.upsertLedger(s.project.id, p.entries);
+    } catch (e) {
+      throw new MzError('E_INVALID_ARGS', e instanceof Error ? e.message : String(e));
+    }
+  }, services);
 
   // ── tool ──
   handle('tool:list', (_p, s) => s.registry.list(), services);

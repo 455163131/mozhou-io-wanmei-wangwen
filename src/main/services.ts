@@ -9,10 +9,13 @@ import { app } from 'electron';
 import type { Project, StyleProfile, ProjectBackup } from '@shared/types/project';
 import { PROJECT_BACKUP_FORMAT_VERSION } from '@shared/types/project';
 import type { CharacterProfile, LedgerConflict, NumberAnchor, TimelineEvent, Foreshadow } from '@shared/types/ledger';
+import type { LedgerCounts, LedgerEntries } from '@shared/types/ledger';
+import { detectConflicts } from './tools/impl/ledger-query';
 import type { MetricSpec } from '@shared/types/project';
 import type { RunState } from '@shared/types/agent';
 import { openDatabase, type MzDatabase } from './db/database';
 import { ChapterRepo, ProjectRepo, StyleProfileRepo, percentiles } from './db/repos/chapter-repo';
+import { LedgerRepo } from './db/repos/ledger-repo';
 import { ToolRegistry, type ToolDeps } from './tools/registry';
 import { CheckpointManager } from './checkpoint/manager';
 import { Replayer } from './checkpoint/replayer';
@@ -58,6 +61,8 @@ export class AppServices {
   readonly flavorRepo: FlavorRepo;
   /** AI 味基线（用户自建基线；内置默认基线是常量，不进库） */
   readonly flavorBaselineRepo: FlavorBaselineRepo;
+  /** 账本（§4 第 13 条：此前只有 migrate 建的表，没有任何读写方） */
+  readonly ledgerRepo: LedgerRepo;
   readonly push = new PushChannel();
   readonly backup: BackupManager;
 
@@ -89,6 +94,7 @@ export class AppServices {
     this.expertRepo = new ExpertReviewRepo(this.db);
     this.flavorRepo = new FlavorRepo(this.db);
     this.flavorBaselineRepo = new FlavorBaselineRepo(this.db);
+    this.ledgerRepo = new LedgerRepo(this.db);
     this.backup = new BackupManager(app.getPath('userData'));
 
     // ★ L3 备份时机之二：空闲 30 分钟。修复前 `startIdleWatcher` 全项目无调用者，
@@ -261,6 +267,7 @@ export class AppServices {
         timeline: (projectId) => this.timeline(projectId),
         foreshadows: (projectId) => this.foreshadows(projectId),
         conflicts: (projectId, kind) => this.conflicts(projectId, kind),
+        upsertLedger: (projectId, entries) => this.upsertLedger(projectId, entries),
         currentProjectId: () => this.currentProject?.id ?? null,
         saveMetrics: (chapterId, score, raw, chars, paras, sents) => {
           this.chapterRepo.saveMetrics({
@@ -596,29 +603,50 @@ export class AppServices {
     };
   }
 
-  // ── 账本（内存实现，DB 已建表但先走内存以便快速可用）──
-  private memCharacters = new Map<string, CharacterProfile[]>();
-  private memNumbers = new Map<string, NumberAnchor[]>();
-  private memTimeline = new Map<string, TimelineEvent[]>();
-  private memForeshadows = new Map<string, Foreshadow[]>();
+  // ── 账本 ──
+  //
+  // ★ 修复前这里是四个 `Map<string, T[]>`，全仓**没有任何 `.set()`**：
+  //   注释写着"内存实现以便快速可用"，但没有写入口，于是账本连会话内都恒为空，
+  //   `query_ledger` 永远返回空集合，S2 跨章一致性对账无数据来源（§4 第 13 条）。
+  //   现在读写一律走 LedgerRepo（真库），`ledger_*` 五张表里的四张终于有人用了。
+  //   唯一没有落库的是 `ledger_conflicts`：冲突按最新账本现算，
+  //   存下来反而会留下一份过期的"待裁决"记录去提醒用户。
 
   characters(projectId: string, subject?: string): CharacterProfile[] {
-    const all = this.memCharacters.get(projectId) ?? [];
-    return subject ? all.filter((c) => c.name.includes(subject)) : all;
+    return this.ledgerRepo.characters(projectId, subject);
   }
   numbers(projectId: string, subject?: string): NumberAnchor[] {
-    const all = this.memNumbers.get(projectId) ?? [];
-    return subject ? all.filter((n) => n.subject.includes(subject)) : all;
+    return this.ledgerRepo.numbers(projectId, subject);
   }
   timeline(projectId: string): TimelineEvent[] {
-    return this.memTimeline.get(projectId) ?? [];
+    return this.ledgerRepo.timeline(projectId);
   }
   foreshadows(projectId: string): Foreshadow[] {
-    return this.memForeshadows.get(projectId) ?? [];
+    return this.ledgerRepo.foreshadows(projectId);
   }
-  conflicts(_projectId: string, _kind?: string): LedgerConflict[] {
-    // 冲突检测在 query_ledger 内部按需算；这里返回空表示「尚未登记冲突」
-    return [];
+
+  /**
+   * 批量登记账本（§4 第 13 条的写入口）。
+   *
+   * 四类都可省略；每一类内部是一条事务（要么全写要么全不写），
+   * 返回登记后各类的整表条数，让调用方拿到"现在账本上有多少"而不是"我写了几条"。
+   */
+  upsertLedger(projectId: string, entries: LedgerEntries): LedgerCounts {
+    if (entries.characters) this.ledgerRepo.upsertCharacters(projectId, entries.characters);
+    if (entries.numbers) this.ledgerRepo.upsertNumbers(projectId, entries.numbers);
+    if (entries.timeline) this.ledgerRepo.upsertTimeline(projectId, entries.timeline);
+    if (entries.foreshadows) this.ledgerRepo.upsertForeshadows(projectId, entries.foreshadows);
+    return this.ledgerRepo.counts(projectId);
+  }
+
+  conflicts(projectId: string, kind?: string): LedgerConflict[] {
+    // detectConflicts 此前全仓零调用方——冲突检测写好了却没人喂数据（第 13 条的另一半）
+    const found = detectConflicts(
+      this.ledgerRepo.characters(projectId),
+      this.ledgerRepo.numbers(projectId),
+      this.ledgerRepo.timeline(projectId),
+    );
+    return kind ? found.filter((c) => c.kind === kind) : found;
   }
 
   // ── L3 全量备份（架构 §1.8）──

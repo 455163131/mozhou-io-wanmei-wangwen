@@ -12,7 +12,7 @@
  *   - 任何文件写入都走 project.*，主进程强制在项目根目录内做路径规范化
  */
 import type { IpcInvokeMap, IpcPushMap, IpcChannel, IpcPushChannel } from '@shared/types/ipc';
-import type { LedgerQuery } from '@shared/types/ledger';
+import type { LedgerEntries, LedgerQuery } from '@shared/types/ledger';
 
 /** 白名单 API 的形状。由 MzBridge 暴露到 window.mz。 */
 export interface MzBridge {
@@ -51,6 +51,7 @@ export interface MzBridge {
   // 账本
   ledger: {
     query(kind?: LedgerQuery['kind'], subject?: string): Promise<IpcInvokeMap['ledger:query']['res']>;
+    upsert(entries: LedgerEntries): Promise<IpcInvokeMap['ledger:upsert']['res']>;
   };
 
   // 工具
