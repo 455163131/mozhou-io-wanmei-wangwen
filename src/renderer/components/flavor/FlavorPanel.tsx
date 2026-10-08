@@ -293,8 +293,8 @@ export function FlavorPanel(): JSX.Element {
               )}
               <span className={styles.dimScore}>{d.score}</span>
               <div className={styles.dimNote}>
-                {g
-                  ? `实测 ${measured}｜你的正常范围 [${d.band![0]}, ${d.band![1]}]｜偏离 ${
+                {band
+                  ? `实测 ${measured}｜你的正常范围 [${band[0]}, ${band[1]}]｜偏离 ${
                       d.deviation ?? 0
                     } 个带宽`
                   : d.note}

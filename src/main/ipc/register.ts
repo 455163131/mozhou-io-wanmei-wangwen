@@ -657,9 +657,10 @@ function registerFlavorIpc(services: AppServices): void {
 
       // ── 路径二：交给主 Agent 重新生成 ──
       if (p.path === 'agent') {
+        const dims = p.dimensions;
         const handoff = needsAgent(
-          p.dimensions && p.dimensions.length > 0
-            ? before.hits.filter((h) => p.dimensions!.includes(h.dimension))
+          dims && dims.length > 0
+            ? before.hits.filter((h) => dims.includes(h.dimension))
             : before.hits,
         );
         if (handoff.length === 0) {

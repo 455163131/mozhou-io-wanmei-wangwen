@@ -80,10 +80,8 @@ export function buildFlavorBaseline(
   const minChars = opts.minCharsPerChapter ?? DEFAULT_MIN_CHARS_PER_CHAPTER;
   const warnings: string[] = [];
 
-  const pool =
-    opts.chapterIds && opts.chapterIds.length > 0
-      ? samples.filter((s) => opts.chapterIds!.includes(s.chapterId))
-      : samples;
+  const onlyIds = opts.chapterIds?.length ? opts.chapterIds : null;
+  const pool = onlyIds ? samples.filter((s) => onlyIds.includes(s.chapterId)) : samples;
 
   const values = emptyValueBuckets();
   // ★ 零膨胀指标的**整数计数**（`corpusMaxCount` 用；判据走计数、非密度）。

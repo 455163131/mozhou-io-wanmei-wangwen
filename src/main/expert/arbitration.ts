@@ -408,10 +408,11 @@ export function compareReports(
   for (const d of dims) {
     const b = beforeMap.get(d);
     const a = after.find((v) => v.dimension === d);
-    if (!b && !a) continue;
     if (!b) {
+      // 两者皆无时没有可报告的「变差」，与原先前置的 !b && !a 同义，只是让类型看见
+      if (!a) continue;
       // 润色前没问题，润色后有问题 → 变差
-      out.push({ dimension: d, before: emptyVerdict(d), after: a!, trend: 'regressed' });
+      out.push({ dimension: d, before: emptyVerdict(d), after: a, trend: 'regressed' });
       continue;
     }
     if (!a) {

@@ -350,7 +350,7 @@ function RollbackHint(): JSX.Element | null {
       const msg = errorText(e);
       if (msg.includes('手动修改')) {
         const ok = window.confirm(`${msg}\n\n确认要强制回滚吗？`);
-        if (ok) await bridge().checkpoint.undo(last!.id, true);
+        if (ok) await bridge().checkpoint.undo(last.id, true);
       } else {
         useProjectStore.getState().setError(msg);
       }
