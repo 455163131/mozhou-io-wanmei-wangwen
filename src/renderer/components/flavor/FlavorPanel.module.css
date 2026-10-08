@@ -34,13 +34,13 @@
 }
 
 .btn:hover:not(:disabled) {
-  border-color: var(--mz-accent-ink);
+  border-color: var(--mz-text-link);
 }
 
 .btnPrimary {
-  background: var(--mz-accent-ink);
-  color: var(--mz-bg-canvas);
-  border-color: var(--mz-accent-ink);
+  background: var(--mz-accent);
+  color: var(--mz-text-inverse);
+  border-color: var(--mz-text-link);
   font-weight: 600;
 }
 
@@ -81,19 +81,19 @@
 
 /* 等级配色：clean→severe 递增警示 */
 .lv-clean {
-  color: var(--mz-status-ok, #16a34a);
+  color: var(--mz-sem-pass-fg);
 }
 .lv-mild {
-  color: var(--mz-status-info, #0ea5e9);
+  color: var(--mz-sem-con-fg);
 }
 .lv-suspicious {
-  color: var(--mz-status-warn, #d97706);
+  color: var(--mz-sem-warn-fg);
 }
 .lv-heavy {
-  color: var(--mz-status-risk, #dc2626);
+  color: var(--mz-sem-ai-fg);
 }
 .lv-severe {
-  color: var(--mz-status-risk, #b91c1c);
+  color: var(--mz-accent-hover);
 }
 
 .warn,
@@ -101,15 +101,15 @@
   margin: 0;
   padding: 8px 10px;
   border-radius: 6px;
-  background: var(--mz-bg-subtle, rgba(217, 119, 6, 0.08));
-  border-left: 3px solid var(--mz-status-warn, #d97706);
+  background: var(--mz-sem-warn-bg);
+  border: 1px solid var(--mz-sem-warn-border);
   font-size: 12px;
   line-height: 1.6;
 }
 
 .err {
-  background: rgba(220, 38, 38, 0.08);
-  border-left-color: var(--mz-status-risk, #dc2626);
+  background: var(--mz-sem-ai-bg);
+  border-color: var(--mz-sem-ai-border);
 }
 
 .note {
@@ -123,7 +123,7 @@
   margin: 4px 0 0;
   padding: 8px 10px;
   border-radius: 6px;
-  background: var(--mz-bg-subtle, rgba(0, 0, 0, 0.03));
+  background: var(--mz-bg-subtle);
   color: var(--mz-text-secondary);
   font-size: 11px;
   line-height: 1.7;
@@ -164,7 +164,7 @@
 .barWrap {
   height: 7px;
   border-radius: 4px;
-  background: var(--mz-bg-subtle, rgba(0, 0, 0, 0.06));
+  background: var(--mz-bg-subtle);
   overflow: hidden;
 }
 
@@ -209,19 +209,19 @@
 }
 
 .paraChip:hover {
-  border-color: var(--mz-accent-ink);
+  border-color: var(--mz-text-link);
 }
 
 .paraOn {
-  background: var(--mz-accent-ink);
-  color: var(--mz-bg-canvas);
-  border-color: var(--mz-accent-ink);
+  background: var(--mz-accent);
+  color: var(--mz-text-inverse);
+  border-color: var(--mz-text-link);
 }
 
 .link {
   border: none;
   background: none;
-  color: var(--mz-accent-ink);
+  color: var(--mz-text-link);
   cursor: pointer;
   font-size: 12px;
   text-decoration: underline;
@@ -267,7 +267,7 @@
   font-size: 12px;
   line-height: 1.6;
   color: var(--mz-text-primary);
-  background: var(--mz-bg-subtle, rgba(0, 0, 0, 0.03));
+  background: var(--mz-bg-subtle);
   border-radius: 4px;
   padding: 4px 6px;
   word-break: break-all;
@@ -281,7 +281,7 @@
 
 .advice {
   font-size: 11px;
-  color: var(--mz-status-info, #0ea5e9);
+  color: var(--mz-sem-con-fg);
   line-height: 1.6;
 }
 
@@ -307,11 +307,11 @@
 }
 
 .down {
-  color: var(--mz-status-ok, #16a34a);
+  color: var(--mz-sem-pass-fg);
 }
 
 .up {
-  color: var(--mz-status-risk, #dc2626);
+  color: var(--mz-sem-ai-fg);
 }
 
 .delta {
@@ -333,13 +333,13 @@
 
 /* 用户自建基线：强调色描边，与内置基线区分 */
 .baselineUser {
-  border-color: var(--mz-accent-ink);
+  border-color: var(--mz-text-link);
 }
 
 /* 口径过期：警示 */
 .baselineStale {
-  border-color: var(--mz-status-warn, #d97706);
-  background: rgba(217, 119, 6, 0.06);
+  border-color: var(--mz-sem-warn-fg);
+  background: var(--mz-sem-warn-bg);
 }
 
 .baselineRow {
@@ -367,7 +367,7 @@
 .baselineWarn {
   font-size: 11px;
   line-height: 1.6;
-  color: var(--mz-status-warn, #d97706);
+  color: var(--mz-sem-warn-fg);
 }
 
 .rebResult {
@@ -379,7 +379,7 @@
 }
 
 .rebWarn {
-  color: var(--mz-status-warn, #d97706);
+  color: var(--mz-sem-warn-fg);
   font-size: 11px;
 }
 
@@ -389,7 +389,7 @@
   display: block;
   height: 9px;
   border-radius: 5px;
-  background: var(--mz-bg-subtle, rgba(0, 0, 0, 0.06));
+  background: var(--mz-bg-subtle);
   overflow: hidden;
 }
 
@@ -398,7 +398,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  background: var(--mz-status-ok, #16a34a);
+  background: var(--mz-sem-pass-fg);
   opacity: 0.28;
   border-radius: 3px;
 }
@@ -417,8 +417,8 @@
 .uncal {
   margin-left: 5px;
   font-size: 10px;
-  color: var(--mz-status-warn, #d97706);
-  border: 1px dashed var(--mz-status-warn, #d97706);
+  color: var(--mz-sem-warn-fg);
+  border: 1px dashed var(--mz-sem-warn-fg);
   border-radius: 3px;
   padding: 0 4px;
   font-weight: 400;

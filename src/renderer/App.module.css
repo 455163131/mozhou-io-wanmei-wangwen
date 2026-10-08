@@ -36,8 +36,8 @@
 
 /* 模型未配置时头部按钮的警示态（引导用户先完成配置） */
 .settingsWarn {
-  color: var(--mz-status-warn, #d97706);
-  border-color: var(--mz-status-warn, #d97706);
+  color: var(--mz-sem-warn-fg);
+  border-color: var(--mz-sem-warn-fg);
 }
 
 .errorBar {
@@ -179,13 +179,14 @@
   width: 27px;
   height: 35px;
   border-radius: 3px;
-  background: linear-gradient(160deg, #3d2f52, #1c2233 55%, #23404a);
+  background: var(--mz-text-primary); /* 素笺：线装书封用浓墨实底，不渐变 */
   border: 1px solid var(--mz-border-strong);
+  box-shadow: inset 3px 0 0 var(--mz-sem-ai-strong); /* 朱砂书脊 */
   display: grid;
   place-items: center;
   font-family: var(--mz-font-serif);
   font-size: 12px;
-  color: var(--mz-text-primary);
+  color: var(--mz-text-inverse);
   flex: none;
 }
 
@@ -251,8 +252,8 @@
 
 .modeOn {
   background: var(--mz-accent-soft);
-  color: var(--mz-accent) !important;
-  box-shadow: inset 0 0 0 1px var(--mz-accent), 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: var(--mz-accent-hover) !important;
+  box-shadow: inset 0 0 0 1px var(--mz-accent);
 }
 
 /* ---- 顶栏右侧 ---- */
@@ -316,18 +317,17 @@
 }
 
 .chipDotWarn {
-  background: var(--mz-sem-ai-fg);
-  box-shadow: 0 0 6px var(--mz-sem-ai-fg);
+  background: var(--mz-sem-warn-fg);
   animation: chipPulse 2.4s ease-in-out infinite;
 }
 
 @keyframes chipPulse {
   0%,
   100% {
-    box-shadow: 0 0 4px var(--mz-sem-ai-fg);
+    opacity: 1;
   }
   50% {
-    box-shadow: 0 0 10px var(--mz-sem-ai-fg);
+    opacity: 0.35;
   }
 }
 
@@ -335,12 +335,12 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #8a6a3a, #5a4a72);
+  background: var(--mz-bg-selected);
   display: grid;
   place-items: center;
   font-size: 11px;
-  color: var(--mz-text-primary);
-  border: 1px solid var(--mz-border-strong);
+  color: var(--mz-accent-hover);
+  border: 1px solid var(--mz-border-default);
 }
 
 /* 非写作模式的宿主容器 */

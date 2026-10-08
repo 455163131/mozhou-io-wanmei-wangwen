@@ -63,7 +63,7 @@
 .runBtn {
   flex: none;
   background: var(--mz-accent);
-  color: var(--mz-accent-ink);
+  color: var(--mz-text-inverse);
   border-color: var(--mz-accent);
   font-weight: var(--mz-fw-medium);
 }
@@ -162,16 +162,16 @@
   background: var(--mz-bg-elevated);
 }
 .step.succeeded {
-  border-left: 2px solid var(--mz-sem-pass-strong);
+  border-color: var(--mz-sem-pass-border);
 }
 .step.failed {
-  border-left: 2px solid var(--mz-sem-warn-strong);
+  border-color: var(--mz-sem-warn-border);
 }
 .step.running {
-  border-left: 2px solid var(--mz-accent);
+  border-color: var(--mz-sem-ai-border);
 }
 .step.rolled-back {
-  border-left: 2px solid var(--mz-text-tertiary);
+  border-color: var(--mz-border-strong);
   opacity: 0.7;
 }
 

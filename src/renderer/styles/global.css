@@ -20,22 +20,22 @@ body {
   line-height: var(--mz-lh-body);
   color: var(--mz-text-body);
   background: var(--mz-bg-canvas);
-  /* 文枢环境光：左上金晕 + 右下玉晕（极低透明度，只给「纸有纹理」的暗示）*/
+  /* 素笺环境光：左上朱晕 + 右下黛晕（极低透明度，只给「纸有纹理」的暗示）*/
   background-image:
-    radial-gradient(1200px 600px at 20% -10%, rgba(217, 169, 96, 0.05), transparent 60%),
-    radial-gradient(900px 500px at 95% 110%, rgba(70, 195, 170, 0.04), transparent 60%);
+    radial-gradient(1200px 600px at 20% -10%, rgba(194, 76, 59, 0.03), transparent 60%),
+    radial-gradient(900px 500px at 95% 110%, rgba(61, 90, 138, 0.03), transparent 60%);
   /* 桌面应用不需要字体抗锯齿以外的系统字体缩放 */
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 
-/* 文字选区：金调（文枢 selhl）*/
+/* 文字选区：朱砂淡晕（素笺 selhl）*/
 ::selection {
-  background: rgba(217, 169, 96, 0.26);
+  background: rgba(194, 76, 59, 0.18);
   color: var(--mz-text-primary);
 }
 
-/* 滚动条：与暗色主题协调 */
+/* 滚动条：与浅色纸面主题协调 */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -80,7 +80,7 @@ body {
   text-autospace: normal;
 }
 
-/* 表单元素跟随暗色主题 */
+/* 表单元素跟随纸面主题 */
 input,
 textarea,
 select,

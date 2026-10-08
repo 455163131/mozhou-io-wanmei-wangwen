@@ -34,9 +34,9 @@
 }
 
 .btnPrimary {
-  background: var(--mz-accent-ink);
-  color: var(--mz-bg-canvas);
-  border-color: var(--mz-accent-ink);
+  background: var(--mz-accent);
+  color: var(--mz-text-inverse);
+  border-color: var(--mz-accent);
   font-weight: 600;
 }
 
@@ -62,13 +62,13 @@
 }
 
 .chip:hover {
-  border-color: var(--mz-accent-ink);
+  border-color: var(--mz-accent);
 }
 
 .chipOn {
-  background: var(--mz-accent-ink);
-  color: var(--mz-bg-canvas);
-  border-color: var(--mz-accent-ink);
+  background: var(--mz-accent);
+  color: var(--mz-text-inverse);
+  border-color: var(--mz-accent);
 }
 
 .section {
@@ -93,7 +93,7 @@
 }
 
 .hot {
-  color: var(--mz-status-warn, #d97706);
+  color: var(--mz-sem-warn-fg);
   font-weight: 600;
 }
 
@@ -115,9 +115,10 @@
   gap: 6px;
 }
 
-/* ★ 冲突卡片左侧加粗警示条——用户扫一眼就能找到需要决策的地方 */
+/* ★ 冲突卡片：四周描边转赭 + 淡染底（不用侧竖条），用户扫一眼就能找到需要决策的地方 */
 .cardConflict {
-  border-left: 3px solid var(--mz-status-warn, #d97706);
+  border-color: var(--mz-sem-warn-border);
+  background: var(--mz-sem-warn-bg);
 }
 
 .cardHead {
@@ -134,7 +135,7 @@
 
 .conflictTag {
   font-size: 11px;
-  color: var(--mz-status-warn, #d97706);
+  color: var(--mz-sem-warn-fg);
   font-weight: 600;
 }
 
@@ -168,15 +169,15 @@
 }
 
 .sev {
-  color: var(--mz-status-risk, #dc2626);
+  color: var(--mz-sem-ai-fg);
   margin-left: 3px;
 }
 
 .cross {
   margin-left: 5px;
   font-size: 10px;
-  color: var(--mz-status-warn, #d97706);
-  border: 1px dashed var(--mz-status-warn, #d97706);
+  color: var(--mz-sem-warn-fg);
+  border: 1px dashed var(--mz-sem-warn-fg);
   border-radius: 3px;
   padding: 0 4px;
 }
@@ -204,12 +205,12 @@
 .needYou {
   font-size: 11px;
   font-weight: 600;
-  color: var(--mz-status-warn, #d97706);
+  color: var(--mz-sem-warn-fg);
 }
 
 .decided {
   font-size: 11px;
-  color: var(--mz-status-ok, #16a34a);
+  color: var(--mz-sem-pass-fg);
 }
 
 .note {
@@ -224,13 +225,13 @@
   margin: 0;
   padding: 8px 10px;
   border-radius: 6px;
-  background: rgba(217, 119, 6, 0.08);
-  border-left: 3px solid var(--mz-status-warn, #d97706);
+  background: var(--mz-sem-warn-bg);
+  border: 1px solid var(--mz-sem-warn-border);
   font-size: 12px;
   line-height: 1.7;
 }
 
 .err {
-  background: rgba(220, 38, 38, 0.08);
-  border-left-color: var(--mz-status-risk, #dc2626);
+  background: var(--mz-sem-ai-bg);
+  border-color: var(--mz-sem-ai-border);
 }

@@ -24,8 +24,8 @@
 }
 
 .bookg {
-  border: 1px solid var(--mz-accent-soft, rgba(217, 169, 96, 0.3));
-  background: linear-gradient(150deg, rgba(217, 169, 96, 0.06), var(--mz-bg-surface) 60%);
+  border: 1px solid var(--mz-sem-ai-border);
+  background: linear-gradient(150deg, rgba(194, 76, 59, 0.04), var(--mz-bg-surface) 60%);
   border-radius: 12px;
   padding: 16px 18px;
   margin-bottom: 18px;
@@ -139,7 +139,7 @@
   padding: 8px 12px;
   border-radius: 6px;
   background: var(--mz-sem-warn-bg);
-  border-left: 3px solid var(--mz-sem-warn-border);
+  border: 1px solid var(--mz-sem-warn-border);
   color: var(--mz-sem-warn-fg);
   font-size: 12px;
 }

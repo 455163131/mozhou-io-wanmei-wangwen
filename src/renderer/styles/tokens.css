@@ -1,7 +1,7 @@
 /* ============================================================================
- * Mozhou (Mo Zhou) Writing Studio - Design Tokens  v1.0
+ * Mozhou (Mo Zhou) Writing Studio - Design Tokens  v2.0 "Su Jian · Zhu Pi"
  * ----------------------------------------------------------------------------
- * Dark professional writing console.  Desktop-only (min 1280px), Chromium.
+ * Light paper writing desk.  Desktop-only (min 1280px), Chromium.
  * Naming: --mz-<group>-<name>.  All values are ASCII.
  *
  * Contrast figures in comments are MEASURED WCAG 2.1 ratios (script-computed),
@@ -10,102 +10,104 @@
  *
  * Inlined by Vite (no external @import).
  *
- * v1.1 (2026-10-08) 换肤：采用「文枢」水墨金色板（novel-workbench-ui 定稿，老板批准）。
- *   变量名与分组结构保持不变（149 个 --mz-* 全兼容），仅重估 1-6 节取值。
- *   对比度按同亮度档位复验：主文本对 canvas >= 15:1，次级 >= 9:1，弱化 >= 5:1，
- *   金色强调 >= 8:1 —— 全部高于 WCAG AA（4.5:1）。图表 band 从蓝改金。
+ * v2.0 (2026-10-09) 彻底换肤：「素笺·朱批」——冷调真白纸面（chroma≈0，非米黄）
+ *   + 浓墨文字 + 朱砂红单一强调（仅 AI 痕迹 / 活动态）+ 青黛/赭石/草绿三个语义色。
+ *   变量名与分组结构与 v1 完全一致（全部 --mz-* 兼容），仅重估 1-6、12、15 节取值。
+ *   实测对比度：主文本 15:1 · 正文 13.5:1 · 次级 5.9:1 · 弱化 4.9:1 ·
+ *   朱砂强调（大字/图形）4.45:1 · 朱砂链接字 5.8:1 —— 正文级全部 >= 4.5:1。
  * ========================================================================== */
 
 :root {
   /* --------------------------------------------------------------------------
-   * 1. SURFACE LAYERS  (dark layering; separation = luminance + 1px border)
-   *    canvas 17.7% L  <  editor 19.9%  <  surface 21.6%  <  elevated 25.3%  <  overlay 28.6%
+   * 1. SURFACE LAYERS  (light layering; separation = luminance + 1px border)
+   *    canvas（桌面底）< editor（纸面，最亮之一）< surface（侧栏）; 卡片浮白
    * ------------------------------------------------------------------------ */
-  --mz-bg-canvas:    #0A0D12; /* 文枢 bg：最底层 */
-  --mz-bg-editor:    #0D1017; /* 写作平面（比 bg 略抬，保持低噪声）*/
-  --mz-bg-surface:   #10141C; /* 侧栏面板 */
-  --mz-bg-elevated:  #1A202C; /* 卡片、chips、列表行 */
-  --mz-bg-overlay:   #202838; /* 菜单、popover、模态 */
-  --mz-bg-inset:     #080A0E; /* 凹陷井（代码块、空轨道）*/
+  --mz-bg-canvas:    #F6F7F5; /* 冷调纸底：应用最底层 */
+  --mz-bg-editor:    #FCFCFA; /* 写作纸面（略亮于底，低噪声）*/
+  --mz-bg-surface:   #EFF0ED; /* 侧栏面板（比底略沉）*/
+  --mz-bg-elevated:  #FFFFFF; /* 卡片、chips、列表行（浮白，靠描边+浅影分层）*/
+  --mz-bg-overlay:   #FFFFFF; /* 菜单、popover、模态 */
+  --mz-bg-inset:     #E7E8E4; /* 凹陷井（代码块、空轨道）*/
 
   /* interaction backgrounds (derived, not contrast-graded - used under text) */
-  --mz-bg-hover:     #151A24;
-  --mz-bg-active:    #1A202C;
-  --mz-bg-selected:  #2A2618; /* 金调选中（文枢 selhl 的实底近似；暖白字 11:1+）*/
+  --mz-bg-hover:     #E9EAE6;
+  --mz-bg-active:    #DFE1DC;
+  --mz-bg-selected:  #F6E6E2; /* 朱砂淡晕选中（浓墨字 13.3:1）*/
+  --mz-bg-subtle:    rgba(31, 33, 26, 0.05); /* 极淡墨染（v2 补：组件此前引用了未定义的幽灵令牌）*/
 
   /* --------------------------------------------------------------------------
    * 2. TEXT
    * ------------------------------------------------------------------------ */
-  --mz-text-primary:   #EDE8DC; /* 暖墨主色（对 canvas 约 15.8:1）headings, key figures */
-  --mz-text-body:      #DDD6C8; /* 暖调软化降光晕（约 13:1）editor body */
-  --mz-text-secondary: #B9B2A1; /* 墨次（约 9:1）captions, metadata, labels */
-  --mz-text-tertiary:  #877F6F; /* 墨弱（约 5.1:1）hints, axis labels, timestamps */
-  --mz-text-disabled:  #5D584D; /* 禁用（约 2.9:1，WCAG 豁免）*/
-  --mz-text-inverse:   #0A0D12;
-  --mz-text-link:      #F2CF95; /* = gold2；canvas 上约 12:1 */
+  --mz-text-primary:   #1F2123; /* 浓墨主色（canvas 上 15.0:1）headings, key figures */
+  --mz-text-body:      #2A2D30; /* 正文墨（editor 上 13.5:1）editor body */
+  --mz-text-secondary: #5C6066; /* 灰墨次（canvas 上 5.9:1）captions, metadata, labels */
+  --mz-text-tertiary:  #676C73; /* 弱化（canvas 上 4.9:1）hints, axis labels, timestamps */
+  --mz-text-disabled:  #A7ACB2; /* 禁用（约 2.2:1，WCAG 豁免）*/
+  --mz-text-inverse:   #FFF9F6; /* 朱砂实底上的近白字 */
+  --mz-text-link:      #A63F2F; /* 朱砂深阶（canvas 上 5.8:1，正文级可读）*/
 
   /* --------------------------------------------------------------------------
-   * 3. BORDER  (on dark, a 1px stroke reads more reliably than a shadow)
+   * 3. BORDER  (on light paper, strokes are darker-hued grays, not white alpha)
    * ------------------------------------------------------------------------ */
-  --mz-border-subtle:  #212836; /* 内部分隔线 */
-  --mz-border-default: #2C3548; /* 组件描边 */
-  --mz-border-strong:  #3A4458; /* 活动面板边缘、列分割 */
-  --mz-border-accent:  #D9A960;
+  --mz-border-subtle:  #E2E4DE; /* 内部分隔线 */
+  --mz-border-default: #D3D5CE; /* 组件描边 */
+  --mz-border-strong:  #ABACA4; /* 活动面板边缘、列分割 */
+  --mz-border-accent:  #C24C3B;
 
   /* --------------------------------------------------------------------------
-   * 4. BRAND ACCENT  (calm steel-blue; NOT a status colour)
+   * 4. BRAND ACCENT  (朱砂 cinnabar; 编辑批点的朱色，NOT a status colour)
    * ------------------------------------------------------------------------ */
-  --mz-accent:        #D9A960; /* 文枢金（canvas 上约 8.9:1）*/
-  --mz-accent-hover:  #F2CF95; /* gold2 */
-  --mz-accent-active: #C2924E; /* 按压加深 */
-  --mz-accent-soft:   #241E12; /* 弱金晕（选中导航、信息条）*/
-  --mz-accent-ink:    #1A1408; /* 金底上的深墨文字（约 9:1）*/
+  --mz-accent:        #C24C3B; /* 朱砂（canvas 上 4.45:1，大字/图形级）*/
+  --mz-accent-hover:  #AD3E2E; /* 提按加深（浅色主题 hover 走深不走浅）*/
+  --mz-accent-active: #923425; /* 按压 */
+  --mz-accent-soft:   #F9EDEA; /* 朱砂淡晕（选中导航、信息条）*/
+  --mz-accent-ink:    #FFF9F6; /* 朱砂底上的近白文字（4.8:1）*/
 
   /* --------------------------------------------------------------------------
    * 5. SEMANTIC  (4 statuses x 4 variants)
-   *    fg     = text / icon colour      (>= 4.5:1 on canvas & surface)
-   *    bg     = weak tinted fill        (fg stays >= 4.9:1 on it)
+   *    fg     = text / icon colour      (>= 4.5:1 on canvas & own bg)
+   *    bg     = weak tinted fill        (fg stays >= 4.4:1 on it)
    *    border = 1px stroke              (>= 3:1 vs canvas, non-text graphic)
    *    strong = saturated solid fill    (progress / active underline / filled badge)
    * ------------------------------------------------------------------------ */
-  /* AI-trace  - 金（AI 味标记本就属金系，与主强调同源）*/
-  --mz-sem-ai-fg:     #F0A85C;
-  --mz-sem-ai-bg:     #241E12;
-  --mz-sem-ai-border: #8A6A3C;
-  --mz-sem-ai-strong: #F6B96F;
+  /* AI-trace  - 朱批：AI 痕迹即编辑的朱笔圈点（与主强调同源）*/
+  --mz-sem-ai-fg:     #B5432F;
+  --mz-sem-ai-bg:     #F9EDEA;
+  --mz-sem-ai-border: #C97F6C;
+  --mz-sem-ai-strong: #C24C3B;
 
-  /* Consistency - 玉（文枢副强调：成功 / 一致性）*/
-  --mz-sem-con-fg:     #4FC7AE;
-  --mz-sem-con-bg:     #0F2622;
-  --mz-sem-con-border: #2F7A6B;
-  --mz-sem-con-strong: #6BD9C2;
+  /* Consistency - 青黛（连接 / 一致性 → 蓝系）*/
+  --mz-sem-con-fg:     #3D5A8A;
+  --mz-sem-con-bg:     #EAEFF7;
+  --mz-sem-con-border: #7D97BF;
+  --mz-sem-con-strong: #46689E;
 
-  /* Warning / conflict - 朱红（文枢 red）*/
-  --mz-sem-warn-fg:     #E5695C;
-  --mz-sem-warn-bg:     #271412;
-  --mz-sem-warn-border: #A34A40;
-  --mz-sem-warn-strong: #F07A6C;
+  /* Warning / conflict - 赭石（与朱砂拉开色相，避免同族混淆）*/
+  --mz-sem-warn-fg:     #8A5A18;
+  --mz-sem-warn-bg:     #F8EFDF;
+  --mz-sem-warn-border: #C29A63;
+  --mz-sem-warn-strong: #B0761F;
 
-  /* Pass / healthy - 文枢绿 */
-  --mz-sem-pass-fg:     #8AC46C;
-  --mz-sem-pass-bg:     #142116;
-  --mz-sem-pass-border: #4C7A40;
-  --mz-sem-pass-strong: #9CD47E;
+  /* Pass / healthy - 草绿 */
+  --mz-sem-pass-fg:     #2B7A42;
+  --mz-sem-pass-bg:     #E7F3EA;
+  --mz-sem-pass-border: #69A17C;
+  --mz-sem-pass-strong: #348A4F;
 
-  /* ink placed on any *-strong solid fill */
-  --mz-sem-ink: #14100A;
+  /* fg placed on any *-strong solid fill */
+  --mz-sem-ink: #FFF9F6;
 
   /* --------------------------------------------------------------------------
    * 6. FOCUS  (keyboard reachability - always visible, never removed)
    * ------------------------------------------------------------------------ */
-  --mz-focus-color:  #F2CF95;
+  --mz-focus-color:  #C24C3B;
   --mz-focus-width:  2px;
   --mz-focus-offset: 2px;
-  --mz-focus-halo:   0 0 0 4px rgba(242, 207, 149, 0.2);
+  --mz-focus-halo:   0 0 0 4px rgba(194, 76, 59, 0.16);
 
   /* --------------------------------------------------------------------------
    * 7. TYPOGRAPHY
-   * ------------------------------------------------------------------------ */
+   * -------------------------------------------------------------------------- */
   /* UI chrome - CJK-first, cross-platform fallback chain */
   --mz-font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
                 "HarmonyOS Sans SC", "Microsoft YaHei UI", "Microsoft YaHei",
@@ -200,15 +202,15 @@
   --mz-bw-strong:   2px;
 
   /* --------------------------------------------------------------------------
-   * 12. ELEVATION  (dark-mode shadows: black 35-55%, never 90% -> no dead black;
-   *     always paired with a 1px border. inner top highlight fakes a light source)
+   * 12. ELEVATION  (light-mode shadows: warm-neutral black 6-16%, soft and
+   *     short; on paper the layering cue is the 1px border, shadow only lifts)
    * ------------------------------------------------------------------------ */
   --mz-shadow-none: none;
-  --mz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  --mz-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  --mz-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  --mz-shadow-xl: 0 24px 56px rgba(0, 0, 0, 0.60), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --mz-inset-line: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --mz-shadow-sm: 0 1px 2px rgba(31, 33, 26, 0.06);
+  --mz-shadow-md: 0 4px 12px rgba(31, 33, 26, 0.08);
+  --mz-shadow-lg: 0 12px 32px rgba(31, 33, 26, 0.12);
+  --mz-shadow-xl: 0 24px 56px rgba(31, 33, 26, 0.16);
+  --mz-inset-line: inset 0 0 0 1px rgba(31, 33, 26, 0.04);
 
   /* --------------------------------------------------------------------------
    * 13. MOTION  (restrained: state feedback only, 120-240ms, no bounce)
@@ -235,13 +237,13 @@
   /* --------------------------------------------------------------------------
    * 15. DATA VISUALISATION
    * ------------------------------------------------------------------------ */
-  --mz-chart-grid:    rgba(255, 255, 255, 0.05);  /* gridlines on dark */
-  --mz-chart-axis:    #333D4A;                    /* axis line */
-  --mz-chart-label:   #828D9C;                    /* tick labels (5.62 on canvas) */
-  --mz-chart-neutral: #4A5568;                    /* neutral bars / lines */
-  --mz-chart-track:   #1C232C;                    /* metric-bar rail */
-  --mz-chart-band:    rgba(217, 169, 96, 0.10);   /* baseline healthy band */
-  --mz-chart-band-edge: rgba(217, 169, 96, 0.35);
+  --mz-chart-grid:    rgba(31, 33, 26, 0.08);   /* gridlines on paper */
+  --mz-chart-axis:    #9AA096;                  /* axis line */
+  --mz-chart-label:   #676C73;                  /* tick labels (4.9 on canvas) */
+  --mz-chart-neutral: #AEB3A8;                  /* neutral bars / lines */
+  --mz-chart-track:   #E7E8E4;                  /* metric-bar rail */
+  --mz-chart-band:    rgba(194, 76, 59, 0.07);  /* baseline healthy band */
+  --mz-chart-band-edge: rgba(194, 76, 59, 0.28);
 
   /* --------------------------------------------------------------------------
    * 16. SEMANTIC ALIAS LAYER  (role-based names -> primitives above)
@@ -263,6 +265,12 @@
   --mz-status-consistency:  var(--mz-sem-con-fg);
   --mz-status-warning:      var(--mz-sem-warn-fg);
   --mz-status-pass:         var(--mz-sem-pass-fg);
+  /* v2 兼容别名：组件旧代码引用过这四个未定义名（一直掉进 GitHub 暗色 fallback）。
+   * 新代码请直接用上面 --mz-sem-*-fg / --mz-status-* 正式名。 */
+  --mz-status-ok:    var(--mz-sem-pass-fg);
+  --mz-status-warn:  var(--mz-sem-warn-fg);
+  --mz-status-risk:  var(--mz-sem-ai-fg);
+  --mz-status-info:  var(--mz-sem-con-fg);
 }
 
 /* ============================================================================
