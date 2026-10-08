@@ -14,6 +14,7 @@ import { detectConflicts } from './tools/impl/ledger-query';
 import type { MetricSpec } from '@shared/types/project';
 import type { RunState } from '@shared/types/agent';
 import { openDatabase, type MzDatabase } from './db/database';
+import { DB_FILENAME } from './data-dir';
 import { ChapterRepo, ProjectRepo, StyleProfileRepo, percentiles } from './db/repos/chapter-repo';
 import { LedgerRepo } from './db/repos/ledger-repo';
 import { DailyWriteRepo } from './db/repos/daily-write-repo';
@@ -90,7 +91,7 @@ export class AppServices {
   private flavorCfg: FlavorConfig = { ...DEFAULT_FLAVOR_CONFIG };
 
   constructor() {
-    this.db = openDatabase(join(app.getPath('userData'), 'mozhou.db'));
+    this.db = openDatabase(join(app.getPath('userData'), DB_FILENAME));
     // 日增量必须在 chapterRepo 之前建：正文写入的记账点就在 updateBody 里
     this.dailyWrites = new DailyWriteRepo(this.db);
     this.chapterRepo = new ChapterRepo(this.db, this.dailyWrites);

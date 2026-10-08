@@ -1,7 +1,7 @@
 {
   "name": "mozhou-agent",
   "version": "0.1.0",
-  "description": "墨舟写作 Agent —— 中文网文写作 Agent（Electron 桌面应用）",
+  "description": "木萱写作",
   "main": "out/main/index.js",
   "type": "commonjs",
   "author": "墨舟",

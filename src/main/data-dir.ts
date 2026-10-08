@@ -18,6 +18,13 @@ import { join } from 'node:path';
 export const PORTABLE_DATA_DIRNAME = 'mozhou-data';
 
 /**
+ * 书稿库的文件名。迁移闸（portable-migration.ts）认的就是它，
+ * 所以它必须和 services.ts 打开的是同一个常量 —— 各写一份字面量，
+ * 哪天改了名，迁移会静默变成"永远判定没有书稿"。
+ */
+export const DB_FILENAME = 'mozhou.db';
+
+/**
  * @param env 默认 process.env；测试可注入
  * @returns 便携数据目录的绝对路径；**没注入或注入为空 → null**（保持 Electron 默认目录）
  */

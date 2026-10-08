@@ -13,6 +13,7 @@ import { AppServices } from './services';
 import { closeDatabase } from './db/database';
 import { buildMenu } from './menu';
 import { portableDataDir } from './data-dir';
+import { migrateLegacyUserData } from './portable-migration';
 
 /**
  * 提到模块级：`before-quit` 处理器在 main() 之外，需要能拿到 services 才能做退出备份。
@@ -43,9 +44,20 @@ const QUIT_BACKUP_TIMEOUT_MS = 8_000;
 try {
   const portableDir = portableDataDir();
   if (portableDir) {
+    // 必须在 app.setPath 之前取：过了这一步 getPath('userData') 就是便携目录了。
+    // 它指向的是旧便携版/安装版一直写数据的地方，也就是迁移的来源（§4 第 14 条①）。
+    const legacyDir = app.getPath('userData');
     // app.setPath 不负责建目录；新解压的 exe 旁边还没有它，
     // 不先建好则 better-sqlite3 打开不存在的目录直接抛，应用起不来
     mkdirSync(portableDir, { recursive: true });
+    const moved = migrateLegacyUserData({ legacyDir, targetDir: portableDir });
+    if (moved.status === 'migrated') {
+      console.log(`[main] 便携版首次迁移：${moved.copied} 个文件 ${legacyDir} → ${portableDir}，旧目录留档为 ${moved.archivedTo}`);
+    } else if (moved.status === 'failed') {
+      console.error('[main] 便携版旧数据迁移失败，本次继续使用空目录：', moved.error);
+    } else {
+      console.log(`[main] 便携版旧数据未迁移（${moved.reason}）`);
+    }
     app.setPath('userData', portableDir);
   }
 } catch (e) {
