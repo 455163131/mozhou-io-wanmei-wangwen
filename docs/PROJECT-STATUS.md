@@ -75,7 +75,8 @@ Electron 33.4.11  +  React 19  +  TypeScript 5.8  +  Zustand 5(persist)
 | 8 | 便携版数据目录 | 便携 exe 数据仍写 %APPDATA%，需识别 `PORTABLE_EXECUTABLE_DIR` | 低 |
 | 9 | 账本摘要未并入状态指纹 | `services.ts` 的 `computeStateHash()` 调 `ledgerDigest([])` 传空数组，注释承诺的「只改账本也能被检测到」从未生效 → 判据 B 可能把"只改账本"误判为 `no-effect` | 低 |
 | 10 | 事件载荷硬编码 | `loop.ts` 的 `agent:tool-call` 写死 `danger: 1` 与 `writePolicy: 'auto-with-undo'`，与实际 `spec.danger` / `opts.writePolicy` 无关 → 界面显示的"回滚成本/写策略"不真实 | 低 |
-| 11 | `locate_issues` 段落定位错位 | `analyze.ts` 段落分支的 `offset` 是死代码（恒 0），重复段落文字会定位到第一次出现处 → 后续 `replace_phrase` 可能改错地方 | 低 |
+| 11 | ~~`locate_issues` 段落定位错位~~ ✅ **已修（2026-10-09）** | `analyze.ts` 段落分支（`avgPara`/`sentsPerPara`）的 `offset` 是死变量（`map` 从不累加），位置全靠 `body.indexOf(段落)` 兜底 → 重复段落的两条命中都落到**首次出现处**，后续 `replace_phrase` 会改错地方。已改为按文档顺序逐段累加、删掉 `indexOf` 兜底，并补 `tests/unit/locate-offset.test.ts`（3 条） | ~~低~~ — |
+| 12 | **句子分支同病（新发现，未修）** | 紧挨着 #11 的 `avgSent`/`sentCv` 分支仍是 `body.indexOf(s)` 从 0 反查。跨行重复句恰好因片段自带 `\n` 前缀而不会撞车，但**同一段落内的重复句会**：实测 body=`B+A+A+B`（B 长 17、A 长 4）时返回 `at = 0, 0, 17`，第二条 B（真实位置 25）指向了 0。修法与 #11 一致（改为累加偏移），但需先确认是否要保住「同一句在段内重复时只报一次」的语义 | 低 |
 
 ---
 

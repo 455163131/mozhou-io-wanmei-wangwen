@@ -267,21 +267,24 @@ function locateInChapter(chapterId: string, body: string, metric: string): Issue
   }
   if (metric === 'avgPara' || metric === 'sentsPerPara') {
     const paras = body.split('\n');
+    // 偏移必须按文档顺序逐段累加。用 body.indexOf(段落) 反查会让重复段落
+    // 的两条命中都落到首次出现处，而 at 是给 replace_phrase / UI 高亮用的。
     let offset = 0;
     const list = paras
-      .map((p) => ({ p, at: offset }))
+      .map((p) => {
+        const at = offset;
+        offset += p.length + 1;
+        return { p, at };
+      })
       .sort((x, y) => y.p.length - x.p.length)
       .slice(0, 3);
-    offset = 0;
     for (const x of list) {
-      const realAt = body.indexOf(x.p, offset >= 0 ? 0 : 0);
       out.push({
         chapterId,
-        at: realAt >= 0 ? realAt : x.at,
-        quote: snippetAround(body, realAt >= 0 ? realAt : x.at, 18),
+        at: x.at,
+        quote: snippetAround(body, x.at, 18),
         note: '段落长度影响段落级指标',
       });
-      offset += x.p.length + 1;
     }
     return out;
   }
