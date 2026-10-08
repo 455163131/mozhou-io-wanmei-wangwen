@@ -14,8 +14,8 @@
 | 专家团评审 | ✅ 6 角色（结构/人物/对白/文字/读者/类型）+ 冲突并列 + 作者裁决 |
 | 模型接入 | ✅ 6 家 Provider（DeepSeek/OpenRouter/本地等）+ safeStorage 加密 Key + 连接测试 |
 | 检查点回滚 | ✅ Agent 每步快照，改动历史可回滚 |
-| 便携版 | ✅ `墨舟写作台-0.1.0-portable.exe`（74MB 免安装，双击即用）|
-| 测试基线 | ✅ 460 用例全通（28 文件，2026-10-09 实测。旧文档的「281」是 10-08 前的口径，其后修复提交新增了大量用例）+ 验收脚本 9 项。**必须走 `npm test`**，见第五节 |
+| 便携版 | ⚠️ `墨舟写作台-0.1.0-portable.exe`（74MB 免安装，双击即用）**但**：`release/` 里那个产物是 §4 第 8 条修复**之前**打的，数据仍写 %APPDATA%。要让数据真的跟着 exe 走，须按第六节重新 `npx electron-builder --win portable --x64`（重新打包后需实测，见第 14 条） |
+| 测试基线 | ✅ 470 用例全通（29 文件，2026-10-09 实测。旧文档的「281」是 10-08 前的口径，其后修复提交新增了大量用例）+ 验收脚本 9 项。**必须走 `npm test`**，见第五节 |
 | UI 设计定稿 | ✅ 「文枢」水墨金风格（五模式外壳已移植进 React 渲染层）|
 
 ---
@@ -72,7 +72,8 @@ Electron 33.4.11  +  React 19  +  TypeScript 5.8  +  Zustand 5(persist)
 | 5 | 应用图标 | 缺 `build/icon.ico`（当前用默认图标） | 低 |
 | 6 | 品牌命名统一 | UI 品牌「文枢」vs exe 名「墨舟写作台」，待定夺 | 低 |
 | 7 | 审稿模式行内标注 | 现为报告式；行内 wavy 标注需把命中 offset 映射回编辑器 | 高 |
-| 8 | 便携版数据目录 | 便携 exe 数据仍写 %APPDATA%，需识别 `PORTABLE_EXECUTABLE_DIR` | 低 |
+| 8 | ~~便携版数据目录~~ ✅ **已修（2026-10-09）** | `electron-builder.yml:21` 打了 `portable` 目标，但主进程从没读过启动器注入的 `PORTABLE_EXECUTABLE_DIR`（= exe 所在目录）→ 数据永远写 `%APPDATA%\墨舟写作台`，「便携」名不副实。新增纯函数 `src/main/data-dir.ts:portableDataDir()`（只吃 env，可注入测试），入口 `index.ts` 在**第一个 `app.getPath('userData')` 被读之前** `app.setPath`。四个消费点（`services.ts:85` db、`:92` 备份、`keyring.ts:21` 凭据、`ipc/register.ts:61` `app:getPaths`）实测全部走同一个 getter，所以改一处全体生效、无需逐个加分支；递归建目录 + `try/catch` 兜底，写保护介质上退回默认目录而不是双击没反应。未设变量的 NSIS 版/开发模式返回值恒为 `null`，行为零变化。补 `tests/integration/portable-data-dir.test.ts`（10 条：6 行为 + 4 装配哨兵，含「设置必须早于 `new AppServices()`」的顺序断言）。**遗留见第 14 条** | ~~低~~ — |
+| 14 | **便携版换目录后的旧数据与旧凭据（新发现，待定夺）** | ① 已在用旧便携版的用户升级到本次修复后的构建，exe 旁边会新建一个空的 `mozhou-data`，书稿仍留在上一台机器的 %APPDATA% 里 → 表现为「项目列表空了」，需要一份「把旧 userData 整体搬到 exe 旁」的说明或一次性迁移（迁移涉及覆盖既有 db，不能顺手做）。② `safeStorage` 的密钥是**按机器/按用户**的（DPAPI），便携包换机器后旧 `llm-credentials.bin` 必然解不开；已实测降级路径是安全的（`keyring.ts:51-53` catch 后返回 `undefined`，不崩），但用户需重输一次 Key | 低-中 |
 | 9 | ~~账本摘要未并入状态指纹~~ ✅ **已修（2026-10-09）** | `services.ts` 的 `computeStateHash()` 调 `ledgerDigest([])` 传空数组，注释承诺的「只改账本也能被检测到」从未生效 → 判据 B 会把「只改账本」误判为 `no-effect`。已抽出 `util/hash.ts:ledgerStateEntries()` 把四类账本摊平接进指纹，补 `tests/integration/ledger-statehash-wiring.test.ts`（7 条：4 条行为 + 3 条装配哨兵）。**但注意**：写入侧仍缺失，见第 13 条，故本条修完暂无可观测行为变化 | ~~低~~ — |
 | 13 | **账本无任何写入路径（新发现，未修）** | 复核 §1.4 时确认：`memCharacters/memNumbers/memTimeline/memForeshadows` 四个 Map 全仓**只有读、没有 `.set()`**，`ledger_*` 五张表只有 `db/migrate.ts` 里的 DDL、没有 repo。后果比文档原写的「重启丢失」严重——账本**会话内也恒为空**，`query_ledger` 永远返回空集合，S2 跨章一致性对账无数据来源。详见 `REMAINING.md` §1.4（已同步修正） | 中 |
 | 10 | ~~事件载荷硬编码~~ ✅ **已修（2026-10-09）** | `loop.ts` 的 `agent:tool-call` 写死 `danger: 1` 与 `writePolicy: 'auto-with-undo'`，与实际 `spec.danger` / 本次 run 解析出的策略无关 → ★2~★5 一律报成 ★1、用户切过的策略一律报成老板默认值。已按 `setIdempotentTools` 的既有注入模式补 `loop.setToolReport(toolSpecs, writePolicy.policy)`，事件字段类型收紧为 `ToolDanger \| null` / `WritePolicy \| null`（未注入时如实给 null，绝不编数字），`ipc.ts` 契约同步。**更正本条原写的「界面显示不真实」**：全仓 grep 确认渲染层没有任何订阅方（`preload/api.ts:195` 只是把通道名加进白名单），所以此前无用户可见的错误显示——但虚假载荷确实每条都跨过了一条白名单 IPC 通道，任何未来接入方一上手就拿到错值。补 `tests/integration/tool-call-payload.test.ts`（5 条，起真 AgentHost + 真 registry，断言对外事件本身） | ~~低~~ — |

@@ -1,15 +1,18 @@
 /**
  * 主进程入口（架构 T01）。
  *
- * 顺序很重要：单实例锁 → app.whenReady → 服务装配 → 建窗 → 注册 IPC。
+ * 顺序很重要：便携数据目录 → 单实例锁 → app.whenReady → 服务装配 → 建窗 → 注册 IPC。
+ * （便携目录必须排第一：它是 `app.getPath('userData')` 被读之前的唯一改址窗口。）
  */
 import { app, BrowserWindow } from 'electron';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createWindow } from './window';
 import { registerAllIpc } from './ipc/register';
 import { AppServices } from './services';
 import { closeDatabase } from './db/database';
 import { buildMenu } from './menu';
+import { portableDataDir } from './data-dir';
 
 /**
  * 提到模块级：`before-quit` 处理器在 main() 之外，需要能拿到 services 才能做退出备份。
@@ -30,6 +33,25 @@ let dbClosed = false;
  * 卡死等情况下可能永远不返回。**宁可少一份备份，也不能让用户关不掉应用。**
  */
 const QUIT_BACKUP_TIMEOUT_MS = 8_000;
+
+// ★ 便携版数据目录（§4 第 8 条）：修复前 portable 目标打了，但全仓没人读
+//   PORTABLE_EXECUTABLE_DIR，数据永远写 %APPDATA%\墨舟写作台 —— 拷进 U 盘带走，
+//   换台电脑双击同一个 exe 打开的是空项目列表。
+//   只在这里改一次：db（services.ts:85）、备份（:92）、凭据（keyring.ts:21）、
+//   app:getPaths（ipc/register.ts:61）都从同一个 app.getPath('userData') 取值。
+try {
+  const portableDir = portableDataDir();
+  if (portableDir) {
+    // app.setPath 不负责建目录；新解压的 exe 旁边还没有它，
+    // 不先建好则 better-sqlite3 打开不存在的目录直接抛，应用起不来
+    mkdirSync(portableDir, { recursive: true });
+    app.setPath('userData', portableDir);
+  }
+} catch (e) {
+  // 便携 exe 也常被放在写保护 U 盘、只读共享盘、Program Files 里。
+  // 那种情况下宁可退回默认目录并留下日志，也不要让用户双击没反应
+  console.error('[main] 便携数据目录不可用，退回默认 userData：', e);
+}
 
 // ★ 单实例锁：第二次启动时聚焦已有窗口，而不是开第二个实例
 const gotLock = app.requestSingleInstanceLock();
