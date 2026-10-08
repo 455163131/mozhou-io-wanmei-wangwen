@@ -38,7 +38,7 @@
 **仍然缺的**（不属于本条，别当成已完工）：`LoreView` 没有用户手工登记入口，写入侧只有 Agent 工具；
 `ledger_conflicts` 表仍是空壳 DDL（冲突改为按最新账本现算，避免留下过期的「待裁决」记录）。
 
-### 1.5 T11 / T12 / T22–T25 / T28 未做
+### 1.5 T11 / T12 / T22–T25 / T28 的当前状态（T11、T28 已补完，其余仍未做）
 
 | 任务 | 内容 | 现状 |
 |---|---|---|
@@ -48,7 +48,7 @@
 | T23 | 导出页 + 拆书页 | 导出走 IPC `export:run`，无页面 |
 | T24 | 错误边界 + 未闭合 run 提示 | 未闭合 run 检测已做，无 UI 弹窗 |
 | T25 | 大文件实测 | 参数已按§1.9 设定，**未实测** |
-| T28 | 打包 | `electron-builder.yml` 已写，**未实跑** |
+| T28 | 打包 | ✅ **已实跑并实测（2026-10-09 06:24）**：`木萱网文写作台-0.1.0-portable.exe`（74.3 MB）在 `release/repack-20261009/`，双击启动后数据落 exe 旁的 `mozhou-data\`、窗口标题与图标都是本项目的（详见 `PROJECT-STATUS.md` 第一节「便携版」行与 §4 第 5/8 条）。nsis 安装器同一次配置里也声明了，但本次只重跑了 `--win portable` |
 
 ---
 
@@ -59,8 +59,8 @@
 | **V1** | CodeMirror 6 在 10 万字中文长文的滚动 FPS 与 IME 延迟 | 架构要求 T12 开工前验证；本实现用 textarea 未引入 CM6 | 造 10 万字文件，`npm i @codemirror/*`，测滚动 FPS 与 keydown→paint |
 | **V13** | Ollama / LM Studio 的 function calling 支持度 | 本机未装这两个运行时 | 各发 3 种请求（tools / prompted / 流式），记录原始返回 |
 | **V14** | 本地模型实际上下文窗口 | 同上 | 读 `/api/tags`、`/v1/models` |
-| **V8** | better-sqlite3 在Electron 下的 ABI 兼容 | 未打包 | `npm run pack:win` 后启动，查是否需重建原生模块 |
-| **V6** | 未签名 exe 的杀软误报率 | 未打包 | 产物用 360/腾讯/火绒实扫 |
+| **V8** | better-sqlite3 在Electron 下的 ABI 兼容 | ✅ **已验（2026-10-09）**：`electron-builder.yml` 的 `npmRebuild: true` 在打包时重建了原生模块（日志 `installing native dependencies arch=x64 → preparing/finished moduleName=better-sqlite3`），**未** `buildFromSource`；打包后的便携 exe 双击启动，exe 旁的 `mozhou-data\` 里建出 `mozhou.db`(+wal/shm) → 原生模块在打包态加载并可写库。范围仅限本机 win32/x64，别的机器与 ARM 未覆盖 | 其余平台/架构仍需各自实跑 |
+| **V6** | 未签名 exe 的杀软误报率 | 部分：本机 Windows Defender 首次运行未拦（应用正常起窗）。360 / 腾讯 / 火绒 本机没有，仍未测 | 产物用 360/腾讯/火绒实扫 |
 | **V9** | electron-vite 下 preload 的 ESM/CJS 形态 | 配置已设 CJS，未实跑启动 | `npm run dev`，看console 打印的 `typeof window.mz` |
 | **V10** | 100 万字项目的 SQLite 性能 | 未造大数据 | 造 500 章 × 2500 字 fixture，测查询与备份耗时 |
 | **V15** | checkpoint 深度 50 / 64MB 在全量使用时够不够 | 未跑 500 章批量修正 | 同上，看LRU 淘汰频率 |
