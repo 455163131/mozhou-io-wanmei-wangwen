@@ -1,8 +1,9 @@
 /**
- * 应用外壳：文枢五模式（写作 | 规划 | 设定 | 审稿 | 仪表盘）。
- * 设计定稿：novel-workbench-ui/index.html（老板 2026-10-08 批准的水墨金风格）。
- * 现有面板（专家团 / 主编对谈 / 审查 / 体检 / 历史）全部挂进「写作」模式右栏；
- * 规划 / 设定 / 审稿 / 仪表盘为独立模式视图，各自接真实后端。
+ * 应用外壳：竖排模式导航栏 + 精简顶栏 + 可折叠双栏工作区 + 单一统计底栏。
+ * 布局 v2（2026-10-09）：低频的模式导航移到左侧 56px 图标栏；顶栏只管
+ * 项目切换与面包屑；统计只出现在底栏一处；章节树与 AI 右栏均可折叠，
+ * 写作专注态编辑器全宽。配色走「素笺·朱批」令牌（styles/tokens.css）。
+ * 现有面板（专家团 / 主编对谈 / 审查 / 体检 / 历史）全部挂进「写作」模式右栏。
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useProjectStore } from './store';
@@ -54,7 +55,16 @@ function Mark(): JSX.Element {
         strokeWidth="1.8"
         strokeLinecap="round"
       />
-      <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" strokeWidth="1.4" opacity=".55" />
+    </svg>
+  );
+}
+
+/** 折叠开关的面板图标 */
+function PanelIco({ side }: { side: 'left' | 'right' }): JSX.Element {
+  return (
+    <svg className={styles.panelSvg} viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d={side === 'left' ? 'M9 4v16' : 'M15 4v16'} />
     </svg>
   );
 }
@@ -62,12 +72,15 @@ function Mark(): JSX.Element {
 export function App(): JSX.Element {
   const project = useProjectStore((s) => s.project);
   const chapters = useProjectStore((s) => s.chapters);
+  const currentChapterId = useProjectStore((s) => s.currentChapterId);
   const error = useProjectStore((s) => s.error);
   const setError = useProjectStore((s) => s.setError);
   const [mode, setMode] = useState<Mode>('write');
   const [railTab, setRailTab] = useState<RailTab>('expert');
   const [llmStatus, setLlmStatus] = useState<LlmStatus | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTree, setShowTree] = useState(true);
+  const [showRail, setShowRail] = useState(true);
   const [dash, setDash] = useState<DashStats | null>(null);
 
   useAgentStream();
@@ -136,96 +149,117 @@ export function App(): JSX.Element {
   const modelLabel = llmStatus?.configured
     ? (llmStatus.settings?.model || llmStatus.uiState.kind)
     : '模型未配置';
+  const modeLabel = MODES.find((m) => m.id === mode)?.label ?? '';
+  const current = chapters.find((c) => c.id === currentChapterId);
 
   return (
     <div className={styles.shell}>
-      <header className={styles.top}>
-        <div className={styles.brand}>
-          <div className={styles.mark}><Mark /></div>
-          <div><b>文枢</b><small>NINESAGES</small></div>
-        </div>
-        <button className={styles.book} onClick={() => void openProject()} title="打开 / 切换项目">
-          <span className={styles.cov}>{project ? project.name.slice(0, 1) : '墨'}</span>
-          <span className={styles.bt}>
-            <b>{project ? `《${project.name}》` : '未打开项目'}</b>
-            <span>{project ? `${chapters.length} 章` : '点击选择项目目录'}</span>
-          </span>
-        </button>
-        <nav className={styles.modes}>
+      <nav className={styles.rail} aria-label="模式导航">
+        <div className={styles.mark} title="文枢"><Mark /></div>
+        <div className={styles.railModes}>
           {MODES.map((m) => (
-            <button key={m.id} className={mode === m.id ? styles.modeOn : ''} onClick={() => setMode(m.id)}>
-              <svg className={styles.modeIco} viewBox="0 0 24 24"><path d={m.d} /></svg>
-              {m.label}
+            <button
+              key={m.id}
+              className={`${styles.railBtn} ${mode === m.id ? styles.railOn : ''}`}
+              onClick={() => setMode(m.id)}
+              aria-current={mode === m.id ? 'page' : undefined}
+              title={m.label}
+            >
+              <svg className={styles.railIco} viewBox="0 0 24 24"><path d={m.d} /></svg>
+              <span>{m.label}</span>
             </button>
           ))}
-        </nav>
-        <div className={styles.topRight}>
-          {dash && (
-            <div className={styles.daily}>
-              <span className={styles.dailyLbl}>全书</span>
-              <b className={styles.mzNum}>{dash.totalChars >= 10000 ? `${(dash.totalChars / 10000).toFixed(1)} 万` : dash.totalChars.toLocaleString()}</b>
-              <span className={styles.dailyLbl}>字 · {dash.chapterCount} 章</span>
+        </div>
+        <button className={styles.railFoot} onClick={() => setShowSettings(true)} title="设置">
+          <span className={styles.avatar}>墨</span>
+        </button>
+      </nav>
+
+      <div className={styles.main}>
+        <header className={styles.top}>
+          <button className={styles.book} onClick={() => void openProject()} title="打开 / 切换项目">
+            <span className={styles.cov}>{project ? project.name.slice(0, 1) : '墨'}</span>
+            <span className={styles.bt}>
+              <b>{project ? `《${project.name}》` : '未打开项目'}</b>
+              <span>{project ? `${chapters.length} 章` : '点击选择项目目录'}</span>
+            </span>
+          </button>
+          <span className={styles.topSep} />
+          <div className={styles.crumb}>
+            <b>{modeLabel}</b>
+            {mode === 'write' && <span>{current ? `第 ${current.id} 章 · ${current.title}` : '未选择章节'}</span>}
+          </div>
+          {mode === 'write' && (
+            <div className={styles.topRight}>
+              <button
+                className={`${styles.panelBtn} ${showTree ? styles.panelBtnOn : ''}`}
+                onClick={() => setShowTree((v) => !v)}
+                aria-pressed={showTree}
+                title="章节树"
+              ><PanelIco side="left" /></button>
+              <button
+                className={`${styles.panelBtn} ${showRail ? styles.panelBtnOn : ''}`}
+                onClick={() => setShowRail((v) => !v)}
+                aria-pressed={showRail}
+                title="AI 面板"
+              ><PanelIco side="right" /></button>
             </div>
           )}
-          <button className={styles.modelChip} onClick={() => setShowSettings(true)}
-            title={llmStatus?.configured ? '模型设置' : '模型未配置 —— 点击配置'}>
-            <span className={`${styles.chipDot} ${llmStatus?.configured ? styles.chipDotOk : styles.chipDotWarn}`} />
-            {modelLabel}
-          </button>
-          <div className={styles.avatar}>墨</div>
-        </div>
-      </header>
+        </header>
 
-      {error && (
-        <div className={styles.errorBar} onClick={() => setError(null)}>
-          {error}
-          <span className={styles.dismiss}>（点击关闭）</span>
-        </div>
-      )}
-
-      <div className={styles.body}>
-        {mode === 'write' ? (
-          <>
-            <aside className={styles.left}><ChapterTree /></aside>
-            <main className={styles.center}><Editor /></main>
-            <aside className={styles.right}>
-              <div className={styles.tabs}>
-                {RAIL_TABS.map((t) => (
-                  <button key={t.id} className={`${styles.tab} ${railTab === t.id ? styles.tabActive : ''}`}
-                    onClick={() => setRailTab(t.id)}>{t.label}</button>
-                ))}
-              </div>
-              <div className={styles.tabBody}>
-                {railTab === 'expert' && <ExpertPanel />}
-                {railTab === 'agent' && <AgentPanel />}
-                {railTab === 'flavor' && <FlavorPanel />}
-                {railTab === 'health' && <HealthPanel />}
-                {railTab === 'history' && <HistoryTimeline />}
-              </div>
-            </aside>
-          </>
-        ) : (
-          <main className={styles.modeHost}>
-            {mode === 'plan' && <PlanView />}
-            {mode === 'lore' && <LoreView />}
-            {mode === 'review' && <ReviewView />}
-            {mode === 'dash' && <DashboardView />}
-          </main>
+        {error && (
+          <div className={styles.errorBar} onClick={() => setError(null)}>
+            {error}
+            <span className={styles.dismiss}>（点击关闭）</span>
+          </div>
         )}
-      </div>
 
-      <footer className={styles.statusBar}>
-        <span>全书 <b className={styles.mzNum}>{dash ? (dash.totalChars >= 10000 ? `${(dash.totalChars / 10000).toFixed(1)} 万` : dash.totalChars.toLocaleString()) : '—'}</b> 字</span>
-        <span className={styles.stSep} />
-        <span>章节 <b className={styles.mzNum}>{dash?.chapterCount ?? '—'}</b></span>
-        <span className={styles.stSep} />
-        <span>已发布/待审/草稿 <b className={styles.mzNum}>{dash ? `${dash.byStatus.done}/${dash.byStatus.revised}/${dash.byStatus.draft}` : '—'}</b></span>
-        <span className={styles.stSp} />
-        <span className={styles.modelFoot} onClick={() => setShowSettings(true)}>
-          <span className={`${styles.chipDot} ${llmStatus?.configured ? styles.chipDotOk : styles.chipDotWarn}`} />
-          {llmStatus?.configured ? `模型 ${modelLabel}` : '模型未配置（点击设置）'}
-        </span>
-      </footer>
+        <div className={styles.body}>
+          {mode === 'write' ? (
+            <>
+              {showTree && <aside className={styles.left}><ChapterTree /></aside>}
+              <main className={styles.center}><Editor /></main>
+              {showRail && (
+                <aside className={styles.right}>
+                  <div className={styles.tabs}>
+                    {RAIL_TABS.map((t) => (
+                      <button key={t.id} className={`${styles.tab} ${railTab === t.id ? styles.tabActive : ''}`}
+                        onClick={() => setRailTab(t.id)}>{t.label}</button>
+                    ))}
+                  </div>
+                  <div className={styles.tabBody}>
+                    {railTab === 'expert' && <ExpertPanel />}
+                    {railTab === 'agent' && <AgentPanel />}
+                    {railTab === 'flavor' && <FlavorPanel />}
+                    {railTab === 'health' && <HealthPanel />}
+                    {railTab === 'history' && <HistoryTimeline />}
+                  </div>
+                </aside>
+              )}
+            </>
+          ) : (
+            <main className={styles.modeHost}>
+              {mode === 'plan' && <PlanView />}
+              {mode === 'lore' && <LoreView />}
+              {mode === 'review' && <ReviewView />}
+              {mode === 'dash' && <DashboardView />}
+            </main>
+          )}
+        </div>
+
+        <footer className={styles.statusBar}>
+          <span>全书 <b className={styles.mzNum}>{dash ? (dash.totalChars >= 10000 ? `${(dash.totalChars / 10000).toFixed(1)} 万` : dash.totalChars.toLocaleString()) : '—'}</b> 字</span>
+          <span className={styles.stSep} />
+          <span>章节 <b className={styles.mzNum}>{dash?.chapterCount ?? '—'}</b></span>
+          <span className={styles.stSep} />
+          <span>已发布/待审/草稿 <b className={styles.mzNum}>{dash ? `${dash.byStatus.done}/${dash.byStatus.revised}/${dash.byStatus.draft}` : '—'}</b></span>
+          <span className={styles.stSp} />
+          <span className={styles.modelFoot} onClick={() => setShowSettings(true)}>
+            <span className={`${styles.chipDot} ${llmStatus?.configured ? styles.chipDotOk : styles.chipDotWarn}`} />
+            {llmStatus?.configured ? `模型 ${modelLabel}` : '模型未配置（点击设置）'}
+          </span>
+        </footer>
+      </div>
 
       {showSettings && (
         <SettingsModal
