@@ -7,7 +7,7 @@
  * 覆盖用户在删除之后对其它章节做的修改。
  */
 import type { ChangeSet, Edit, ToolContext, ToolResult } from '@shared/types/tool';
-import { inQuote } from '@shared/util/text-zh';
+import { buildQuoteRanges, inQuoteRanges } from '@shared/util/text-zh';
 import { detectSideEffects } from '../../agent/side-effect';
 import type { BaselineLike } from '../../rule-engine/plan-fixes';
 
@@ -74,6 +74,10 @@ export async function replacePhrase(
   const includeQuotes = args.includeQuotes === true;
   const edits: Edit[] = [];
 
+  // ★ 引号区间表在循环外建一次。修复前每次匹配都调 inQuote(before, at)，
+  //   而它每次都从头扫到 at → 整体 O(n·m)；长章 + 高频短语时明显可感。
+  const quotes = includeQuotes ? null : buildQuoteRanges(before);
+
   let cursor = 0;
   let skippedInQuote = 0;
   while (true) {
@@ -81,7 +85,7 @@ export async function replacePhrase(
     if (at < 0) break;
 
     // 引号内是人物语言，是本书要「立」的核心资产——默认不动
-    if (!includeQuotes && inQuote(before, at)) {
+    if (quotes && inQuoteRanges(quotes, at)) {
       skippedInQuote++;
       cursor = at + args.find.length;
       continue;

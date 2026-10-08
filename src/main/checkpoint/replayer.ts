@@ -13,7 +13,7 @@
 import type { RollbackResult } from '@shared/types/checkpoint';
 import type { CheckpointManager, SnapshotProvider } from './manager';
 import { MzError } from '@shared/types/ipc';
-import { inQuote } from '@shared/util/text-zh';
+import { buildQuoteRanges, inQuoteRanges } from '@shared/util/text-zh';
 
 export interface RollbackConflict {
   checkpointId: string;
@@ -173,8 +173,20 @@ export class Replayer {
     return { restored: true, body: newBody };
   }
 
-  /** 引号保护复核：回滚时若快照里含有引号内的改动，说明快照本身有问题 */
+  /**
+   * 引号保护复核：回滚时若快照里含有引号内的改动，说明快照本身有问题。
+   *
+   * ★ 用区间表而非逐条 inQuote：本函数对**每条 edit** 都要判一次，
+   *   而 `inQuote(text, at)` 单次就是 O(n)（从头扫到 at）。
+   *   10 万字章节 + 数百处编辑 → 10^7~10^8 次字符比较，且发生在回滚路径上
+   *   （用户等待最敏感处）。建一次表后是 O(n + m·log m)。
+   *
+   * ⚠️ 注意 `e.at` 的坐标系：单工具编辑是原文偏移，可直接对 `text` 判定；
+   *   FixPlan.changes 那种跨规则摊平的总表则各条分属不同坐标系（见 Edit.at 注释），
+   *   不能整体传进来。
+   */
   static validateNoQuoteEdits(edits: Array<{ at: number; before: string; after: string }>, text: string): boolean {
-    return edits.every((e) => !inQuote(text, e.at));
+    const quotes = buildQuoteRanges(text);
+    return edits.every((e) => !inQuoteRanges(quotes, e.at));
   }
 }

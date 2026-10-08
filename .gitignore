@@ -18,3 +18,7 @@ scripts/.*-bundle.mjs
 
 # 调试探针（vitest 默认排除 **/_*.test.ts）。跑完即删。
 tests/**/_probe-*.test.ts
+
+# 本机语料目录（机器相关，不提交）。tests/unit/flavor-baseline-builder.test.ts
+# 的「端到端等价性」验证靠它定位 715 章语料；缺失则该用例跳过并打印警告。
+scripts/.corpus-path

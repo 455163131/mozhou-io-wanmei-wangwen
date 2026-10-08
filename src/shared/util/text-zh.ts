@@ -31,6 +31,80 @@ export function inQuote(text: string, idx: number): boolean {
   return open;
 }
 
+/**
+ * 引号区间表：一次扫描建表，之后每次查询 O(log n)。
+ *
+ * ★★ 为什么需要它（性能，O(n²) → O(n + m·log m)）★★
+ * `inQuote(text, idx)` 每次都从 0 扫到 idx，单次就是 O(n)。而调用方几乎都在
+ * **循环里按位置反复调它**：
+ *   · `checkpoint/replayer.ts` 的 validateNoQuoteEdits 对每条 edit 调一次
+ *   · `tools/impl/phrase.ts` 在 while 里对每个匹配位置调一次
+ *   · `rule-engine/fix-families.ts`、`suggestions.ts` 同理
+ * 10 万字章节 + 数百处编辑 = 10^7~10^8 次字符比较，而且发生在**回滚路径**
+ * ——用户等待最敏感的地方。
+ *
+ * 用法：循环外 `const q = buildQuoteRanges(text)` 建一次表，循环内用
+ * `inQuoteRanges(q, idx)` 查询。语义与 `inQuote` **逐位等价**（穷举测试锁定）。
+ */
+export interface QuoteRanges {
+  /**
+   * 「查询偏移」的命中区间 `[start, end)`，按 start 升序、互不重叠。
+   *
+   * ⚠️ 这不是「引号内文本」的字符跨度，而是**能让 inQuote 返回 true 的 idx 集合**。
+   * 二者差一位，原因是 `inQuote(text, idx)` 扫描的是 `[0, idx)`：
+   *   · 开引号在 p → idx 必须 > p 才扫得到它，故 start = p + 1
+   *   · 闭合事件（闭引号或换行）在 q → idx 只要 ≤ q 就还没扫到闭合，仍是 true，
+   *     故 end = q + 1
+   *   · 直到文末都未闭合 → end = text.length + 1
+   * 想取「引号内的文字」请用 `text.slice(start, end - 1)`。
+   */
+  readonly ranges: ReadonlyArray<readonly [number, number]>;
+}
+
+/** 一次扫描全文，产出所有引号区间。口径与 inQuote 完全一致（含「换行重置」） */
+export function buildQuoteRanges(text: string): QuoteRanges {
+  const ranges: Array<[number, number]> = [];
+  let open = false;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '\n') {
+      // 换行重置：未闭合的引号到此为止。end = i + 1（idx === i 时还没扫到换行）
+      if (open) ranges.push([start, i + 1]);
+      open = false;
+    } else if (!open && QUOTE_OPEN.includes(c)) {
+      open = true;
+      start = i + 1; // idx 必须严格大于开引号位置才算「在引号内」
+    } else if (open && QUOTE_CLOSE.includes(c)) {
+      ranges.push([start, i + 1]); // 同上：idx === i（闭引号本身）时仍判 true
+      open = false;
+    }
+  }
+  // 文末仍未闭合：扫描到 length 时 open 仍是 true
+  if (open) ranges.push([start, text.length + 1]);
+  return { ranges };
+}
+
+/** 二分查询某偏移是否在引号内。与 `inQuote(text, idx)` 等价 */
+export function inQuoteRanges(q: QuoteRanges, idx: number): boolean {
+  const ranges = q.ranges;
+  if (ranges.length === 0) return false;
+  // 找最后一个 start <= idx 的区间（区间有序且不重叠，故只需检查这一个）
+  let lo = 0;
+  let hi = ranges.length - 1;
+  let found = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (ranges[mid][0] <= idx) {
+      found = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return found >= 0 && idx < ranges[found][1];
+}
+
 /** 该位置是否是专有名词/数字锚点保护区 —— 事实锚点一律不改（N4 负面知识） */
 const PROTECTED = /[0-9A-Za-z\u4e00-\u9fa5]/;
 

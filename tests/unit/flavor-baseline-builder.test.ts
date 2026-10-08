@@ -192,8 +192,47 @@ describe('★ 旧口径识别', () => {
 
 // ── 5. 端到端等价性（默认基线那 715 章；语料不存在则跳过）─────────────
 
-const CORPUS_DIR = 'C:/Users/Administrator/Doubao/chats/2026-09-25/new-chat/分章_修复';
-const HAS_CORPUS = existsSync(CORPUS_DIR);
+/**
+ * 语料目录。**不许硬编码某台机器的绝对路径。**
+ *
+ * 修复前这里写死了 `C:/Users/Administrator/Doubao/chats/2026-09-25/new-chat/分章_修复`
+ * ——某位开发者机器上的路径。换机器或在 CI 上，`describe.runIf` 会**静默跳过**，
+ * 而 runIf 不改变用例总数，报告照样显示「全绿」，看不出少跑了什么。
+ *
+ * 这条例外的分量：全项目的 AI 味打分都锚在 `DEFAULT_FLAVOR_BASELINE` 上，
+ * 而这是唯一验证「它能由真实语料重算出来」的用例。它悄悄不跑，
+ * 等于出厂基线的可复现性完全无人看守。
+ *
+ * 现在的解析顺序：
+ *   1. 环境变量 `MZ_FLAVOR_CORPUS`
+ *   2. git-ignored 的 `scripts/.corpus-path`（单行 UTF-8 路径）
+ * 走文件而不是只走环境变量，是因为 `scripts/test.cmd` 要求纯 ASCII
+ * （cmd 以 ANSI/GBK 解析），而语料路径含中文，经 cmd 传递会被编码搞坏。
+ *
+ * 跳过时**必须打印警告**，让「没跑」这件事可见。
+ */
+const CORPUS_DIR = resolveCorpusDir();
+const HAS_CORPUS = CORPUS_DIR !== '' && existsSync(CORPUS_DIR);
+if (!HAS_CORPUS) {
+  console.warn(
+    '[flavor-baseline] ⚠️ 已跳过「端到端等价性」验证（builder vs DEFAULT_FLAVOR_BASELINE）。\n' +
+      `  原因：${CORPUS_DIR === '' ? '未设置 MZ_FLAVOR_CORPUS，也没有 scripts/.corpus-path' : `目录不存在：${CORPUS_DIR}`}\n` +
+      '  影响：出厂基线的可复现性本轮无人看守。\n' +
+      '  要跑：设 MZ_FLAVOR_CORPUS=<语料目录>，或在 scripts/.corpus-path 写入该路径（已 gitignore）。',
+  );
+}
+
+function resolveCorpusDir(): string {
+  const fromEnv = process.env['MZ_FLAVOR_CORPUS'];
+  if (fromEnv && fromEnv.trim() !== '') return fromEnv.trim();
+  try {
+    const p = join(process.cwd(), 'scripts', '.corpus-path');
+    if (existsSync(p)) return readFileSync(p, 'utf8').trim();
+  } catch {
+    // 读不到就当没有，走跳过分支
+  }
+  return '';
+}
 
 describe.runIf(HAS_CORPUS)('★ 端到端等价性（builder vs DEFAULT_FLAVOR_BASELINE，715 章同批文本）', () => {
   it('11 个指标分位数基本一致（差异仅来自 DEFAULT 基线是用引擎「展示级 measured」算的）', () => {

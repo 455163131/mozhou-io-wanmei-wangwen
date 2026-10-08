@@ -36,9 +36,12 @@ export function accrueCost(state: CostState, provider: LlmProvider, usage: LlmUs
   state.localMs += usage.wallMs;
   state.requests += 1;
 
-  // ★ 先判零价，再累加金额
+  // ★ 先判零价，再累加金额。
+  //   零价的含义是「这次调用不增加成本」，**不是**「把已累计的成本清零」。
+  //   修复前这里写 `state.costCny = 0`：运行中一旦切到本地 provider
+  //   （Ollama / LM Studio / custom 的 pricing 恒为 0），之前云端调用累计的
+  //   花费会被直接抹掉 → `maxCostCny` 预算闸门读到的永远偏小，形同虚设。
   if (isFree(provider)) {
-    state.costCny = 0;
     return state;
   }
 
