@@ -26,6 +26,8 @@ import { DEFAULT_BUDGET } from '@shared/constants/budget';
 import { MARKER_KEYS, analyze, isSufficient } from '@shared/metrics-engine';
 import type { BaselineLike } from './rule-engine/plan-fixes';
 import { hashProjectState, ledgerDigest } from './util/hash';
+import { isAllowedLlmBaseUrl } from '@shared/util/external-url';
+import { MzError } from '@shared/types/ipc';
 import { BackupManager, type BackupStats } from './fs/backup';
 import { ensureDir } from './fs/project-fs';
 import { countChars } from '@shared/util/text-zh';
@@ -330,7 +332,22 @@ export class AppServices {
     apiKey?: string;
   }): Promise<LlmStatus> {
     this.providerId = payload.providerId || DEFAULT_PROVIDER_ID;
-    if (payload.baseUrl !== undefined) this.baseUrlOverride = payload.baseUrl;
+    // ★ baseUrl 来自渲染层，必须校验协议再接受。
+    //   `Authorization: Bearer <key>` 会发往这个地址；若允许非回环的 http://，
+    //   用户的 API Key 就是明文过网，且响应可被中间人改写。
+    //   本地运行时（Ollama / LM Studio）的 http://127.0.0.1 是正当用法，已放行。
+    if (payload.baseUrl !== undefined && payload.baseUrl !== '') {
+      const verdict = isAllowedLlmBaseUrl(payload.baseUrl);
+      if (!verdict.ok) {
+        throw new MzError('E_INVALID_ARGS', `模型地址不可用：${verdict.reason}`, {
+          baseUrl: payload.baseUrl,
+        });
+      }
+      this.baseUrlOverride = payload.baseUrl;
+    } else if (payload.baseUrl === '') {
+      // 显式清空 = 回到 provider 默认地址
+      this.baseUrlOverride = '';
+    }
     if (payload.model !== undefined) this.model = payload.model;
     if (payload.apiKey) await saveApiKey(payload.apiKey);
     // provider 变了，能力缓存失效

@@ -1,61 +1,91 @@
 /**
  * 安全策略（架构 §1.1、security.ts）。
  * CSP 设置 + 外部链接拦截 + 权限收紧。
+ *
+ * ★★ 本文件是所有「往外走」的出口的唯一收口点 ★★
+ * `window.ts` 不得再自行注册 will-navigate / setWindowOpenHandler ——
+ * 修复前它注册了第二个更宽松的处理器（放行任意 file://、其余 URL 无协议校验
+ * 直送 shell.openExternal），且注册在本文件之后，两个都会触发，
+ * 于是这里的严格策略形同虚设。
  */
 import { shell, session, type BrowserWindow } from 'electron';
+import { DEV_CSP, PROD_CSP } from '@shared/constants/csp';
+import {
+  isAllowedExternalUrl,
+  isAllowedInternalNavigation,
+} from '@shared/util/external-url';
+
+/** onHeadersReceived 是 session 级的，只能注册一次（macOS activate 会多次建窗） */
+let headersHandlerInstalled = false;
 
 /**
- * Content Security Policy。
- * 渲染层不允许加载远程内容——所有资源都是本地打包的。
- * LLM 请求由主进程发出，渲染层**完全不发跨域请求**（架构 §4.2），
- * 所以 connect-src 可以收得很紧。
+ * 注入响应头 CSP。
+ *
+ * ⚠️ 仅对 **http(s)** 响应生效——生产构建用 `loadFile()` 走 `file://`，
+ *   这里不会触发。生产的 CSP 由 index.html 的 `<meta http-equiv>` 承担
+ *   （见 `shared/constants/csp.ts` 与 electron.vite.config.ts 的注入插件）。
+ *   两处都要有，缺任一处就会出现「开发期有 CSP、生产期裸奔」。
  */
-const CSP = [
-  "default-src 'self'",
-  // ★ 开发期必须放行内联脚本（2026-10-08 真机首启实测）：
-  //   vite 的 @vitejs/plugin-react 会在 index.html 注入**内联**的 react-refresh 前导脚本，
-  //   `script-src 'self'` 会拦掉它 → 所有组件模块抛「can't detect preamble」→ React 不挂载 → 黑屏。
-  //   生产构建没有内联脚本，维持严格 'self' 不变。
-  `script-src 'self'${process.env['ELECTRON_RENDERER_URL'] ? " 'unsafe-inline'" : ''}`,
-  "style-src 'self' 'unsafe-inline'", // CSS Modules 需要内联 style（动态宽度等）
-  "img-src 'self' data:",
-  "font-src 'self'",
-  // ★ 渲染层不直连任何外部 API，故 connect-src 只允许本地 IPC 相关的 self
-  "connect-src 'self'",
-  "object-src 'none'",
-  "frame-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-].join('; ');
+function installHeaderCsp(): void {
+  if (headersHandlerInstalled) return;
+  headersHandlerInstalled = true;
 
-export function applyCsp(win: BrowserWindow): void {
-  void session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+  // 开发期走 dev server（http），响应头 CSP 生效，且需放开 script 的 'unsafe-inline'
+  // 供 react-refresh 前导脚本使用；生产走 file://，由 index.html 的 meta 承担。
+  const csp = process.env['ELECTRON_RENDERER_URL'] ? DEV_CSP : PROD_CSP;
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
-        'Content-Security-Policy': [CSP],
+        'Content-Security-Policy': [csp],
       },
     });
   });
+}
 
-  // 只允许 window.open 打开外部链接到系统浏览器，**绝不在应用内导航**
+/** 当前窗口的「自身 origin」，用于判断应用内导航是否指向自己 */
+function selfOriginOf(win: BrowserWindow): string | null {
+  try {
+    const url = win.webContents.getURL();
+    if (!url) return null;
+    // file:// 下 origin 是 'null' 字符串，退回用目录前缀比对
+    if (url.startsWith('file://')) return url.slice(0, url.lastIndexOf('/') + 1);
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+export function applyCsp(win: BrowserWindow): void {
+  installHeaderCsp();
+
+  const devServer = process.env['ELECTRON_RENDERER_URL'] ?? null;
+  const policy = { devServerOrigin: devServer };
+
+  // 只允许把白名单协议的 URL 交给系统浏览器，**绝不在应用内打开远程页面**
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://')) {
+    if (isAllowedExternalUrl(url)) {
       void shell.openExternal(url);
+    } else {
+      console.warn('[security] 已拒绝 window.open 的非白名单 URL：', url);
     }
     return { action: 'deny' };
   });
 
   // 阻止导航到外部页面
   win.webContents.on('will-navigate', (event, url) => {
-    const devServer = process.env['ELECTRON_RENDERER_URL'];
-    if (devServer && url.startsWith(devServer)) return;
+    if (isAllowedInternalNavigation(url, policy, selfOriginOf(win))) return;
     event.preventDefault();
-    if (url.startsWith('https://')) void shell.openExternal(url);
+    // 白名单内的转系统浏览器；其余（含自定义协议）直接丢弃并留痕
+    if (isAllowedExternalUrl(url)) {
+      void shell.openExternal(url);
+    } else {
+      console.warn('[security] 已拒绝应用内导航，且协议不在外链白名单内：', url);
+    }
   });
 
   // 禁止权限请求（如摄像头、麦克风）——写作工具不需要
-  void session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => {
+  session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => {
     callback(false);
   });
 }

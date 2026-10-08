@@ -50,13 +50,18 @@ export function decideWrite(spec: ToolSpec, cfg: WritePolicyConfig): WriteDecisi
         reason: '当前写策略为「只预览不落盘」，已生成 diff 待你确认。',
       };
 
-    case 'auto-with-undo':
+    case 'auto-with-undo': {
       // ★ 修复记录（QA 缺口 2）：此前这里无条件 return 'execute'，
       //   danger 只出现在文案里，实际不参与判定 —— 意味着 ★2 与 ★3 的写工具
       //   在自动模式下被同等对待，危险分级形同虚设。
-      //   现在让 ★3（跨章，回滚粒度粗）也走确认：它的回滚会连带覆盖
-      //   同批其它章的手动修改，与 ★2 的「只影响本章」不是同一量级的代价。
-      if (spec.danger >= ToolDanger.CrossScope && spec.danger < cfg.hardStopThreshold) {
+      //
+      // ★ 二次修复：判据不能**只看 danger**。
+      //   全部修正工具（derive-from-rules.ts:151）的 danger 是 Spillover(★2)，
+      //   却都带 crossChapter:true —— 于是下面这条 `danger >= CrossScope` 永不成立，
+      //   跨章确认**从来没有触发过**。而跨章批量改写的回滚会连带覆盖同批其它章的
+      //   手动修改，代价明显高于单章改动，正是最需要用户点头的那一类。
+      const crossesChapters = spec.crossChapter || spec.danger >= ToolDanger.CrossScope;
+      if (crossesChapters && spec.danger < cfg.hardStopThreshold) {
         return {
           action: 'need-approval',
           reason:
@@ -71,6 +76,7 @@ export function decideWrite(spec: ToolSpec, cfg: WritePolicyConfig): WriteDecisi
           `自动执行（策略：auto-with-undo）。回滚成本 ★${spec.danger}（${dangerLabel(spec.danger)}），` +
           `执行前会强制落 checkpoint，可随时回滚。`,
       };
+    }
 
     case 'ask-per-tool': {
       if (spec.danger >= cfg.autoApproveThreshold) {
@@ -88,7 +94,17 @@ export function decideWrite(spec: ToolSpec, cfg: WritePolicyConfig): WriteDecisi
     }
 
     default:
-      return { action: 'execute', reason: '未知策略，按自动执行处理' };
+      // ★ fail-closed：未知策略一律要求确认，绝不默认放行。
+      //   修复前这里是 `{ action: 'execute', reason: '未知策略，按自动执行处理' }`
+      //   —— 安全闸门在遇到不认识的输入时选择了「放行」，方向完全反了。
+      //   策略值来自渲染层/配置文件，任何拼写错误或未来新增的枚举都会落到这里，
+      //   而写工具改的是用户正文。宁可多问一次，不可静默落盘。
+      return {
+        action: 'need-approval',
+        reason:
+          `写策略取值无法识别（${String(cfg.policy)}），出于安全已要求你确认。` +
+          `可选值：preview-only | auto-with-undo | ask-per-tool。`,
+      };
   }
 }
 

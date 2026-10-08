@@ -146,11 +146,14 @@ export async function executeTool(
 
   // ── 3. ★执行前强制落 checkpoint（fail-safe）──
   let checkpointId: string | undefined;
+  /** 当前快照已覆盖的章节。ctx.requireCheckpoint 靠它判断能否复用既有快照 */
+  const coveredChapters = new Set<string>();
   if (spec.writes && spec.reversible && !effectiveDryRun) {
     const chapters = extractChapterIds(args);
     if (chapters.length > 0) {
       try {
         checkpointId = await opts.deps.requireCheckpoint(chapters);
+        for (const c of chapters) coveredChapters.add(c);
       } catch (e) {
         // ★★★ 快照失败 = 拒绝执行。不是「继续执行并记录警告」。
         // 这是决策 1 把 preview 降级后唯一的防线，
@@ -180,8 +183,21 @@ export async function executeTool(
     dryRun: effectiveDryRun,
     // 工具内部若也要落快照，走同一个回调（sandbox 已落过则复用）
     requireCheckpoint: async (chs) => {
-      if (checkpointId) return checkpointId;
+      // ★ 只复用「已覆盖这些章节」的快照。
+      //   修复前只要 checkpointId 存在就直接返回旧 id，于是工具想为**其它章节**
+      //   落快照时拿到的是不相关的旧快照 —— 那些章节在**无快照**状态下被改写，
+      //   直接破坏本文件开头声明的 fail-safe 铁律（「改了但没快照」必须被禁止）。
+      const uncovered = chs.filter((c) => !coveredChapters.has(c));
+      if (uncovered.length === 0 && checkpointId) return checkpointId;
+      if (checkpointId) {
+        throw new Error(
+          `工具请求为未纳入本次快照的章节落快照：${uncovered.join(', ')}。` +
+          `已存在的快照 ${checkpointId} 只覆盖 ${[...coveredChapters].join(', ') || '（空）'}。` +
+          `这是工具声明（ToolSpec）与实现不一致，为避免「改了但没快照」已拒绝执行。`,
+        );
+      }
       checkpointId = await opts.deps.requireCheckpoint(chs);
+      for (const c of chs) coveredChapters.add(c);
       return checkpointId;
     },
     signal: opts.signal,
@@ -189,6 +205,10 @@ export async function executeTool(
   };
 
   let result: ToolResult;
+  // ★ 记录「是否真的回滚成功」。修复前只要 checkpointId 存在，错误消息就断言
+  //   「已自动回滚，正文已复原」—— 但回滚还需要 deps.rollbackTo 存在且非 dryRun，
+  //   两个条件任一不满足时根本没回滚，却对用户做了虚假的安全承诺。
+  let rolledBack = false;
   try {
     result = await handler(args, ctx);
   } catch (e) {
@@ -197,6 +217,7 @@ export async function executeTool(
     if (checkpointId && opts.deps.rollbackTo && !effectiveDryRun) {
       try {
         await opts.deps.rollbackTo(checkpointId);
+        rolledBack = true;
       } catch (rollbackErr) {
         // 回滚本身失败是更严重的问题：必须让用户知道正文状态不确定
         return {
@@ -228,7 +249,11 @@ export async function executeTool(
           code: 'E_INTERNAL',
           message:
             `工具执行异常：${e instanceof Error ? e.message : String(e)}` +
-            (checkpointId ? '（已自动回滚，正文已复原）' : ''),
+            (rolledBack
+              ? '（已自动回滚，正文已复原）'
+              : checkpointId
+                ? `（⚠️ 未能自动回滚，请用「改动历史」手动回滚到 checkpoint ${checkpointId} 之前）`
+                : ''),
           retryable: false,
         },
       },

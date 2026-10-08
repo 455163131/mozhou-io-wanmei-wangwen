@@ -9,7 +9,7 @@
  * ⚠️【待验证 V9】sandbox:true 下preload 必须是 CJS 产物。
  *   electron.vite.config.ts 已把 preload 输出格式设为 cjs。
  */
-import { BrowserWindow, shell } from 'electron';
+import { BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { applyCsp } from './security';
 import type { AppServices } from './services';
@@ -57,12 +57,11 @@ export function createWindow(services: AppServices): BrowserWindow {
     void win.loadFile(join(__dirname, '../renderer/index.html'));
   }
 
-  // 外部链接走系统浏览器
-  win.webContents.on('will-navigate', (e, url) => {
-    if (url.startsWith('http://localhost') || url.startsWith('file://')) return;
-    e.preventDefault();
-    void shell.openExternal(url);
-  });
+  // ★ 外链与导航策略**只在 security.ts 里注册一次**。
+  //   修复前这里还额外注册了一个 will-navigate：放行任意 file://、
+  //   其余 URL 不经协议校验直送 shell.openExternal（Windows 上 search-ms: 等
+  //   自定义协议可拉起可执行程序）。它注册在 applyCsp 之后，两个都会触发，
+  //   于是 security.ts 的严格策略形同虚设。
 
   return win;
 }
