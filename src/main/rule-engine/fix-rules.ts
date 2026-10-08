@@ -37,11 +37,18 @@ import { inQuote } from '@shared/util/text-zh';
 export interface FixContext {
   /** 原章各指标的值 */
   a: Record<string, number>;
-  /** 原章各指标的偏离度（0 = 达标） */
+  /** 原章各指标的偏离度（0 = 达标）。★ 只有幅度、没有方向 */
   devs: Record<string, number>;
-  /** 原章各标记密度 */
+  /**
+   * 偏离**方向**：该指标低于基线区间下界时的偏离幅度，否则为 0。
+   * 判据写成 `!!ctx.low.avgSent` 即「句长偏短」。
+   * marker 型指标语义是「越低越好」，故其 low 恒为 0。
+   */
   low: Record<string, number>;
-  /** 原章各标记密度 */
+  /**
+   * 偏离**方向**：该指标高于基线区间上界时的偏离幅度，否则为 0。
+   * 判据写成 `!!ctx.high.avgPara` 即「段落偏长」。
+   */
   high: Record<string, number>;
   /** 每千字标记密度 */
   per1000: Record<string, number>;
@@ -53,6 +60,17 @@ export interface FixRule {
   layer: string;
   /** 负责的指标 key 或 'marker:名称' */
   targets: string[];
+  /**
+   * 副作用检测要额外盯的指标：本规则虽不以它们为目标，但改动可能波及。
+   * 缺省 = `targets`。
+   *
+   * ★ 为什么要有这个字段：此前这份「波及面」在 `tools/impl/fix.ts` 与
+   *   `agent/side-effect.ts` 各手抄了一份映射表，两份**已经分叉**——
+   *   F6 一份写 `dialogRatio`、一份写 `openType`（真相是 openType），
+   *   而未知规则一律 `?? []`，等于副作用闸门 fail-open。
+   *   现在两边都改为调 `sideEffectTargetsOf()`，只此一份。
+   */
+  sideEffectTargets?: string[];
   auto: boolean;
   /** auto:false 时必填 */
   why?: string;
@@ -153,6 +171,8 @@ export const FIX_RULES: FixRule[] = [
     label: '句长调整',
     layer: '结构层',
     targets: ['avgSent'],
+    // 切句/合并会同时改变句长离散度，故副作用检测也要盯 sentCv
+    sideEffectTargets: ['avgSent', 'sentCv'],
     auto: true,
     applies: (_t, ctx) => !!ctx.devs.avgSent,
     // 双向：句长偏长就切句，偏短就合并
@@ -208,6 +228,8 @@ export const FIX_RULES: FixRule[] = [
     label: '3-gram 重复降重',
     layer: '素材层',
     targets: ['triRepeat'],
+    // 轮换「放在/搁在」这类置物动词会牵动对应 marker 密度
+    sideEffectTargets: ['triRepeat', 'marker:把X放在/搁在/摊在/摆在'],
     auto: true,
     applies: (_t, ctx) => !!ctx.devs.triRepeat,
     fix: (t) => fixFamilies(t, ['place', 'inch']),
@@ -258,6 +280,21 @@ export function fixRulesFor(key: string): FixRule[] {
 
 export function ruleById(id: string): FixRule | undefined {
   return FIX_RULES.find((r) => r.id === id);
+}
+
+/**
+ * 副作用检测该盯哪些指标 —— **单一真源**。
+ *
+ * `tools/impl/fix.ts` 的 `ruleTargets()` 与 `agent/side-effect.ts` 的
+ * `targetsOfRule()` 都必须走这里，不得再各存一份手抄表。
+ *
+ * @returns 未知 ruleId 返回空数组。调用方须注意：空数组意味着「无可检测项」，
+ *   副作用闸门会因此放行——这是 fail-open。所以新增规则时务必登记 targets。
+ */
+export function sideEffectTargetsOf(ruleId: string): string[] {
+  const rule = ruleById(ruleId);
+  if (!rule) return [];
+  return rule.sideEffectTargets ?? rule.targets;
 }
 
 /** auto:true 的规则（= 可派生成工具的规则），共 13 条 */

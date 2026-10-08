@@ -125,9 +125,20 @@ export interface Edit {
   before: string;
   after: string;
   /**
-   * 在 **before（原文）** 中的字符偏移；用于 UI 定位与高亮。
-   * ★ 坐标系统一为「原文」而非「改后」：多处编辑倒序应用时，靠前的偏移才保持不变。
-   *   rule-engine/fix-families.ts（m.index）与 tools/impl/phrase.ts 均遵循此约定。
+   * 字符偏移，**坐标系 = 产生这条编辑的那个函数所收到的输入文本**。用于 UI 定位与高亮。
+   *
+   * ★ 两类调用点，语义不同，别混用：
+   *   1. 单工具编辑（`replace_phrase`、每条 `FixPlan.perRule[i].changes`）：
+   *      输入就是该章原文，故 `at` 是**原文偏移**。多处编辑按 `at` 倒序应用是安全的
+   *      ——靠后的改动不影响靠前的偏移。`rule-engine/fix-families.ts`（m.index）
+   *      与 `tools/impl/phrase.ts` 都遵循这一约定。
+   *   2. `FixPlan.changes`（跨规则摊平后的总表）：每条来自不同规则，而规则是
+   *      **串行**作用的（`cur = r.text`），所以各条 `at` 分属不同坐标系，
+   *      整体**不可**用于反向 patch。
+   *      这正是 `plan-fixes.ts` 的 `rollbackRule()` 选择「从原文重放除该规则外的
+   *      所有规则」而非反向打补丁的原因（原注释：「规则之间会相互影响偏移，
+   *      反向 patch 不可靠；重放是确定性的」）。
+   *      跨规则的 UI 高亮若要精确，需要先把偏移 rebase 到统一坐标系（尚未实现）。
    */
   at: number;
   /** 为什么改这一处：规则名 + 说明，直接展示给用户（架构 §4.2 要求「决策理由可见」） */

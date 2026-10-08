@@ -35,5 +35,8 @@
     "src/renderer/store/**/*.ts",
     "tests/**/*.ts",
     "electron.vite.config.ts"
-  ]
+  ],
+  // 与 vitest.config.ts 的 `exclude: ['**/_*.test.ts']` 保持一致：
+  // 下划线前缀 = 临时探针，跑完即删，既不进用例数、也不该打断 typecheck。
+  "exclude": ["tests/**/_*.test.ts"]
 }

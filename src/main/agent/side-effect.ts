@@ -22,6 +22,7 @@
 import type { Grade, SideEffect } from '@shared/types/tool';
 import type { MetricSpec } from '@shared/types/project';
 import { analyze, grade } from '@shared/metrics-engine';
+import { sideEffectTargetsOf } from '../rule-engine/fix-rules';
 
 export interface BaselineLike {
   source: string;
@@ -216,27 +217,18 @@ export function sweepSideEffects(
   return { accepted, rejected };
 }
 
-const RULE_TARGETS: Record<string, string[]> = {
-  F1: ['marker:看了X遍/X久/X会儿'],
-  F2: ['marker:顿/停了一下'],
-  F3: ['marker:把X放在/搁在/摊在/摆在'],
-  F4: ['marker:抬起头/低头'],
-  F5: ['marker:没说话/没答/没出声'],
-  F6: ['openType'],
-  F7: ['avgSent', 'sentCv'],
-  F8: ['sentCv'],
-  F9: ['sentsPerPara'],
-  F10: ['avgPara'],
-  F11: ['marker:一X一X 叠词'],
-  F12: ['ttr', 'bigramTtr'],
-  F13: ['triRepeat', 'marker:观感类摆拍精确'],
-  'family:place': ['marker:把X放在/搁在/摊在/摆在'],
-  'family:same': ['ttr', 'bigramTtr'],
-  'family:inch': ['triRepeat'],
-};
-
+/**
+ * 规则 id → 副作用检测该盯的指标。
+ *
+ * ★ **不再手抄映射表**。修复前这里与 `tools/impl/fix.ts` 的 `ruleTargets()`
+ *   各存一份同一知识，且已经分叉：本文件 F6 写 `openType`（正确），
+ *   那边写 `dialogRatio`（错误——F6 是「章首公式」，与对白占比无关）。
+ *   同一条规则经不同路径会拿到不同的检测面，副作用闸门因此漏判。
+ *   现在两边都走 `sideEffectTargetsOf()`，真源是 `fix-rules.ts` 的
+ *   `FixRule.targets` / `FixRule.sideEffectTargets`。
+ */
 function targetsOfRule(ruleId: string): string[] {
-  return RULE_TARGETS[ruleId] ?? [];
+  return sideEffectTargetsOf(ruleId);
 }
 
 /** 取已接受规则的起点正文（第一条的 before） */

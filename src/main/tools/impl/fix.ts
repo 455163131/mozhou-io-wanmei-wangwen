@@ -16,7 +16,8 @@
  */
 import type { ChangeSet, Edit, SideEffect, ToolContext, ToolResult } from '@shared/types/tool';
 import { planFixes, rollbackRule, type BaselineLike, type FixPlan } from '../../rule-engine/plan-fixes';
-import { autoRules } from '../../rule-engine/fix-rules';
+import { autoRules, sideEffectTargetsOf } from '../../rule-engine/fix-rules';
+import { toolRulesFor } from '../derive-from-rules';
 import { sweepSideEffects, detectSideEffects } from '../../agent/side-effect';
 
 export interface FixDeps {
@@ -26,18 +27,45 @@ export interface FixDeps {
   baseline: () => BaselineLike;
 }
 
-/** 聚合工具名 → 规则 id 列表 */
-const TOOL_RULES: Record<string, string[]> = {
-  fix_structure: ['F6', 'F7', 'F8', 'F9', 'F10'],
-  fix_expression: ['F1', 'F2', 'F3', 'F4', 'F5', 'F11'],
-  fix_repetition: ['F12', 'F13'],
-  fix_synonym_rotation: ['family:same', 'family:place', 'family:inch'],
+/**
+ * 聚合工具名 → 规则 id 列表。
+ *
+ * ★ 不在本文件另存一份：映射的唯一真源是 `derive-from-rules.ts` 的 `toolRulesFor()`，
+ *   它同时驱动工具**声明**（ToolSpec 生成）。声明与执行共用一份，
+ *   才不会出现「工具说明写着覆盖 F12、执行时一条都不跑」这类漂移。
+ *   修复前本文件的 TOOL_RULES 与那边是两份手抄表，且 fix_synonym_rotation
+ *   一项用的是 FIX_RULES 里不存在的 `family:*` 伪 id → 该工具恒为静默 no-op。
+ */
+const toolRules = toolRulesFor;
+
+/**
+ * 同义轮换族名 → 实现它的规则 id（对应 fix-rules.ts 里的 fixFamilies 调用）。
+ *
+ * ⚠️ 粒度限制（如实登记，不假装能做到）：place 与 inch 都由 F13 实现，
+ *   而 F13 一次轮换两族。用户只点名其中一族时，另一族也会被轮换。
+ *   要真正做到按族隔离，需要把 F13 拆成两条规则或让 fixFamilies 接受运行时族参数。
+ */
+const FAMILY_RULES: Record<string, string> = {
+  same: 'F12',
+  place: 'F13',
+  inch: 'F13',
 };
 
-/** 参数里的 metrics/markers 筛选 → 缩小规则集合 */
+/** 参数里的 families / metrics / markers 筛选 → 缩小规则集合 */
 function narrowRules(toolName: string, args: Record<string, unknown>): string[] | null {
-  const all = TOOL_RULES[toolName];
-  if (!all) return null;
+  const all = toolRules(toolName);
+  // 未知工具名 → 空数组。返回 null 让调用方报 E_INVALID_ARGS，而不是静默跑零条规则
+  if (all.length === 0) return null;
+
+  // families：修复前只做了「取值合法性校验」，校验完就丢弃，从未参与规则选择——
+  // 用户点名要轮换哪一族，实际跑的仍是全族（而且当时全族等于零条）。
+  const families = Array.isArray(args.families) ? (args.families as string[]) : null;
+  if (families && families.length > 0) {
+    const ids = families
+      .map((f) => FAMILY_RULES[f])
+      .filter((id): id is string => !!id && all.includes(id));
+    return [...new Set(ids)];
+  }
 
   const metrics = Array.isArray(args.metrics) ? (args.metrics as string[]) : null;
   const markers = Array.isArray(args.markers) ? (args.markers as string[]) : null;
@@ -50,15 +78,9 @@ function narrowRules(toolName: string, args: Record<string, unknown>): string[] 
 
   return all.filter((ruleId) => {
     const rule = autoRules().find((r) => r.id === ruleId);
-    if (!rule) {
-      // 族规则：按族名匹配
-      if (ruleId.startsWith('family:')) {
-        const fam = ruleId.slice(7);
-        if (filters.some((f) => f.includes(fam === 'same' ? '一样' : fam))) return true;
-        return filters.length === 0;
-      }
-      return false;
-    }
+    // 未知 id 一律不保留（fail-closed）。修复前这里有一条 `family:` 特殊分支，
+    // 现在 TOOL_RULES 只含真实规则 id，该分支已无意义。
+    if (!rule) return false;
     // 规则负责的任一 target 命中筛选条件即保留
     return rule.targets.some((t) => filters.includes(t));
   });
@@ -134,7 +156,7 @@ export async function applyFixTool(
       durationMs: Date.now() - started,
       error: {
         code: 'E_INVALID_ARGS',
-        message: `当前筛选条件下没有可用规则。该工具覆盖：${TOOL_RULES[toolName]?.join(', ')}`,
+        message: `当前筛选条件下没有可用规则。该工具覆盖：${toolRules(toolName).join(', ') || '（无）'}`,
         retryable: false,
         hint: '去掉 metrics/markers 参数以运行该层全部规则。',
       },
@@ -189,7 +211,13 @@ export async function applyFixTool(
     // 逐条规则复检：把被副作用否决的规则从计划中剔除
     const acceptedRules: string[] = [];
     let finalText = plan.before;
-    const finalEdits: Edit[] = [];
+    // ★ 用 let 而非 const + push 累加。
+    //   每轮的 trial 都是「从原文重跑一遍全部已接受规则」，所以 trial.changes
+    //   本身就是**当前完整的编辑集**（含之前各轮的），不是增量。
+    //   修复前这里写 `finalEdits.push(...trial.changes)`，等于把前面各轮的改动
+    //   重复追加一遍：接受 F12、F13 两条后 edits 会报 3 条（F12 被算两次），
+    //   污染 editsCount 与用户可见的「改了 N 处」。直接整体替换才正确。
+    let finalEdits: Edit[] = [];
     const chapterEffects: SideEffect[] = [];
 
     for (const app of plan.perRule) {
@@ -212,7 +240,7 @@ export async function applyFixTool(
       }
       acceptedRules.push(app.ruleId);
       finalText = trial.after;
-      finalEdits.push(...trial.changes);
+      finalEdits = trial.changes.slice();
     }
 
     if (finalEdits.length === 0) {
@@ -272,6 +300,31 @@ export async function applyFixTool(
     }
   }
 
+  // ★ 零改动 + 无副作用否决 = 这批规则在本文本上确实无事可做，必须**明确报出来**。
+  //   修复前这里一律返回 ok:true，于是「规则 id 写错导致一条都没跑」与
+  //   「文本本来就干净」在返回值上完全无法区分 —— Agent 看到「成功但没效果」
+  //   会反复重试，一路烧到步数/成本闸门才停。
+  //   与 tools/impl/phrase.ts 的 E_NO_EFFECT 口径保持一致。
+  //   注意：被副作用否决的情况**不走这里**，那条路径有 allSideEffects 要交给用户看。
+  if (patches.length === 0 && allSideEffects.length === 0) {
+    return {
+      ok: false,
+      durationMs: Date.now() - started,
+      error: {
+        code: 'E_NO_EFFECT',
+        message:
+          `${toolName} 在 ${existing.length} 个章节上没有产生任何改动。` +
+          (allSkipped.length > 0
+            ? `已跳过 ${allSkipped.length} 条规则（原因见 skipped）。`
+            : '这些规则负责的问题在本章未检出。'),
+        retryable: false,
+        hint:
+          '先调 locate_issues 确认本章到底有哪些偏离；没有偏离就不需要修正，' +
+          '不要重复调用本工具。',
+      },
+    };
+  }
+
   return {
     ok: true,
     data: {
@@ -286,26 +339,18 @@ export async function applyFixTool(
   };
 }
 
+/**
+ * 规则 id → 副作用检测该盯的指标。
+ *
+ * ★ **不再手抄映射表**。修复前这里存了一份 `Record<string, string[]>`，
+ *   与 `agent/side-effect.ts` 的 `RULE_TARGETS` 是同一份知识的两个副本，
+ *   而且**已经分叉**：F6 这里写 `dialogRatio`、那边写 `openType`
+ *   （真相是 `fix-rules.ts` 的 `targets: ['openType']` —— F6 是「章首公式」，
+ *   与对白占比毫无关系）。未知规则还会 `?? []`，等于副作用闸门 fail-open。
+ *   现在统一走 `sideEffectTargetsOf()`，只此一份真源。
+ */
 function ruleTargets(ruleId: string): string[] {
-  const map: Record<string, string[]> = {
-    F1: ['marker:看了X遍/X久/X会儿'],
-    F2: ['marker:顿/停了一下'],
-    F3: ['marker:把X放在/搁在/摊在/摆在'],
-    F4: ['marker:抬起头/低头'],
-    F5: ['marker:没说话/没答/没出声'],
-    F6: ['dialogRatio'],
-    F7: ['avgSent', 'sentCv'],
-    F8: ['sentCv'],
-    F9: ['sentsPerPara'],
-    F10: ['avgPara'],
-    F11: ['marker:一X一X 叠词'],
-    F12: ['ttr', 'bigramTtr'],
-    F13: ['triRepeat', 'marker:观感类摆拍精确'],
-    'family:same': ['ttr', 'bigramTtr'],
-    'family:place': ['marker:把X放在/搁在/摊在/摆在'],
-    'family:inch': ['triRepeat'],
-  };
-  return map[ruleId] ?? [];
+  return sideEffectTargetsOf(ruleId);
 }
 
 export { sweepSideEffects, rollbackRule };

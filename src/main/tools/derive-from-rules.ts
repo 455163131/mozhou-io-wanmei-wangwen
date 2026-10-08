@@ -208,10 +208,35 @@ export function negativeKnowledgeForPrompt(): string {
   ].join('\n');
 }
 
-/** 供测试用：某聚合工具实际覆盖的规则 id */
-export function rulesOfTool(toolName: string): string[] {
+/**
+ * fix_synonym_rotation 覆盖的规则。
+ *
+ * ★ 同义轮换本就是 F12/F13 在做的事：F12 = `fixFamilies(t,['same'])`，
+ *   F13 = `fixFamilies(t,['place','inch'])`（见 rule-engine/fix-rules.ts）。
+ *
+ *   修复前这里返回 FIX_FAMILIES 的**裸族名** `['place','same','inch']`，
+ *   而 `tools/impl/fix.ts` 的 TOOL_RULES 用的是
+ *   `['family:same','family:place','family:inch']` —— 两种格式在 FIX_RULES 里
+ *   **都查不到**，planFixes 按 id 过滤后一条不剩，于是 fix_synonym_rotation
+ *   恒产出零改动却返回 ok:true（静默 no-op），Agent 会反复重试烧预算。
+ */
+const SYNONYM_ROTATION_RULES = ['F12', 'F13'];
+
+/**
+ * 工具名 → 它实际执行的规则 id 列表 —— **单一真源**。
+ *
+ * 工具**声明**（deriveFixToolSpecs 生成 ToolSpec）与工具**执行**
+ * （tools/impl/fix.ts 的 narrowRules → planFixes）必须走同一份映射，
+ * 否则就会出现本次修复前的形态：声明上写着覆盖某些能力，执行时一条规则都不跑。
+ */
+export function toolRulesFor(toolName: string): string[] {
   const g = AGG_GROUPS.find((x) => x.tool === toolName);
   if (g) return g.rules;
-  if (toolName === 'fix_synonym_rotation') return FIX_FAMILIES.map((f) => f.id);
+  if (toolName === 'fix_synonym_rotation') return SYNONYM_ROTATION_RULES;
   return [];
+}
+
+/** 某聚合工具实际覆盖的规则 id（toolRulesFor 的别名，保留既有调用点） */
+export function rulesOfTool(toolName: string): string[] {
+  return toolRulesFor(toolName);
 }

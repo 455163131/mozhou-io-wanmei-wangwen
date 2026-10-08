@@ -53,20 +53,49 @@ export interface BaselineLike {
 export function fixContext(text: string, baseline: BaselineLike): FixContext {
   const a = analyze(text);
   const devs: Record<string, number> = {};
+  const low: Record<string, number> = {};
+  const high: Record<string, number> = {};
+
+  /**
+   * 登记一个指标的偏离**幅度与方向**。
+   *
+   * ★★ 为什么必须分开记方向 ★★
+   * `deviation()` 只返回幅度（恒 ≥0），把方向丢掉了。而 F7~F10 的判据依赖方向：
+   * 句长偏短要合并、偏长要切分；段落偏碎要合并、偏长要切分。
+   *
+   * 修复前 `low` 与 `high` 都被赋成 `a.raw`（指标实测值），后果是三条规则
+   * 朝**错误方向**改写用户正文：
+   *   · F7 的 `ctx.low.avgSent` 恒为真（实测句长非零）→ 永远走「合并短句」，
+   *     长句章不但没被切分，反而被继续合并；
+   *   · F8/F9 的 `!!ctx.low.x` 退化成「值非零即真」→ sentCv 已经过高（节奏够乱）
+   *     时仍去做「长短交错」，sentsPerPara 已经过高时仍去「段落合并」；
+   *   · F10 的 `!!ctx.high.avgPara` 同理 → 段落本就偏短时仍去「长段切分」。
+   */
+  const put = (key: string, dev: number, below: boolean): void => {
+    devs[key] = dev;
+    low[key] = dev > 0 && below ? dev : 0;
+    high[key] = dev > 0 && !below ? dev : 0;
+  };
+
   for (const [key, spec] of Object.entries(baseline.metrics)) {
     const v = a.raw[key as keyof typeof a.raw];
-    if (typeof v === 'number' && !Number.isNaN(v)) devs[key] = deviation(v, spec);
+    if (typeof v !== 'number' || Number.isNaN(v)) continue;
+    // 双侧区间（p05~p95）：低于下界才算「偏低」
+    put(key, deviation(v, spec), v < spec.p05);
   }
   for (const k of MARKER_KEYS) {
     const b = baseline.markerDensity[k];
     if (!b) continue;
-    devs[`marker:${k}`] = deviation(a.per1000[k] || 0, { p50: b.p50, p95: b.p95 });
+    // marker 型语义是「越低越好」（见 deviation 的 MarkerSpec 分支），
+    // 只可能偏高，永不判偏低。
+    put(`marker:${k}`, deviation(a.per1000[k] || 0, { p50: b.p50, p95: b.p95 }), false);
   }
+
   return {
     a: a.raw as unknown as Record<string, number>,
     devs,
-    low: a.raw as unknown as Record<string, number>,
-    high: a.raw as unknown as Record<string, number>,
+    low,
+    high,
     per1000: a.per1000,
   };
 }

@@ -15,3 +15,6 @@ vitest.config.ts.timestamp-*.mjs
 # 是构建中间物、非源码，勿提交（避免又变成「人得记得先建 bundle」的隐藏前置步骤）。
 # 三份同源：.engine-bundle（compute/verify 共用）、.builder-bundle、.baseline-bundle
 scripts/.*-bundle.mjs
+
+# 调试探针（vitest 默认排除 **/_*.test.ts）。跑完即删。
+tests/**/_probe-*.test.ts
