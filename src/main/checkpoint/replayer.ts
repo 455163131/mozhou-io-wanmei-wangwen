@@ -131,7 +131,7 @@ export class Replayer {
         restored.add(p.chapterId);
         undone++;
       }
-      this.manager.markRolledBack(c.seq);
+      await this.manager.markRolledBack(c.seq);
     }
 
     return {

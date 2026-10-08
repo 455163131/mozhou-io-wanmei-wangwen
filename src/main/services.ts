@@ -131,6 +131,17 @@ export class AppServices {
     this.replayerInstance = null;
     this.agentHostInstance = null;
 
+    // ★ 还原上一次会话的 checkpoint（改动历史 / 回滚能力跨会话存活）。
+    //   修复前 restoreSeq 与 pruneArchive 都无调用者：重启后改动历史归零，
+    //   磁盘存档既读不回来又永不清理。放在这里是因为存档目录刚被 ensureDir 建好。
+    //   还原失败不该阻止打开项目——最坏情况只是看不到旧历史，故 catch 后留痕继续。
+    try {
+      const restored = await this.checkpoints.hydrate();
+      if (restored > 0) console.log(`[services] 已还原 ${restored} 份历史 checkpoint`);
+    } catch (e) {
+      console.error('[services] checkpoint 还原失败（项目仍可打开，但改动历史可能不完整）：', e);
+    }
+
     this.push.send('project:opened', { projectId: project.id });
     return project;
   }

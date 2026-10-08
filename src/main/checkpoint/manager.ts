@@ -39,6 +39,12 @@ export class CheckpointManager {
   private readonly store: CheckpointStore;
   /** runId -> 该 run 的 checkpoint 序列（轨迹面板与 checkpoint 一一对应） */
   private byRun = new Map<string, Checkpoint[]>();
+  /**
+   * 磁盘存档索引（hydrate() 时载入）。
+   * 让「改动历史」与跨会话回滚能看到上一次会话的 checkpoint ——
+   * 内存栈只保留最近 maxDepth 条，更早的靠这份索引 + 按需读文件。
+   */
+  private archivedIndex: Checkpoint[] = [];
 
   constructor(
     private readonly provider: SnapshotProvider,
@@ -153,6 +159,9 @@ export class CheckpointManager {
    */
   private allKnown(): Checkpoint[] {
     const map = new Map<string, Checkpoint>();
+    // 最底层：磁盘存档索引（跨会话还原来的）。优先级最低，
+    // 上面的 run 序列与内存栈会用更新的副本覆盖它。
+    for (const ck of this.archivedIndex) map.set(ck.id, ck);
     // 先放 run 序列（它保留被淘汰项的历史视图）
     for (const arr of Array.from(this.byRun.values())) {
       for (const ck of arr) map.set(ck.id, ck);
@@ -197,8 +206,37 @@ export class CheckpointManager {
       .sort((a, b) => b.seq - a.seq);
   }
 
-  markRolledBack(seq: number): void {
-    this.store.markRolledBack(seq, Date.now());
+  /**
+   * 标记已回滚。★ 改为 async：标记必须写回磁盘存档，
+   * 否则重启后标记丢失，`checkpointsToUndo()` 会把同一步再撤一次。
+   */
+  async markRolledBack(seq: number): Promise<void> {
+    await this.store.markRolledBack(seq, Date.now());
+    // 同步更新索引里的副本，避免本次会话内 allKnown() 读到旧标记
+    for (const ck of this.archivedIndex) {
+      if (ck.seq === seq) ck.rolledBackAt = Date.now();
+    }
+  }
+
+  /**
+   * 从磁盘存档还原上一次会话的 checkpoint（打开项目时调用）。
+   *
+   * ★ 修复前 `restoreSeq()` 与 `pruneArchive()` 全项目**都没有调用者**：
+   *   内存栈重启即空 → 「改动历史」归零、无法回滚上次会话的任何改动；
+   *   磁盘存档则既读不回来、又永不清理 → 无限增长的一堆不可达垃圾。
+   *
+   * 存档目录本身按项目隔离（`<项目根>/checkpoints/archive`），无需额外的项目过滤。
+   *
+   * @returns 还原的存档条数
+   */
+  async hydrate(): Promise<number> {
+    const pruned = await this.store.pruneArchive();
+    if (pruned > 0) console.log(`[checkpoint] 已清理过期存档 ${pruned} 份`);
+    this.archivedIndex = await this.store.listArchived();
+    const n = await this.store.hydrateFromDisk();
+    // hydrateFromDisk 只把最近 maxDepth 条放回内存栈，其余留在 archivedIndex；
+    // 两边可能有重叠，allKnown() 用 Map 去重，内存栈版本优先。
+    return n;
   }
 
   /** 读回一个 checkpoint（内存或磁盘） */
@@ -248,6 +286,8 @@ export class CheckpointManager {
   clearProject(): void {
     this.store.clearMemory();
     this.byRun.clear();
+    // 存档索引也必须清：它属于上一个项目，留着会让新项目看到别的项目的改动历史
+    this.archivedIndex = [];
   }
 
   private trackInRun(ck: Checkpoint): void {
