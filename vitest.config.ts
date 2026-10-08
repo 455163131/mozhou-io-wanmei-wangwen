@@ -66,6 +66,9 @@ export default defineConfig({
     alias: {
       '@shared': resolve(__dirname, 'src/shared'),
       '@main': resolve(__dirname, 'src/main'),
+      // 渲染层的纯逻辑（zustand store 等）不含 DOM，可在 environment:'node' 下直接测。
+      // 组件级测试仍需 jsdom + @testing-library，那是另一件事（见 docs/REMAINING.md）。
+      '@renderer': resolve(__dirname, 'src/renderer'),
     },
   },
 });

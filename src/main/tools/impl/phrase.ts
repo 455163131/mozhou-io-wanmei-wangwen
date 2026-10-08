@@ -90,7 +90,9 @@ export async function replacePhrase(
     edits.push({
       before: args.find,
       after: args.replace,
-      at: edits.length === 0 ? at : at + edits.length * (args.replace.length - args.find.length),
+      // 原文（before）中的字符偏移。倒序应用时，靠前的偏移不受靠后改动的影响，
+      // 因此必须存原文偏移而非「改后偏移」——与 rule-engine/fix-families.ts 的 m.index 口径一致。
+      at,
       note: `等义改写：「${args.find}」→「${args.replace}」`,
       ruleId: 'replace_phrase',
     });
@@ -113,12 +115,30 @@ export async function replacePhrase(
     };
   }
 
-  // 按偏移倒序应用，保证前面的偏移不被后面的改动挪动
+  // 按原文偏移倒序应用：靠后的改动先落地，靠前的偏移因此保持不变。
+  // ★ 必须用 e.at，绝不能用 before.indexOf(e.before)——后者恒定位到「第一处」匹配，
+  //   多处替换时会在同一偏移反复切割已经变短/变长的字符串，静默产出乱码正文。
   let text = before;
-  for (const e of [...edits].reverse()) {
-    const realAt = before.indexOf(e.before);
-    if (realAt < 0) continue;
-    text = text.slice(0, realAt) + e.after + text.slice(realAt + e.before.length);
+  let applied = 0;
+  for (const e of [...edits].sort((x, y) => y.at - x.at)) {
+    // 防御脏数据：偏移越界、或该偏移处的文本与记录的 before 不符 → 跳过而非破坏正文
+    if (e.at < 0 || e.at + e.before.length > text.length) continue;
+    if (text.slice(e.at, e.at + e.before.length) !== e.before) continue;
+    text = text.slice(0, e.at) + e.after + text.slice(e.at + e.before.length);
+    applied++;
+  }
+
+  if (applied === 0) {
+    return {
+      ok: false,
+      durationMs: Date.now() - started,
+      error: {
+        code: 'E_NO_EFFECT',
+        message: `定位到 ${edits.length} 处「${args.find}」，但偏移校验全部未通过，已放弃改写以保持原文不动。`,
+        retryable: false,
+        hint: '正文可能在定位后被改动过，请重新调用 locate_issues 获取最新写法。',
+      },
+    };
   }
 
   // 副作用复检：改一个短语不太可能动指标，但仍走一遍以保持口径一致
@@ -127,7 +147,9 @@ export async function replacePhrase(
     { affectedMetrics: ['avgSent', 'dialogRatio'], minChars: 200 },
   );
 
-  if (effects.length > 0 && !ctx.dryRun) {
+  // preview 与 execute 必须同路径（架构 T08「preview/execute 同源」）：
+  // 副作用拒绝在 dryRun 下同样成立，否则会出现「预览说能改、真改被拒」的欺骗性预览。
+  if (effects.length > 0) {
     // 有副作用 → 拒绝执行，保持原文不动（★1 精确工具可以安全地整体放弃）
     return {
       ok: false,
@@ -167,7 +189,7 @@ export async function replacePhrase(
 
   return {
     ok: true,
-    data: { changeSet, replacements: edits.length, skippedInQuote, sideEffectRejected: false },
+    data: { changeSet, replacements: applied, skippedInQuote, sideEffectRejected: false },
     changeSet,
     durationMs: Date.now() - started,
   };

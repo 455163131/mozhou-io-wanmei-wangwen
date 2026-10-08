@@ -124,7 +124,11 @@ export interface ToolResult<R = unknown> {
 export interface Edit {
   before: string;
   after: string;
-  /** 在 after 中的字符偏移；用于 UI 定位与高亮 */
+  /**
+   * 在 **before（原文）** 中的字符偏移；用于 UI 定位与高亮。
+   * ★ 坐标系统一为「原文」而非「改后」：多处编辑倒序应用时，靠前的偏移才保持不变。
+   *   rule-engine/fix-families.ts（m.index）与 tools/impl/phrase.ts 均遵循此约定。
+   */
   at: number;
   /** 为什么改这一处：规则名 + 说明，直接展示给用户（架构 §4.2 要求「决策理由可见」） */
   note: string;

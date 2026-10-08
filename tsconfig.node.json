@@ -20,13 +20,19 @@
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["src/shared/*"],
-      "@main/*": ["src/main/*"]
+      "@main/*": ["src/main/*"],
+      // tests/ 归本项目管；渲染层的纯逻辑（zustand store）不含 DOM，
+      // 可在 node 环境直接测。加此映射打通「渲染层逻辑可测」，不必引入 jsdom。
+      "@renderer/*": ["src/renderer/*"]
     }
   },
   "include": [
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
     "src/shared/**/*.ts",
+    // composite 项目要求被引用的实现文件出现在 include 里（否则 TS6307）。
+    // 只纳入 store —— 它是 DOM-free 的纯状态机；组件/hooks 仍归 tsconfig.web.json。
+    "src/renderer/store/**/*.ts",
     "tests/**/*.ts",
     "electron.vite.config.ts"
   ]

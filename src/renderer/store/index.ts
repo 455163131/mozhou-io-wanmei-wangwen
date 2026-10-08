@@ -119,8 +119,13 @@ export const useEditorStore = create<EditorState>()(
         }),
       setBody: (body) =>
         set((s) => {
+          // ★ 必须「先比较、后赋值」。immer 的 draft 上一旦执行 s.body = body，
+          //   再判 body !== s.body 恒为 false → dirty 永远置不上真 →
+          //   保存按钮永久禁用、Ctrl+S 直接 return、1.5s 自动保存订阅永不触发，
+          //   用户在编辑器里敲的字一个都不会落盘。
+          if (body === s.body) return;
           s.body = body;
-          s.dirty = body !== s.body || s.dirty;
+          s.dirty = true;
         }),
       setSaving: (v) =>
         set((s) => {
