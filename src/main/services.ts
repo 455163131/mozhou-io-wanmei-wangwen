@@ -25,7 +25,7 @@ import { DEFAULT_WRITE_POLICY, type BackupTrigger } from '@shared/constants/chec
 import { DEFAULT_BUDGET } from '@shared/constants/budget';
 import { MARKER_KEYS, analyze, isSufficient } from '@shared/metrics-engine';
 import type { BaselineLike } from './rule-engine/plan-fixes';
-import { hashProjectState, ledgerDigest } from './util/hash';
+import { hashProjectState, ledgerDigest, ledgerStateEntries } from './util/hash';
 import { isAllowedLlmBaseUrl } from '@shared/util/external-url';
 import { MzError } from '@shared/types/ipc';
 import { BackupManager, type BackupStats } from './fs/backup';
@@ -449,10 +449,19 @@ export class AppServices {
   /** 项目状态指纹（循环检测判据 B 输入） */
   async computeStateHash(): Promise<string> {
     if (!this.currentProject) return hashProjectState([], '');
-    const metas = this.chapterRepo.listMeta(this.currentProject.id);
+    const projectId = this.currentProject.id;
+    const metas = this.chapterRepo.listMeta(projectId);
     const bodies = this.chapterRepo.getBodies(metas.map((m) => m.id));
     const chapters = metas.map((m) => ({ id: m.id, body: bodies.get(m.id) ?? '' }));
-    return hashProjectState(chapters, ledgerDigest([]));
+    // ★ 账本必须进指纹：Agent 补一条人物设定而没动正文时，若这里传空数组，
+    //   判据 B 会算出与上一步逐字相同的哈希，把「确实改了账本」误报成 no-effect。
+    const ledger = ledgerStateEntries({
+      characters: this.characters(projectId),
+      numbers: this.numbers(projectId),
+      timeline: this.timeline(projectId),
+      foreshadows: this.foreshadows(projectId),
+    });
+    return hashProjectState(chapters, ledgerDigest(ledger));
   }
 
   /** run 落库（保留 30 天供复盘，架构 §1.7） */

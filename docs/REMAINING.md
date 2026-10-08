@@ -18,7 +18,18 @@
 
 **现状**：`services.ts` 的 `memCharacters` / `memNumbers` 等是内存 `Map`，`ledger_*` 表已建但未读写。
 
-**影响**：重启后账本丢失；跨 500 章的一致性对账（S2场景）无法落地。
+**★ 2026-10-09 复核修正（此前低估了）**：全仓 **没有任何一处向这四个 Map 写入**
+（`mem*.set(...)` 零命中；`ledger_*` 表只有 `db/migrate.ts` 的 DDL，无 repo）。
+`characters()/numbers()/timeline()/foreshadows()` 只有读侧，调用方是
+`ipc/register.ts`、`tools/impl/ledger-query.ts`（`query_ledger`）与 `services.ts` 自己。
+
+**影响**：不是「重启后账本丢失」，而是**账本在当前构建里恒为空**——
+会话内也拿不到任何人物/数字/时间线/伏笔，`query_ledger` 永远返回空集合，
+跨章一致性对账（S2）因此整条链路无数据来源。
+连带影响：判据 B 的状态指纹虽已接上账本（见 PROJECT-STATUS.md §4 第 9 条，已修），
+在写入侧补齐之前仍然检测不到任何账本变化。
+
+**顺序**：先补写入路径（工具 + repo 落 `ledger_*` 表），再谈持久化与对账。
 
 ### 1.5 T11 / T12 / T22–T25 / T28 未做
 

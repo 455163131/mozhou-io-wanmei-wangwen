@@ -6,6 +6,7 @@
  */
 import { createHash } from 'node:crypto';
 import { canonicalJSON, normalizeArgs } from '@shared/util/hash';
+import type { ProjectBackup } from '@shared/types/project';
 
 export function sha256(input: string): string {
   return createHash('sha256').update(input, 'utf8').digest('hex');
@@ -51,6 +52,27 @@ export function ledgerDigest(entries: Array<Record<string, unknown>>): string {
     .sort()
     .join('\n');
   return sha256(norm);
+}
+
+/**
+ * 账本四类实体。直接取备份载荷的形状，不再手抄一份
+ * —— 同一形状此前已在 `ProjectBackup.ledger` 与 services 里各写一遍。
+ */
+export type LedgerStateBundle = ProjectBackup['ledger'];
+
+/**
+ * 把账本摊平成 ledgerDigest 的输入。
+ *
+ * 逐条浅拷贝成对象字面量：账本类型是 interface，直接塞进
+ * `Record<string, unknown>[]` 会缺隐式索引签名。
+ */
+export function ledgerStateEntries(ledger: LedgerStateBundle): Array<Record<string, unknown>> {
+  return [
+    ...ledger.characters.map((e) => ({ ...e })),
+    ...ledger.numbers.map((e) => ({ ...e })),
+    ...ledger.timeline.map((e) => ({ ...e })),
+    ...ledger.foreshadows.map((e) => ({ ...e })),
+  ];
 }
 
 export { canonicalJSON, normalizeArgs } from '@shared/util/hash';

@@ -135,6 +135,10 @@ export interface ProjectBackup {
   /**
    * 设定账本。当前实现是内存态（见 docs/REMAINING.md §1.4），
    * 一并落进备份，至少保证「重启不丢」这条底线。
+   *
+   * ★ 2026-10-09 复核：这四个数组目前**恒为空**——全仓没有任何一处向
+   * services 的 mem* Map 写入，`ledger_*` 表也只有 DDL。所以「重启不丢」
+   * 目前是空承诺，要先补账本写入路径才有意义（PROJECT-STATUS.md §4 第 13 条）。
    */
   ledger: {
     characters: CharacterProfile[];
