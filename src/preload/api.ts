@@ -29,6 +29,8 @@ export interface MzBridge {
     volumes(): Promise<IpcInvokeMap['project:volumes']['res']>;
     createVolume(title: string): Promise<IpcInvokeMap['project:create-volume']['res']>;
     reorderVolumes(ids: string[]): Promise<IpcInvokeMap['project:reorder-volumes']['res']>;
+    /** 千字单价（元），0 = 清空；稿费预估的唯一输入 */
+    setPrice(pricePerK: number): Promise<IpcInvokeMap['project:set-price']['res']>;
   };
 
   // 章节
@@ -148,6 +150,7 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'project:volumes',
   'project:create-volume',
   'project:reorder-volumes',
+  'project:set-price',
   'chapter:list',
   'chapter:get',
   'chapter:update',

@@ -74,6 +74,7 @@ const bridge: MzBridge = {
     volumes: () => invoke('project:volumes'),
     createVolume: (title) => invoke('project:create-volume', { title }),
     reorderVolumes: (ids) => invoke('project:reorder-volumes', { ids }),
+    setPrice: (pricePerK) => invoke('project:set-price', { pricePerK }),
   },
 
   chapter: {

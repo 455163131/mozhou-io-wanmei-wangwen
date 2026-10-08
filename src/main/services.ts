@@ -16,6 +16,7 @@ import type { RunState } from '@shared/types/agent';
 import { openDatabase, type MzDatabase } from './db/database';
 import { ChapterRepo, ProjectRepo, StyleProfileRepo, percentiles } from './db/repos/chapter-repo';
 import { LedgerRepo } from './db/repos/ledger-repo';
+import { DailyWriteRepo } from './db/repos/daily-write-repo';
 import { ToolRegistry, type ToolDeps } from './tools/registry';
 import { CheckpointManager } from './checkpoint/manager';
 import { Replayer } from './checkpoint/replayer';
@@ -63,6 +64,8 @@ export class AppServices {
   readonly flavorBaselineRepo: FlavorBaselineRepo;
   /** 账本（§4 第 13 条：此前只有 migrate 建的表，没有任何读写方） */
   readonly ledgerRepo: LedgerRepo;
+  /** 日增量账（§4 第 3 条：今日新增 / 连更 / 本月净增的唯一数据源） */
+  readonly dailyWrites: DailyWriteRepo;
   readonly push = new PushChannel();
   readonly backup: BackupManager;
 
@@ -88,7 +91,9 @@ export class AppServices {
 
   constructor() {
     this.db = openDatabase(join(app.getPath('userData'), 'mozhou.db'));
-    this.chapterRepo = new ChapterRepo(this.db);
+    // 日增量必须在 chapterRepo 之前建：正文写入的记账点就在 updateBody 里
+    this.dailyWrites = new DailyWriteRepo(this.db);
+    this.chapterRepo = new ChapterRepo(this.db, this.dailyWrites);
     this.projectRepo = new ProjectRepo(this.db);
     this.styleRepo = new StyleProfileRepo(this.db);
     this.expertRepo = new ExpertReviewRepo(this.db);
@@ -835,6 +840,8 @@ export class AppServices {
       };
     });
     const usage = this.agentHostInstance ? this.agentHostInstance.usage : null;
+    const daily = this.dailyWrites.summary(projectId);
+    const pricePerK = this.projectRepo.get(projectId)?.pricePerK ?? 0;
     return {
       totalChars,
       chapterCount: metas.length,
@@ -842,6 +849,11 @@ export class AppServices {
       volumes,
       checkpoints: this.checkpointsInstance ? this.checkpointsInstance.listForRun().length : 0,
       llm: usage,
+      daily,
+      pricePerK,
+      // ★ 未设单价时给 0 而不是拿"行业均价"算一个：钱是最容易被当真的数字。
+      //   本月净增为负也按 0 结——稿费不会因为删字变成欠款。
+      monthPay: pricePerK > 0 ? Math.round((Math.max(0, daily.monthNet) / 1000) * pricePerK) : 0,
     };
   }
 }

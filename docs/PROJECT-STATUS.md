@@ -9,13 +9,13 @@
 
 | 事项 | 状态 |
 |---|---|
-| 核心链路 | ✅ 全通：五模式 UI + 55 条 invoke 通道 + 14 条订阅通道 + SQLite 持久化 + Agent 循环 |
+| 核心链路 | ✅ 全通：五模式 UI + 56 条 invoke 通道 + 14 条订阅通道 + SQLite 持久化（迁移到 v8）+ Agent 循环 |
 | AI 味检测 | ✅ 10 维度引擎 + 语料基线校准（715 章真实语料）+ 用户自建基线 |
 | 专家团评审 | ✅ 6 角色（结构/人物/对白/文字/读者/类型）+ 冲突并列 + 作者裁决 |
 | 模型接入 | ✅ 6 家 Provider（DeepSeek/OpenRouter/本地等）+ safeStorage 加密 Key + 连接测试 |
 | 检查点回滚 | ✅ Agent 每步快照，改动历史可回滚 |
 | 便携版 | ⚠️ `release/` 里现存的 `墨舟写作台-0.1.0-portable.exe`（74MB，2026-10-08 07:56 打）**两处过时**：① 是 §4 第 8 条修复**之前**的产物，数据仍写 %APPDATA%；② 文件名带着第 6 条修复**之前**的旧 productName。重新打包后产物名变为 `木萱网文写作台-0.1.0-portable.exe`，须按第六节 `npx electron-builder --win portable --x64`，且重新打包后需实测（见第 14 条） |
-| 测试基线 | ✅ **570 用例全绿（36 文件，2026-10-09 05:27 实测**，含第 6 条 brand-naming 7 条 + 第 5 条 app-icon 9 条 + 第 4 条 volume-order 15 条与 wiring 22 条 + 第 13 条 ledger-repo 18 条、ledger-update-tool 13 条与 write-wiring 12 条）+ 验收脚本 9 项。**必须走 `npm test`**，见第五节。旧文档的「281」「527」是修复前的口径 |
+| 测试基线 | ✅ **620 用例全绿（38 文件，2026-10-09 05:40 实测**，含第 6 条 brand-naming 7 条 + 第 5 条 app-icon 9 条 + 第 4 条 volume-order 15 条与 wiring 22 条 + 第 13 条 ledger-repo 18 条、ledger-update-tool 13 条与 write-wiring 12 条 + 第 3 条 daily-write-repo 34 条与 wiring 16 条）+ 验收脚本 9 项。**必须走 `npm test`**，见第五节。旧文档的「281」「527」「570」是修复前的口径 |
 | UI 设计定稿 | ✅ 配色 v2.0「素笺·朱批」（浅色纸面 + 浓墨 + 朱砂单一强调，见 `styles/tokens.css:2`）；外壳为布局 v2（竖排模式导航 + 可折叠双栏）。旧设计代号「文枢」已**不再作为对外品牌**出现（第 6 条）|
 | 对外品牌名 | ✅ 统一为「木萱网文写作台」，单一来源 `src/shared/constants/brand.ts`（第 6 条）。内部标识（`package.json name=mozhou-agent`、`appId=com.mozhou.writer`）与 Agent 笔名「墨舟」**故意保留** |
 
@@ -44,7 +44,7 @@ Electron 33.4.11  +  React 19  +  TypeScript 5.8  +  Zustand 5(persist)
 
 | 域 | 通道 | 说明 |
 |---|---|---|
-| 项目 | `project:open/close/list/save/volumes/create-volume/reorder-volumes` | 项目生命周期、分卷与卷序重排 |
+| 项目 | `project:open/close/list/save/volumes/create-volume/reorder-volumes/set-price` | 项目生命周期、分卷与卷序重排、千字单价 |
 | 章节 | `chapter:list/get/update/reorder/set-volume` | 章节元数据与正文（乐观锁 rev）、章序重排、换卷 |
 | Agent | `agent:run/abort/state/history` | Agent 循环（runId + 事件推送）|
 | 检查点 | `checkpoint:list/undo` | 改动历史与回滚 |
@@ -52,7 +52,7 @@ Electron 33.4.11  +  React 19  +  TypeScript 5.8  +  Zustand 5(persist)
 | 专家团 | `expert:roles/review/history/decide/config` | 角色注册表/评审/裁决 |
 | 模型 | `llm:status/configure/test` | Provider 状态/配置/连通测试 |
 | 设定 | `ledger:query` / `ledger:upsert` | 设定账本读（人物/数字锚点/时间线/伏笔/冲突）与写（entries → 四类计数）|
-| 仪表盘 | `dash:stats` | 全书统计（状态计数/卷进度/检查点数/LLM 用量）|
+| 仪表盘 | `dash:stats` | 全书统计（日增量/状态计数/卷进度/检查点数/LLM 用量/稿费预估）|
 | 导出 | `export:run` | 稿件导出 |
 
 错误契约：主进程 `MzError` 统一为 `{__mzError: code, message}`，**preload 桥统一转成真 Error 抛出**（带 code/detail），调用方 try/catch 标准语义。
@@ -68,7 +68,7 @@ Electron 33.4.11  +  React 19  +  TypeScript 5.8  +  Zustand 5(persist)
 | # | 事项 | 说明 | 难度 |
 |---|---|---|---|
 | **0** | ~~闸门②（token/成本上限）生产路径失效~~ ✅ **已修（2026-10-09）** | `AgentLoop.stats` 的用量只有 `addUsage()` 会写，而生产代码从不调用它（真实用量走 `AgentHost.accrue()` → `costState`，两本账不相通）→ `checkBudget()` 恒读 0 → `maxCostCny` / `maxTokens` 形同虚设。已让 `accrue()` 同时喂两个账本，并补 `tests/integration/budget-wiring.test.ts`（4 条，覆盖"生产装配"而非闸门逻辑本身） | — |
-| 3 | 日增量数据源缺失 | 仪表盘「今日新增/连更/稿费/追读率」需发布平台接入或日增量追踪表 | 中 |
+| 3 | ~~日增量数据源缺失~~ ✅ **已修（2026-10-09，日增量与稿费部分）** | 原条目说「需发布平台接入或日增量追踪表」，两个选项里**后者根本不需要平台**：修复前 `dashStats()`（`services.ts:815`）的返回里没有任何按日字段，而库里每章只有 `updated_at` 一个瞬时戳——改一次覆盖一次，"今天写了多少字"在**数据结构上就问不出来**（不是没算，是没地方查）。仪表盘因此挂了一句「今日新增/连更/稿费需要发布平台数据，后续接入」，把一件本地能做的事推给了外部。本次：① **迁移 v8** 建 `daily_writes(project_id, day, delta_chars, updated_at)`，主键即最高频查询形状故不再另建索引；同时给 `projects` 加 `price_per_k`（默认 0 = 未配置）。② ★**记账点放在 `ChapterRepo.updateBody`/`insert` 内部**，不放在调用方——本仓库反复出现的事故形状就是"逻辑对、喂给它的是空气"，挂在调用方意味着 7 个 `updateBody` 调用点（`ipc/register.ts:186` + `services.ts:189/215/240/262/449/735`）各自记得调一次，漏一个只少一天且不报错。记的是**净增**（新字数 − 旧字数，可为负），`delta=0` 不落行，rev 冲突在记账之前就抛了所以失败的保存不留账。③ `DailyWriteRepo` 是 `ChapterRepo` 构造参数的**默认值**（`new DailyWriteRepo(db)`），不给"忘了传"留机会；`services.ts` 里再显式传一次，组合根与默认值同一口径。④ 连更口径：**今天为 0 时从昨天起算**（刚过零点还没动笔不该报"连更 0 天"吓唬作者），只数净增 > 0 的天。日期按**本地时区**切（按 UTC 切会让国内用户每天 08:00 才换天）。⑤ 契约扩到 `DashStats.daily/pricePerK/monthPay`，新通道 `project:set-price` 按第五节坑 3 同步满四处；仪表盘加了今日净增/连更/本月净增三张卡 + 近 7 天柱条 + 单价输入框。测试 `tests/unit/daily-write-repo.test.ts` 34 条（真 `:memory:` 库）+ `tests/integration/daily-delta-wiring.test.ts` 16 条装配哨兵。**未做 / 需要老板知道**：① **追读率仍然没有**，也不打算用代理指标冒充——那是读者行为数据，本地只有稿子没有读者，仪表盘上如实标注未接入；② 稿费预估的口径是「本月净增千字 × 用户自填单价」，与任何平台的实际结算无关，界面上写明了这一点；③ ★**这一条在真实数据上暂时看不到数字**：全书没有建章入口（第 17 条），`chapters` 表恒为空，没有正文可保存就没有净增。单测能过是因为测试自己建章造数据 | ~~中~~ — |
 | 4 | ~~分卷创建/拖拽排序~~ ✅ **已修（2026-10-09）** | 原写「规划视图只读展示，无 IPC」说轻了——真正的病灶是 `ProjectRepo.insertVolume`（`db/repos/chapter-repo.ts:349`）**全仓零调用方**：UI 没入口、IPC 没通道、Agent 没工具，又是本仓库反复出现的「逻辑对、喂给它的是空气」。四层一起接通：① **repo** 新增 `createVolume`（`title.trim()` 拒空，ord 由 `SELECT COALESCE(MAX(ord),-1)+1` 让库自己算，调用方不数）、`reorderVolumes`、`ChapterRepo.reorder`、`ChapterRepo.setVolume`；重排统一「整表全给 + 单事务 + `ord` = 数组下标」，`assertExactIdSet` 拒绝漏条/越界/重复（列表过期时报错，而不是把顺序改乱）；★重排**只写 `ord`**，不碰 `rev`/`updated_at`——拖一下不该把编辑器的乐观锁搅乱。② **IPC** 四条新通道 `project:create-volume`/`project:reorder-volumes`/`chapter:reorder`/`chapter:set-volume`，按第五节坑 3 同步满四处（类型表 + 两份白名单 + preload 桥 + 主进程 handle）；写通道未打开项目时抛结构化 `E_INVALID_ARGS`，不学读通道（`chapter:list` 那类返回 `[]`）的静默口径。③ **渲染层**：规划视图加了真建卷输入框与卷卡拖拽（`views/PlanView.tsx`），章节树加了「章拖到章=改全局序、章拖到卷名=换卷」（`chapter-tree/ChapterTree.tsx`）；两处都是**乐观生效 → 以主进程返回的整表覆盖 → 失败自动回读**，不会出现"看着改了、其实库里没改"。④ **测试**：`tests/unit/volume-order.test.ts`（15 条，真 `:memory:` 库，含「拖十次之后仍是 0..n-1」「重排不许顺手改正文与 rev」「跨项目 id 拒绝」「`ON DELETE SET NULL`」）+ `tests/integration/volume-order-wiring.test.ts`（22 条装配哨兵，钉住通道/白名单/handle/渲染层真调用/回写 store）。**未做**：卷的建与拖可实测，**章节树的拖拽目前在真实数据上没有可拖的对象**——因为全书根本没有建章节的入口，见第 17 条 | ~~低~~ — |
 | 5 | ~~应用图标~~ ✅ **已修（2026-10-09）** | `build/` 目录此前**根本不存在**（`ls build` → No such file or directory），electron-builder 找不到 `build/icon.ico` 只在日志里 warn 一句、照样出货，于是任务栏/桌面/卸载列表一路是 Electron 默认图标——第 6 条把品牌名统一了，图标却还是别人的。新增 `scripts/make-icon.mjs`：**零第三方依赖**纯数学光栅化（仓库无 sharp/pngjs/canvas，不想为一个图标拉原生模块），画「墨底圆角方 + 宣纸色笔锋 + 朱砂印」三要素，与渲染层「素笺·朱批」同一套色；16/24/32/48/64/128/256 七档**按档重画**（直接缩放 256 会让 16 档的细笔画糊成灰），4×4 超采样抗锯齿，手写 ICO 容器（32 位 BGRA + `biHeight=2×高` + 全 0 AND 掩码，透明度只由 alpha 承担）。产物 `build/icon.ico`（364 KiB）**已提交**——`build/` 不在 .gitignore 里，实测 `git check-ignore` 返回 1。补 `tests/integration/app-icon.test.ts`（9 条，全部围绕"Windows 能不能正确读出来"：容器头、尺寸覆盖、目录项自洽、DIB 头字段、掩码全 0、非纯色且圆角外真透明）。已肉眼核验 16/32/256 三档渲染（笔锋与红印在小尺寸下仍可读）。**未做**：重新打包验证图标真的出现在 exe 上（打包要下载 electron-builder 二进制，留作下一步）| ~~低~~ — |
 | 6 | ~~品牌命名统一~~ ✅ **已修（2026-10-09，老板定夺：对外统一为「木萱网文写作台」）** | 修复前同一个产品对外**三套名字**：`electron-builder.yml:2` productName 与窗口/页面/菜单写「墨舟写作台」，侧栏 mark 的 `title` 写「文枢」，Mac 应用菜单第一项 `label: app.name` 直接显示内部标识 `mozhou-agent`。新增单一来源 `src/shared/constants/brand.ts:APP_BRAND_NAME`，`window.ts`、`menu.ts`（含 `关于${APP_BRAND_NAME}`）、`App.tsx` 全部取该常量，`index.html` 与 `electron-builder.yml` 因是静态文件/打包配置只能各写一份，由测试钉住一致性。**★ 故意不改的三处**（已写进 brand.ts 注释并被测试钉住）：`package.json name=mozhou-agent`（决定 userData 目录名，跟着改会让老用户一打开就找不到书稿）、`appId=com.mozhou.writer`（NSIS 靠它识别同一应用，改了会变"新装一份"）、Agent 自我身份「墨舟写作 Agent」与备份/AI 味文案里的笔名「墨舟」。补 `tests/integration/brand-naming.test.ts`（7 条）| ~~低~~ — |
@@ -98,14 +98,14 @@ Electron 33.4.11  +  React 19  +  TypeScript 5.8  +  Zustand 5(persist)
 cd C:\Users\Administrator\WorkBuddy\2026-10-07-19-01-04\MozhouAgent
 npm install          # 已装则跳过
 npm run dev          # 开发模式（开发期 CSP 已放行 vite 内联脚本）
-npm test             # 570 用例（必须用这个，见第五节坑 1）
+npm test             # 620 用例（必须用这个，见第五节坑 1）
 npm run typecheck    # 三段 tsc
 npx electron-vite build          # 三段构建
 node scripts\make-icon.mjs       # 重画 build/icon.ico（图标改动时才需要）
 npx electron-builder --win portable --x64   # 便携版（带镜像变量）
 ```
 
-**验收四关**（改完必须全过）：`typecheck 0 错` → `npm run lint`（0 error，warning 不新增）→ `npm test 570 全绿` → `node scripts\verify-flavor-acceptance.mjs`（9 项校准验收，退出码接 CI）。
+**验收四关**（改完必须全过）：`typecheck 0 错` → `npm run lint`（0 error，warning 不新增）→ `npm test 620 全绿` → `node scripts\verify-flavor-acceptance.mjs`（9 项校准验收，退出码接 CI）。
 
 > ⚠️ `npm run test:coverage` 在本机 WorkBuddy 沙箱下会因 v8 provider 写临时文件失败而报错，
 > 与代码无关（详见 `vitest.config.ts` 内注释）。覆盖率门请在 CI 或正常终端执行。

@@ -63,6 +63,7 @@ function makePayload(overrides: Partial<ProjectBackup> = {}): ProjectBackup {
       createdAt: 0,
       updatedAt: 0,
       targetWords: 0,
+      pricePerK: 0,
     },
     volumes: [],
     chapters,

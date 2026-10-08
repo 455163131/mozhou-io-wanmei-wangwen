@@ -155,6 +155,19 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     }
   }, services);
 
+  // ── 千字单价（§4 第 3 条：稿费预估的唯一输入）──
+  // 校验放在 repo（setPricePerK 自己拒 NaN/负数），这里只补 IPC 边界的类型守卫，
+  // 免得两个地方各写一套口径、日后只改一处。
+  handle('project:set-price', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    if (typeof p.pricePerK !== 'number') throw new MzError('E_INVALID_ARGS', '千字单价必须是数字');
+    try {
+      return s.projectRepo.setPricePerK(s.project.id, p.pricePerK);
+    } catch (e) {
+      throw new MzError('E_INVALID_ARGS', e instanceof Error ? e.message : String(e));
+    }
+  }, services);
+
   // ── chapter ──
   handle('chapter:list', () => {
     if (!services.project) return [];

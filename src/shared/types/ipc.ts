@@ -5,7 +5,7 @@
  * 禁止在业务代码里手写字符串通道名。契约先冻结再写实现，否则后面全返工（T02 是架构级卡点）。
  */
 import type { LlmStatus } from './provider';
-import type { Chapter, ChapterMeta, Project, Volume, StyleProfile } from './project';
+import type { Chapter, ChapterMeta, DailySummary, Project, Volume, StyleProfile } from './project';
 import type { ChapterAnalysis, HealthReport, IssueLocation, RuleInfo } from './health';
 import type { ChangeSet, ToolSpec } from './tool';
 import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, LedgerCounts } from './ledger';
@@ -86,6 +86,11 @@ export interface IpcInvokeMap {
   'project:volumes': { req: void; res: Volume[] };
   /** 新建一卷（ord 由主进程追加，渲染层不数） */
   'project:create-volume': { req: { title: string }; res: Volume };
+  /**
+   * 设千字单价（元），用于稿费预估。传 0 表示清空。
+   * 非负有限数由主进程校验，渲染层不做校验逻辑。
+   */
+  'project:set-price': { req: { pricePerK: number }; res: Project };
   /** 拖拽重排卷册：ids 必须是当前全部卷的一个排列 */
   'project:reorder-volumes': { req: { ids: string[] }; res: Volume[] };
 
@@ -233,6 +238,18 @@ export interface DashStats {
   checkpoints: number;
   /** 本次进程内 Agent 循环累计的 LLM 用量；未跑过为 null */
   llm: { requests: number; tokensIn: number; tokensOut: number; costCny: number } | null;
+  /**
+   * 日增量（§4 第 3 条）：今日/昨日净增、连更天数、近 7 天序列、本月净增。
+   * 净增可为负——那天删了字，如实反映。
+   */
+  daily: DailySummary;
+  /** 千字单价（元）；0 = 用户未设置 */
+  pricePerK: number;
+  /**
+   * 本月稿费预估（元）= 本月净增千字 × 单价。
+   * ★ 未设单价时为 0，渲染层据此显示「未设单价」而不是「¥0」。
+   */
+  monthPay: number;
 }
 
 export interface FlavorBaselineInfo {
@@ -337,6 +354,7 @@ export const IPC_CHANNELS = [
   'project:save',
   'project:volumes',
   'project:create-volume',
+  'project:set-price',
   'project:reorder-volumes',
   'chapter:list',
   'chapter:get',

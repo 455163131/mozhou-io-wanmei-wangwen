@@ -6,6 +6,7 @@ import type { Database } from 'better-sqlite3';
 import type { Chapter, ChapterMeta, ChapterMetrics, Project, Volume } from '@shared/types/project';
 import { countChars } from '@shared/util/text-zh';
 import { nextId } from '@shared/util/id';
+import { DailyWriteRepo } from './daily-write-repo';
 
 interface ChapterRow {
   id: string;
@@ -70,7 +71,15 @@ function assertExactIdSet(existingIds: string[], orderedIds: readonly string[], 
 }
 
 export class ChapterRepo {
-  constructor(private readonly db: Database) {}
+  /**
+   * @param dailyWrites 日增量账。默认自建（同一个 db），**不给"忘了传"留机会**：
+   *   本仓库反复出现的事故形状就是逻辑对、没人喂它，把它做成可选注入等于把
+   *   记账重新变成调用方的责任。
+   */
+  constructor(
+    private readonly db: Database,
+    private readonly dailyWrites: DailyWriteRepo = new DailyWriteRepo(db),
+  ) {}
 
   /** 列元信息，不拉正文（架构 §1.9 分页：列表不需要正文） */
   listMeta(projectId: string): ChapterMeta[] {
@@ -149,6 +158,10 @@ export class ChapterRepo {
       // 指标缓存作废：正文变了，缓存的指标不再可信
       this.db.prepare('DELETE FROM chapter_metrics WHERE chapter_id = ?').run(chapterId);
 
+      // ★ 日增量（§4 第 3 条）：记在事务里，与正文同一存亡。
+      //   rev 冲突在上方就抛了，走不到这里，所以失败的保存不会记账。
+      this.dailyWrites.recordDelta(row.project_id, chars - row.char_count, now);
+
       return toMeta({ ...row, rev, char_count: chars, updated_at: now });
     })();
   }
@@ -198,6 +211,8 @@ export class ChapterRepo {
       this.db
         .prepare('INSERT INTO chapter_bodies(chapter_id, body) VALUES(?,?)')
         .run(meta.id, meta.body);
+      // 新建一章带正文 = 全部字数都是净增
+      this.dailyWrites.recordDelta(meta.projectId, chars, now);
     })();
     return {
       ...meta,
@@ -303,7 +318,7 @@ export class ProjectRepo {
         'INSERT INTO projects(id, name, root_dir, created_at, updated_at, target_words) VALUES(?,?,?,?,?,?)',
       )
       .run(id, name, rootDir, now, now, targetWords);
-    return { id, name, rootDir, createdAt: now, updatedAt: now, targetWords };
+    return { id, name, rootDir, createdAt: now, updatedAt: now, targetWords, pricePerK: 0 };
   }
 
   get(projectId: string): Project | null {
@@ -318,6 +333,7 @@ export class ProjectRepo {
       createdAt: r.created_at as number,
       updatedAt: r.updated_at as number,
       targetWords: r.target_words as number,
+      pricePerK: r.price_per_k as number,
     };
   }
 
@@ -332,7 +348,25 @@ export class ProjectRepo {
       createdAt: r.created_at as number,
       updatedAt: r.updated_at as number,
       targetWords: r.target_words as number,
+      pricePerK: r.price_per_k as number,
     }));
+  }
+
+  /**
+   * 设千字单价（元）。稿费预估的唯一输入，0 表示未配置。
+   * 拒 NaN / 负数 / 无穷：这三个值会一路安静地变成"稿费 −0 元"或"稿费 NaN 元"糊在仪表盘上。
+   */
+  setPricePerK(projectId: string, pricePerK: number): Project {
+    if (!Number.isFinite(pricePerK) || pricePerK < 0) {
+      throw new Error(`千字单价必须是非负有限数，收到 ${pricePerK}`);
+    }
+    const now = Date.now();
+    this.db
+      .prepare('UPDATE projects SET price_per_k = ?, updated_at = ? WHERE id = ?')
+      .run(Math.round(pricePerK), now, projectId);
+    const p = this.get(projectId);
+    if (!p) throw new Error(`项目不存在：${projectId}`);
+    return p;
   }
 
   touch(projectId: string): void {

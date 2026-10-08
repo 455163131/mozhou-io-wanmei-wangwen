@@ -326,6 +326,29 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 8,
+    name: 'add_daily_writes',
+    up(db) {
+      db.exec(`
+        -- ★ 日增量账（§4 第 3 条）：每章只有一个 updated_at 瞬时戳，改一次覆盖一次，
+        --   所以"今天写了多少字 / 连更几天"在修复前的数据结构里根本问不出来。
+        --   按 (项目, 本地日) 存**净增**（新字数 − 旧字数，可为负），同一天累加。
+        --   主键 (project_id, day) 就是最高频查询的形状（"这个项目最近 N 天"），
+        --   不再另建索引——重复索引只会让每次保存多写一棵 B 树。
+        CREATE TABLE IF NOT EXISTS daily_writes (
+          project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          day         TEXT NOT NULL,           -- 本地日期 YYYY-MM-DD，零填充，可按字符串比大小
+          delta_chars INTEGER NOT NULL DEFAULT 0,
+          updated_at  INTEGER NOT NULL,
+          PRIMARY KEY (project_id, day)
+        );
+
+        -- 千字单价（元）。默认 0 = 用户还没填，仪表盘据此显示「未设单价」而不是猜一个。
+        ALTER TABLE projects ADD COLUMN price_per_k INTEGER NOT NULL DEFAULT 0;
+      `);
+    },
+  },
 ];
 
 export function migrate(db: Database): void {

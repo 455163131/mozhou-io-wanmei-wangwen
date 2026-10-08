@@ -18,6 +18,36 @@ export interface Project {
   updatedAt: number;
   /** 目标字数（写作目标），Agent 评估进度时用 */
   targetWords: number;
+  /**
+   * 千字单价（元），用于稿费预估。0 = 用户还没填。
+   * ★ 默认必须是 0 而不是任何"看起来合理"的行价：猜一个价会让仪表盘报出一个
+   *   凭空而来的钱数，而钱是最容易被当真的数字。
+   */
+  pricePerK: number;
+}
+
+/** 日增量序列上的一个点（§4 第 3 条） */
+export interface DailyPoint {
+  /** 本地日期 YYYY-MM-DD */
+  day: string;
+  /** 当日净增字数，可为负；无记录为 0 */
+  delta: number;
+}
+
+/**
+ * 日增量汇总：作者最关心的三个数（今天写了多少、连着写了几天、这个月累计多少）。
+ * 契约放 shared 是因为渲染层要直接吃它，而 `DailyWriteRepo` 在主进程——
+ * 共享类型不能反过来依赖主进程。
+ */
+export interface DailySummary {
+  today: number;
+  yesterday: number;
+  /** 连续净增 > 0 的天数；今天为 0 时从昨天起算（刚过零点不该报"连更 0 天"） */
+  streakDays: number;
+  /** 含今天在内的近 7 天，升序，缺失天补 0 */
+  week: DailyPoint[];
+  /** 本月净增（含负值） */
+  monthNet: number;
 }
 
 export type ChapterStatus = 'todo' | 'draft' | 'revised' | 'done';
@@ -133,12 +163,12 @@ export interface ProjectBackup {
   /** 章节元数据 + 正文。这是备份的主体，缺了它备份就没有意义 */
   chapters: Array<{ meta: ChapterMeta; body: string }>;
   /**
-   * 设定账本。当前实现是内存态（见 docs/REMAINING.md §1.4），
-   * 一并落进备份，至少保证「重启不丢」这条底线。
+   * 设定账本。一并落进备份，保证「换机器 / 覆盖安装不丢」这条底线。
    *
-   * ★ 2026-10-09 复核：这四个数组目前**恒为空**——全仓没有任何一处向
-   * services 的 mem* Map 写入，`ledger_*` 表也只有 DDL。所以「重启不丢」
-   * 目前是空承诺，要先补账本写入路径才有意义（PROJECT-STATUS.md §4 第 13 条）。
+   * ★ 2026-10-09（§4 第 13 条已修）：账本不再是内存 Map，四个数组来自
+   * `ledger_*` 真表，因此备份里有真内容。仍**没有**「把备份写回库」的还原路径：
+   * `fs/backup.ts:readBackup()` 在 src 里除自身文件外零调用方，本字段目前是
+   * 只写不读的证据存档。
    */
   ledger: {
     characters: CharacterProfile[];

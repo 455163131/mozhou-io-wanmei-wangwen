@@ -120,7 +120,7 @@
 }
 
 .hv {
-  width: 44px;
+  width: 60px;
   text-align: right;
   font-size: 10.5px;
   color: var(--mz-text-tertiary);
@@ -156,4 +156,55 @@
   border: 1px solid var(--mz-sem-warn-border);
   color: var(--mz-sem-warn-fg);
   font-size: 12px;
+}
+
+/* ── 日增量一排（§4 第 3 条）：三张卡比四张更耐看，且它是主角，放最上面 ── */
+.deltaRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.priceRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--mz-text-primary);
+  outline: none;
+  font-family: inherit;
+}
+
+.input:focus {
+  border-color: var(--mz-accent);
+}
+
+.btn {
+  flex: none;
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-primary);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

@@ -9,11 +9,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import Database from 'better-sqlite3';
 import type { Database as DB } from 'better-sqlite3';
-import { migrate, currentVersion } from '@main/db/migrate';
+import { migrate, currentVersion, MIGRATIONS } from '@main/db/migrate';
 import { FlavorBaselineRepo } from '@main/db/repos/flavor-baseline-repo';
 import { DEFAULT_FLAVOR_BASELINE } from '@shared/ai-flavor/baseline';
 
 const PID = 'proj_test';
+
+/** 本文件只关心基线表；版本号跟着迁移表走，不写死，免得每次加迁移都要来改这里 */
+const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 0;
 
 function freshDb(): DB {
   const db = new Database(':memory:');
@@ -29,8 +32,8 @@ describe('FlavorBaselineRepo · 基于真库的回归', () => {
     repo = new FlavorBaselineRepo(db);
   });
 
-  it('迁移到 v7 且建出 flavor_baselines 表与索引', () => {
-    expect(currentVersion(db)).toBe(7);
+  it('迁移跑到底且建出 flavor_baselines 表与索引', () => {
+    expect(currentVersion(db)).toBe(LATEST_VERSION);
     const tbl = db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='flavor_baselines'")
       .get();
@@ -90,7 +93,7 @@ describe('FlavorBaselineRepo · 基于真库的回归', () => {
   it('重复 migrate 幂等：版本不再前进，数据不丢', () => {
     repo.save(PID, { ...DEFAULT_FLAVOR_BASELINE, source: 'user' });
     migrate(db);
-    expect(currentVersion(db)).toBe(7);
+    expect(currentVersion(db)).toBe(LATEST_VERSION);
     expect(repo.list(PID)).toHaveLength(1);
   });
 });
