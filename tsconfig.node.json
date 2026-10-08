@@ -31,8 +31,10 @@
     "src/preload/**/*.ts",
     "src/shared/**/*.ts",
     // composite 项目要求被引用的实现文件出现在 include 里（否则 TS6307）。
-    // 只纳入 store —— 它是 DOM-free 的纯状态机；组件/hooks 仍归 tsconfig.web.json。
+    // 只纳入 DOM-free 的渲染层逻辑：store 是纯状态机，inline-marks 是纯区间映射
+    // （不碰 document/窗口，只算偏移），组件/hooks 仍归 tsconfig.web.json。
     "src/renderer/store/**/*.ts",
+    "src/renderer/components/editor/inline-marks.ts",
     "tests/**/*.ts",
     "electron.vite.config.ts"
   ],

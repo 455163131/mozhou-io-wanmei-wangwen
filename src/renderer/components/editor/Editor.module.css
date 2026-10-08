@@ -1,4 +1,15 @@
 .wrap {
+  /**
+   * ★ 镜像层与 textarea 必须逐参数同排版，缺一边的值就错位。
+   * 所以这两层共用的字号/行距/字距/内边距**只在这里定义一次**，
+   * `.area` 与 `.backdrop` 各自引用同一组变量（§4 第 7 行的装配哨兵也钉这一条）。
+   */
+  --ed-font: var(--mz-editor-font-novel);
+  --ed-size: var(--mz-editor-size-novel);
+  --ed-lh: var(--mz-editor-lh-novel);
+  --ed-tracking: var(--mz-tracking-cjk);
+  --ed-pad-y: 24px;
+
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -34,23 +45,102 @@
   font-size: var(--mz-fs-xs);
   padding: 3px 12px;
 }
-.area {
+.markToggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.markCount {
+  font-family: var(--mz-font-numeric);
+  color: var(--mz-sem-ai-fg);
+}
+.markNote {
+  padding: 5px 14px;
+  font-size: var(--mz-fs-xs);
+  line-height: 1.7;
+  color: var(--mz-text-secondary);
+  background: var(--mz-bg-surface);
+  border-bottom: 1px solid var(--mz-border-subtle);
+}
+
+/* 两层叠放的舞台：镜像层在下、textarea 在上 */
+.stage {
+  position: relative;
   flex: 1;
-  width: 100%;
-  padding: 24px 0;
+  min-height: 0;
+}
+
+/* 共用排版：这一条规则同时给 .area 和 .backdrop，从根上不给"改一边忘一边"留机会 */
+.stage > .area,
+.stage > .backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
   border: none;
   border-radius: 0;
+  box-sizing: border-box;
+  padding: var(--ed-pad-y) 0;
+  width: 100%;
+  font-family: var(--ed-font);
+  font-size: var(--ed-size);
+  line-height: var(--ed-lh);
+  letter-spacing: var(--ed-tracking);
+  line-break: strict;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-align: center;
+}
+
+.area {
+  z-index: 1;
+  height: 100%;
   background: transparent;
   color: var(--mz-text-body);
-  font-family: var(--mz-editor-font-novel);
-  font-size: var(--mz-editor-size-novel);
-  line-height: var(--mz-editor-lh-novel);
-  letter-spacing: var(--mz-tracking-cjk);
-  line-break: strict;
   resize: none;
-  text-align: center;
   outline: none;
+  overflow-y: scroll;
+  caret-color: var(--mz-text-primary);
 }
 .area:focus {
   border: none;
+}
+
+/*
+ * 镜像层：文字透明，只有波浪线显色，所以看到的是 textarea 的字、underline 的位置。
+ * 宽度由 JS 同步成 textarea 的 clientWidth（把滚动条那一条让出来），
+ * 否则滚动条一出现，两层可排版宽度就差一个 gutter，波浪线整行偏右。
+ */
+.backdrop {
+  z-index: 0;
+  height: 100%;
+  overflow: hidden;
+  color: transparent;
+  background: transparent;
+  pointer-events: none;
+}
+.mark {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1.5px;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+}
+.mild {
+  text-decoration-color: var(--mz-sem-pass-fg);
+}
+.suspicious {
+  text-decoration-color: var(--mz-sem-warn-fg);
+}
+.heavy {
+  text-decoration-color: var(--mz-sem-ai-fg);
+}
+.severe {
+  text-decoration-color: var(--mz-sem-err-fg);
+  text-decoration-thickness: 2px;
 }
