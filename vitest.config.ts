@@ -58,7 +58,7 @@ export default defineConfig({
     // ★ 关闭 vitest 缓存 → 收集结果确定（详见文件头 D6 说明）。
     cache: false,
     // 单线程跑：避免并发写缓存触发上述 shim 竞态。
-    // 用例数随功能增长（当前 15 文件 / 277 个），串行的耗时可接受，换来确定性。
+    // 用例数随功能增长（2026-10-09 实测：25 文件 / 445 用例），串行的耗时可接受，换来确定性。
     pool: 'forks',
     poolOptions: { forks: { singleFork: true } },
 

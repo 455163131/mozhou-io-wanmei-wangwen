@@ -87,8 +87,19 @@ async function runTsc(label, project) {
   }
 }
 
-/** 统计测试声明数（it( 开头） */
-/** 统计测试声明数（it( 开头） */
+/**
+ * 统计静态声明的 it( 数。
+ *
+ * ⚠️ 这是**下界**，不能直接当作 vitest 的执行数核对，两处系统性偏差：
+ *   1. 循环展开：`for (const {name} of CORPUS) { it(...) }` 只算 1 条，实跑 N 条。
+ *      现有 quote-ranges.test.ts 一处，1 条声明展开成 16 条执行（+15）。
+ *   2. 探针文件：`_*.test.ts` 被 vitest 的 exclude 挡掉，本函数仍会数进去（−2）。
+ *   净差 = +13。2026-10-09 实测：静态 432 · 执行 445 · 25 文件。
+ *
+ * 真要「声明数 = 执行数」，得解析 AST 求出循环展开后的量，或等沙箱解禁 spawn 后
+ * 接上 countExecutedTests() 直接读 vitest 输出。在此之前，本函数只用于发现
+ * 「测试文件凭空少了一批」这类断档，不用于精确对账。
+ */
 function countDeclaredTests() {
   let n = 0;
   const walk = (dir) => {
@@ -166,7 +177,7 @@ console.log('\n▶ 单元 + 集成测试');
 console.log('  ⚠️ 沙箱环境禁止 spawn 子进程，无法在本脚本内跑 vitest。');
 console.log('     请另行执行：npm test');
 const declared = countDeclaredTests();
-console.log(`     已声明用例数（静态统计）：${declared}`);
+console.log(`     静态声明 it( 数（下界，勿当执行数对账）：${declared}`);
 
 console.log('\n▶ 构建（三段）');
 console.log('  ⚠️ electron-vite 需要子进程，沙箱内无法在本脚本内执行。');
@@ -187,8 +198,8 @@ if (missingArtifacts.length === 0) {
   results.push({ label: '构建产物', ok: false, out: '' });
 }
 
-// 5) 逐文件用例数（团队负责人要求「声明数 = 实际数」，此处给出可核对的分解）
-console.log('\n▶ 用例数分布（静态声明数）');
+// 5) 逐文件用例数（用于发现「某文件整体没被收集」这类断档；口径限制见 countDeclaredTests 注释）
+console.log('\n▶ 用例数分布（静态声明数，下界）');
 for (const f of listTestFiles()) {
   const n = (readFileSync(f, 'utf8').match(/^\s*it\(/gm) ?? []).length;
   console.log(`     ${f.replace(ROOT + '\\', '').replace(/\\/g, '/')}: ${n}`);

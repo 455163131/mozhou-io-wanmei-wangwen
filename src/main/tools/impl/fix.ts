@@ -193,7 +193,6 @@ export async function applyFixTool(
   const patches: ChangeSet['patches'] = [];
   let scoreBeforeSum = 0;
   let scoreAfterSum = 0;
-  let changedChapters = 0;
 
   for (const chapterId of existing) {
     const before = bodies.get(chapterId) as string;
@@ -264,7 +263,6 @@ export async function applyFixTool(
       continue;
     }
 
-    changedChapters++;
     scoreAfterSum += planFixes(plan.before, { rules: acceptedRules, baseline }).scoreAfter;
     afterBodies.set(chapterId, finalText);
     allEdits.push(...finalEdits);

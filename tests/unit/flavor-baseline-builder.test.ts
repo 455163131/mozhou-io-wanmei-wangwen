@@ -268,7 +268,6 @@ describe.runIf(HAS_CORPUS)('★ 端到端等价性（builder vs DEFAULT_FLAVOR_B
       if (maxDiff > worst) worst = maxDiff;
       rows.push(`${k.padEnd(22)} maxΔ=${maxDiff.toExponential(2)}`);
     }
-    // eslint-disable-next-line no-console
     console.log('[715 等价性] 各指标最大绝对偏差：\n' + rows.join('\n') + `\n累计最大偏差 = ${worst}`);
 
     // 阈值 0.01：所有差异应远小于它（实测见 console 输出）。

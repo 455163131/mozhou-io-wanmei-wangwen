@@ -15,7 +15,7 @@
 | 模型接入 | ✅ 6 家 Provider（DeepSeek/OpenRouter/本地等）+ safeStorage 加密 Key + 连接测试 |
 | 检查点回滚 | ✅ Agent 每步快照，改动历史可回滚 |
 | 便携版 | ✅ `墨舟写作台-0.1.0-portable.exe`（74MB 免安装，双击即用）|
-| 测试基线 | ✅ 281 用例全绿（**必须走 `npm test`**，见第五节）+ 验收脚本 9 项 |
+| 测试基线 | ✅ 445 用例全绿（25 文件，2026-10-09 实测。旧文档的「281」是 10-08 前的口径，其后修复提交新增了大量用例）+ 验收脚本 9 项。**必须走 `npm test`**，见第五节 |
 | UI 设计定稿 | ✅ 「文枢」水墨金风格（五模式外壳已移植进 React 渲染层）|
 
 ---
@@ -93,13 +93,16 @@ Electron 33.4.11  +  React 19  +  TypeScript 5.8  +  Zustand 5(persist)
 cd C:\Users\Administrator\WorkBuddy\2026-10-07-19-01-04\MozhouAgent
 npm install          # 已装则跳过
 npm run dev          # 开发模式（开发期 CSP 已放行 vite 内联脚本）
-npm test             # 281 用例（必须用这个，见第五节坑 1）
+npm test             # 445 用例（必须用这个，见第五节坑 1）
 npm run typecheck    # 三段 tsc
 npx electron-vite build          # 三段构建
 npx electron-builder --win portable --x64   # 便携版（带镜像变量）
 ```
 
-**验收三关**（改完必须全过）：`typecheck 0 错` → `npm test 281 全绿` → `node scripts\verify-flavor-acceptance.mjs`（9 项校准验收，退出码接 CI）。
+**验收四关**（改完必须全过）：`typecheck 0 错` → `npm run lint`（0 error，warning 不新增）→ `npm test 445 全绿` → `node scripts\verify-flavor-acceptance.mjs`（9 项校准验收，退出码接 CI）。
+
+> ⚠️ `npm run test:coverage` 在本机 WorkBuddy 沙箱下会因 v8 provider 写临时文件失败而报错，
+> 与代码无关（详见 `vitest.config.ts` 内注释）。覆盖率门请在 CI 或正常终端执行。
 
 **一键脚本**：项目根 `dev.cmd`（启动）、`verify.cmd`（验收）——双击即用，自动切目录。
 
@@ -109,5 +112,5 @@ npx electron-builder --win portable --x64   # 便携版（带镜像变量）
 
 1. 认领第四节任一项 → 在本知识库对应条目下留言/或联系项目负责人
 2. 改动分层守规矩：业务逻辑在 `src/main/services.ts` + 各领域目录；渲染层只走 `window.mz`，不碰裸 ipcRenderer
-3. 交付标准 = 第六节验收三关全绿 + 更新本文档状态表
+3. 交付标准 = 第六节验收四关全绿 + 更新本文档状态表（含用例数等实测数字，别留旧口径）
 4. 设计定稿：`novel-workbench-ui/index.html`（水墨金五模式）是 UI 唯一视觉规范

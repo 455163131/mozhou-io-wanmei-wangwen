@@ -94,7 +94,7 @@ export class CheckpointManager {
           toolName,
           edits: [],
         });
-      } catch (e) {
+      } catch {
         failed.push(chapterId);
       }
     }

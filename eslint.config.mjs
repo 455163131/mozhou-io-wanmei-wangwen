@@ -6,10 +6,17 @@
  * 但源码里已经出现了 `// eslint-disable-next-line no-console` 注释 ——
  * 说明有人以为它有。
  *
- * 缺 lint 的直接后果是可见的：渲染层那批 `useEffect` 依赖数组缺失
- * （HealthPanel.tsx:46、HistoryTimeline.tsx:20、App.tsx:84）无人发现，
- * 因为 `react-hooks/exhaustive-deps` 从来没跑过。这类缺陷 typecheck 抓不到、
- * 281 个用例也抓不到（渲染层 0 覆盖），只有 lint 能在写下的当刻就报出来。
+ * ★ 关于「抓 useEffect 依赖缺失」这个动机，实测后要把话说准：它只能**部分兑现**。
+ * exhaustive-deps 只在 effect 闭包了 reactive 值（state / props / useCallback 结果）
+ * 时才报。App.tsx 的 bootstrap 引用了 useCallback 出来的 loadDash，会被报；
+ * 而形态完全相同的 HealthPanel.tsx:46 与 HistoryTimeline.tsx:20 **静默不报**——
+ * 它们的 effect 只通过 `useXStore.getState()` 取数，那是模块作用域引用，
+ * 规则判定为非 reactive。（这是直接调用规则本体验证的结论，不是推测。）
+ *
+ * 后果：渲染层有 33 处 getState() 与 15 个空依赖 effect，这种取数方式让本条规则
+ * 结构性地打不着火。所以 **lint 0 error ≠ 没有陈旧闭包**，「面板永远空态、
+ * 统计永久陈旧」仍要靠「effect 必须声明刷新触发条件」的约定来守。
+ * 这与 REMAINING.md §3.6 是同一类陷阱：门是绿的，不代表门后面有东西。
  *
  * 分级原则：
  *   · **error** = 会产生错误行为的（hooks 依赖、未处理的 Promise、可疑相等）
@@ -90,9 +97,9 @@ export default tseslint.config(
     },
     rules: {
       'react-hooks/rules-of-hooks': 'error',
-      // ★ 设为 error 而非 warn：本项目渲染层的既有缺陷（依赖数组缺失导致
-      //   订阅不更新、面板永远空态、统计永久陈旧）全部属于这一类。
-      //   这是引入 lint 最主要的动机，不能只是警告。
+      // ★ 设为 error 而非 warn：一旦降级为警告，团队只会把它读成噪声。
+      //   但要知道它的边界：只覆盖闭包了 reactive 值的 effect，
+      //   经 getState() 取数的那批它看不见——详见文件头段的实测结论。
       'react-hooks/exhaustive-deps': 'error',
       // 渲染层绝不允许出现裸 ipcRenderer —— 必须走 window.mz（hooks/use-mz-bridge）
       'no-restricted-imports': [

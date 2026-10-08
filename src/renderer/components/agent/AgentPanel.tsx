@@ -349,7 +349,6 @@ function RollbackHint(): JSX.Element | null {
       // E_ROLLBACK_CONFLICT 会走到这里——必须让用户看到会丢什么
       const msg = errorText(e);
       if (msg.includes('手动修改')) {
-        // eslint-disable-next-line no-alert
         const ok = window.confirm(`${msg}\n\n确认要强制回滚吗？`);
         if (ok) await bridge().checkpoint.undo(last!.id, true);
       } else {
