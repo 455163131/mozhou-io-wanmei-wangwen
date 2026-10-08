@@ -20,15 +20,11 @@
  *   让用户看到「F4 让对白占比从 0.82涨到 0.87，超出你的 p95 0.828，所以撤回了它」。
  */
 import type { Grade, SideEffect } from '@shared/types/tool';
-import type { MetricSpec } from '@shared/types/project';
 import { analyze, grade } from '@shared/metrics-engine';
 import { sideEffectTargetsOf } from '../rule-engine/fix-rules';
-
-export interface BaselineLike {
-  source: string;
-  metrics: Record<string, MetricSpec>;
-  markerDensity: Record<string, { p50: number; p95: number }>;
-}
+// BaselineLike 单一真源在 rule-engine/plan-fixes。此处曾有一份逐字重复的定义，
+// 与 REMAINING.md §4 记的「两份重复映射表已分叉」是同型问题——删副本、引真源。
+import type { BaselineLike } from '../rule-engine/plan-fixes';
 
 function gradeOfMarker(density: number, base: { p50: number; p95: number }): Grade {
   if (density <= base.p50) return 'ok';

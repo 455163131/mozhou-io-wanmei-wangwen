@@ -20,6 +20,7 @@ import { executeTool } from '../tools/sandbox';
 import type { ToolRegistry } from '../tools/registry';
 import type { CheckpointManager } from '../checkpoint/manager';
 import type { Replayer } from '../checkpoint/replayer';
+import type { BaselineLike } from '../rule-engine/plan-fixes';
 import { buildSystemPrompt } from './prompt';
 import { buildContext, summarizeChapter } from './context-builder';
 import { MzError, TERMINATION_TEXT } from '@shared/types/ipc';
@@ -54,7 +55,7 @@ export interface AgentHostDeps {
   chapterTitle: (id: string) => string;
   getBodies: (ids: string[]) => Promise<Map<string, string>>;
   setBody: (id: string, body: string) => Promise<void>;
-  baseline: () => { source: string; metrics: Record<string, any>; markerDensity: Record<string, any> };
+  baseline: () => BaselineLike;
   /** 计算项目状态指纹 */
   stateHash: () => Promise<string>;
   /** 账本冲突查询（评估器的 no_conflicts 目标用） */
