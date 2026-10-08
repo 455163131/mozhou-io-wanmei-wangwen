@@ -51,6 +51,11 @@ export interface ExecuteOutcome {
 
 export async function executeTool(
   spec: ToolSpec,
+  // 此处的 any 是「已按 spec.schema 校验过的值」与「各 handler 自己声明的入参形状」
+  // 之间的接缝：函数体内 safeParse 已把 rawArgs 收成 parsed.data，但泛型 A 没有沿
+  // handler 参数流下来。要真正收口得让 ToolHandler<A> 的 A 从 schema 推导
+  // （z.infer），那是跨 7 个 handler 的独立改造，见 shared/types/tool.ts 同处说明。
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 理由见上，非疏漏
   handler: (args: any, ctx: ToolContext) => Promise<ToolResult>,
   rawArgs: unknown,
   opts: SandboxOptions,

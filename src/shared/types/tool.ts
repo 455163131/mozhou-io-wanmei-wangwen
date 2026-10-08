@@ -210,7 +210,15 @@ export interface ToolContext {
   logger: (msg: string) => void;
 }
 
-/** 工具执行器：预览与执行共用同一个函数，靠 ctx.dryRun 区分（架构 §1.3 铁律） */
+/**
+ * 工具执行器：预览与执行共用同一个函数，靠 ctx.dryRun 区分（架构 §1.3 铁律）
+ *
+ * 泛型默认值留 any 是刻意的：工具入参在进 handler 前只保证「是 JSON」，真正的形状
+ * 由 sandbox 按 spec.schema 校验、再由各 handler 声明自己的 A。默认设 unknown 会逼
+ * 所有调用方先窄化、却拿不到额外保障。真要收口得让 A 从 schema 推导（z.infer），
+ * 那是跨 7 个 handler 的独立改造，连同 sandbox.ts 的 handler 签名一起改。
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 理由见上方 doc，非疏漏
 export type ToolHandler<A = any, R = any> = (
   args: A,
   ctx: ToolContext,

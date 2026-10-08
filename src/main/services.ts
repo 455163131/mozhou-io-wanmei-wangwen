@@ -168,9 +168,13 @@ export class AppServices {
         {
           getBody: async (id) => this.chapterRepo.getBody(id),
           setBody: async (id, body) => {
-            const meta = this.chapterRepo
-              .listMeta(this.currentProject!.id)
-              .find((m) => m.id === id);
+            // ★ 上面那句判空只覆盖「构造本 manager 的那一刻」；这个闭包是之后才跑的，
+            //   期间 closeProject() 会把 currentProject 置空。所以在此重取，不用 !。
+            const projectId = this.currentProject?.id;
+            if (projectId === undefined) {
+              throw new MzError('E_INTERNAL', '写入正文时项目已被关闭');
+            }
+            const meta = this.chapterRepo.listMeta(projectId).find((m) => m.id === id);
             this.chapterRepo.updateBody(id, body, meta?.rev ?? 1);
             this.backup.noteEdit();
             this.push.send('chapter:changed', {
@@ -191,9 +195,12 @@ export class AppServices {
       this.replayerInstance = new Replayer(this.checkpoints, {
         getBody: async (id) => this.chapterRepo.getBody(id),
         setBody: async (id, body) => {
-          const meta = this.chapterRepo
-            .listMeta(this.currentProject!.id)
-            .find((m) => m.id === id);
+          // 同 checkpoints 的 setBody：回滚跑得更晚，项目可能已被关掉
+          const projectId = this.currentProject?.id;
+          if (projectId === undefined) {
+            throw new MzError('E_INTERNAL', '回滚写入时项目已被关闭');
+          }
+          const meta = this.chapterRepo.listMeta(projectId).find((m) => m.id === id);
           this.chapterRepo.updateBody(id, body, meta?.rev ?? 1);
           this.push.send('chapter:changed', { chapterId: id, rev: (meta?.rev ?? 1) + 1, source: 'agent' });
         },
@@ -293,7 +300,11 @@ export class AppServices {
 
   // ── LLM ──
   get provider(): LlmProvider {
-    return findProvider(this.providerId) ?? findProvider(DEFAULT_PROVIDER_ID)!;
+    const p = findProvider(this.providerId) ?? findProvider(DEFAULT_PROVIDER_ID);
+    // DEFAULT_PROVIDER_ID 是内置清单里的常量，取不到即代码缺陷。
+    // 绝不能让它带着 undefined 往下走——那会在 .baseUrl 上炸成裸 TypeError。
+    if (!p) throw new MzError('E_INTERNAL', `内置默认 provider「${DEFAULT_PROVIDER_ID}」不在清单里`);
+    return p;
   }
 
   get llm(): LlmClient {
