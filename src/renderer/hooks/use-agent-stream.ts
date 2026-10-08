@@ -62,8 +62,8 @@ export function useAgentStream(): void {
       void refreshCheckpoints();
     });
 
-    const offProjectOpened = onAgentEvent('project:opened', () => {
-      void refreshProject();
+    const offProjectOpened = onAgentEvent('project:opened', (p) => {
+      void reloadOpenedProject(p.projectId);
     });
 
     return () => {
@@ -79,14 +79,28 @@ export function useAgentStream(): void {
   }, []);
 }
 
-async function refreshProject(): Promise<void> {
+/**
+ * 收到 project:opened 后重载该项目的数据。
+ *
+ * ★★ 这里**绝不能再调 project.open** ★★
+ * 主进程 openProject() 末尾会推送 project:opened，若本函数再调 open 就形成
+ * 「project:opened → open → project:opened」的无限 IPC 循环。更糟的是每轮循环都会把
+ * 主进程的 registry / checkpoints / replayer / agentHost 四个单例置 null，
+ * **正在执行的 Agent run 会被反复摧毁**。
+ *
+ * 主进程侧也加了同项目幂等守卫（services.ts openProject），双向都断环。
+ */
+async function reloadOpenedProject(projectId: string): Promise<void> {
   try {
     const mz = bridge();
-    const project = await mz.project.list();
-    if (project.length > 0) {
-      useProjectStore.getState().setProject(project[0]);
-      await mz.project.open(project[0].rootDir);
-    }
+    const list = await mz.project.list();
+    // 用 payload 里的 projectId 精确定位，而不是想当然取 list[0]
+    const p = list.find((x) => x.id === projectId);
+    if (!p) return;
+    const store = useProjectStore.getState();
+    store.setProject(p);
+    store.setChapters(await mz.chapter.list());
+    store.setVolumes(await mz.project.volumes());
   } catch (e) {
     useProjectStore.getState().setError(errorText(e));
   }

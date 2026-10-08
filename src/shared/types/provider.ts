@@ -25,6 +25,14 @@ export interface LlmProvider {
   requiresKey: boolean;
   /** 默认 baseUrl，可被用户覆盖 */
   defaultBaseUrl: string;
+  /**
+   * 用户未显式填模型时的兜底值。
+   * ★ 必须是**本厂商**的模型名。缺省或空串表示「无合理默认，必须由用户填写」
+   *   ——本地运行时装了什么模型只有用户知道。
+   *   此前没有这个字段，services.ts 只能硬编码 'deepseek-chat' 当六家通用兜底，
+   *   切到 OpenRouter 却没填模型时会把 DeepSeek 的模型名发过去，必然失败。
+   */
+  defaultModel?: string;
   pricing: ProviderPricing;
   capabilities: ProviderCapabilities;
   /**

@@ -56,7 +56,18 @@ export interface LlmClientConfig {
   provider: LlmProvider;
   baseUrl: string;
   model: string;
+  /**
+   * 静态 Key。**优先用 apiKeyProvider**——静态值在客户端构造时快照，
+   * 用户之后在设置里改 Key、或 Key 过期重填，都不会生效。
+   */
   apiKey?: string;
+  /**
+   * 动态取 Key（每次请求时解析）。
+   * ★ 生产路径必须走这个：Key 存在 safeStorage 里，构造 LlmClient 时不取出，
+   *   请求时才一次性解密，明文在主进程内的存活时间最短。
+   *   同时保证「用户在设置里改了 Key」立刻对后续请求生效，无需重建客户端。
+   */
+  apiKeyProvider?: () => Promise<string | undefined> | string | undefined;
   /** 工具调用路径 */
   mode: ToolCallingMode;
   /** 全部可用工具（prompted 路径要注入 schema） */
@@ -82,6 +93,28 @@ export class LlmClient {
 
   getStats(): LlmStats {
     return { ...this.stats };
+  }
+
+  /**
+   * 解析本次请求要用的 Key。顺序：apiKeyProvider（动态）→ cfg.apiKey（静态）。
+   *
+   * ★ provider 声明需要 Key 却取不到时，**在这里就抛 auth 错**，而不是发出一个
+   *   不带 Authorization 头的请求去换一个难以归因的 401。
+   *   修复前的形态正是后者：services.ts 构造客户端时从不传 Key，
+   *   导致六家云 provider 的 Agent 请求全部无鉴权头 → 401，
+   *   而用户在设置里「测试连接」却是通的（那条路径单独取了 Key）。
+   */
+  private async resolveApiKey(): Promise<string | undefined> {
+    const key = this.cfg.apiKeyProvider
+      ? await this.cfg.apiKeyProvider()
+      : this.cfg.apiKey;
+    if (!key && this.cfg.provider.requiresKey) {
+      throw new LlmError(
+        'auth',
+        `未配置 ${this.cfg.provider.name} 的 API Key，请求未发出。请在「设置 → 模型」中填写后重试。`,
+      );
+    }
+    return key || undefined;
   }
 
   /** 发起一次对话请求（含退避重试） */
@@ -123,11 +156,13 @@ export class LlmClient {
 
     try {
       const body = this.buildBody(req);
+      // 每次请求都重新解析 Key：用户改配置后立刻生效，无需重建客户端
+      const apiKey = await this.resolveApiKey();
       const res = await fetch(`${this.cfg.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(this.cfg.apiKey ? { Authorization: `Bearer ${this.cfg.apiKey}` } : {}),
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
         },
         body: JSON.stringify(body),
         signal: controller.signal,

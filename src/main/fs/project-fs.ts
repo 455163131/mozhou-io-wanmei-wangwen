@@ -5,7 +5,7 @@
  *   这是安全边界——否则渲染层（或被注入的脚本）能读写项目外的任意文件。
  */
 import { promises as fs } from 'node:fs';
-import { resolve, sep, join, relative, isAbsolute, normalize } from 'node:path';
+import { resolve, sep, join, relative, isAbsolute, normalize, dirname } from 'node:path';
 import { MzError } from '@shared/types/ipc';
 
 /**
@@ -41,18 +41,53 @@ export function isInsideProject(rootDir: string, candidate: string): boolean {
 }
 
 /**
- * 原子写：先写临时文件再 rename。
+ * 原子写：先写临时文件、fsync 落盘、再 rename，最后 fsync 父目录。
  * 避免写到一半崩溃导致文件损坏——对用户正文这是不可接受的。
+ *
+ * ★ 为什么必须 fsync（修复前缺失）：
+ *   只 writeFile + rename 的话，数据可能还在 OS page cache 里。断电/蓝屏时
+ *   rename 的目录项可能先于文件内容落盘，结果是**一个 0 字节或截断的章节文件**
+ *   ——恰好是本函数注释声称要杜绝的那个失败。参照 novelWriter 的存储实现：
+ *   「写临时文件 → 成功后删旧 → 替换」，且落盘后再替换。
  */
 export async function atomicWrite(path: string, content: string): Promise<void> {
   const tmp = `${path}.tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  await fs.writeFile(tmp, content, 'utf8');
+
+  const fh = await fs.open(tmp, 'w');
+  try {
+    await fh.writeFile(content, 'utf8');
+    await fh.sync(); // 数据落盘，再谈替换
+  } catch (e) {
+    await fh.close().catch(() => undefined);
+    await fs.unlink(tmp).catch(() => undefined);
+    throw e;
+  }
+  await fh.close();
+
   try {
     await fs.rename(tmp, path);
   } catch (e) {
     // rename 失败则清理临时文件，不留垃圾
     await fs.unlink(tmp).catch(() => undefined);
     throw e;
+  }
+
+  // 目录项也要落盘，否则 rename 本身可能丢失。
+  // Windows 上打开目录通常会 EPERM/EISDIR —— best-effort，失败不影响正确性
+  // （NTFS 的 rename 是元数据 journal 保护的），故静默忽略。
+  await fsyncDir(dirname(path));
+}
+
+/** 把目录项刷到磁盘。平台不支持时静默返回（见 atomicWrite 注释）。 */
+async function fsyncDir(dir: string): Promise<void> {
+  let fh: Awaited<ReturnType<typeof fs.open>> | null = null;
+  try {
+    fh = await fs.open(dir, 'r');
+    await fh.sync();
+  } catch {
+    // 平台/权限不支持目录 fsync，忽略
+  } finally {
+    await fh?.close().catch(() => undefined);
   }
 }
 

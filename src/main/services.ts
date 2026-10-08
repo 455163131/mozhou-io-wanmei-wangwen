@@ -4,9 +4,10 @@
  * 把DB / repo / 工具注册表 / checkpoint / LLM / AgentHost 的依赖关系集中在一处，
  * 避免在 IPC handler 里到处 new 出不完整的对象图。
  */
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { app } from 'electron';
-import type { Project, StyleProfile } from '@shared/types/project';
+import type { Project, StyleProfile, ProjectBackup } from '@shared/types/project';
+import { PROJECT_BACKUP_FORMAT_VERSION } from '@shared/types/project';
 import type { CharacterProfile, LedgerConflict, NumberAnchor, TimelineEvent, Foreshadow } from '@shared/types/ledger';
 import type { MetricSpec } from '@shared/types/project';
 import type { RunState } from '@shared/types/agent';
@@ -20,13 +21,14 @@ import { AgentHost } from './agent/host';
 import { LlmClient } from './llm/client';
 import { findProvider, DEFAULT_PROVIDER_ID, isLocalProvider } from '@shared/constants/providers';
 import { REFERENCE_BASELINE } from '@shared/constants/metrics';
-import { DEFAULT_WRITE_POLICY } from '@shared/constants/checkpoint';
+import { DEFAULT_WRITE_POLICY, type BackupTrigger } from '@shared/constants/checkpoint';
 import { DEFAULT_BUDGET } from '@shared/constants/budget';
 import { MARKER_KEYS, analyze, isSufficient } from '@shared/metrics-engine';
 import type { BaselineLike } from './rule-engine/plan-fixes';
 import { hashProjectState, ledgerDigest } from './util/hash';
-import { BackupManager } from './fs/backup';
+import { BackupManager, type BackupStats } from './fs/backup';
 import { ensureDir } from './fs/project-fs';
+import { countChars } from '@shared/util/text-zh';
 import { displayKey, hasApiKey, getApiKeyForFetch, saveApiKey } from './llm/keyring';
 import type { LlmProvider, LlmStatus, ProviderSettings, ProviderCapabilities } from '@shared/types/provider';
 // 专家团（独立模块）
@@ -86,6 +88,16 @@ export class AppServices {
     this.flavorRepo = new FlavorRepo(this.db);
     this.flavorBaselineRepo = new FlavorBaselineRepo(this.db);
     this.backup = new BackupManager(app.getPath('userData'));
+
+    // ★ L3 备份时机之二：空闲 30 分钟。修复前 `startIdleWatcher` 全项目无调用者，
+    //   这条时机等于不存在。run 执行期间不备份——拍到半改状态，
+    //   恢复出来比不恢复更难理解。
+    this.backup.startIdleWatcher(
+      () => this.agentHostInstance?.isRunning ?? false,
+      async () => {
+        await this.backupNow('idle-30min');
+      },
+    );
   }
 
   // ── 当前项目 ──
@@ -95,13 +107,23 @@ export class AppServices {
 
   async openProject(dir: string): Promise<Project> {
     await ensureDir(dir);
+    // 路径归一化后再比对：否则 C:\proj 与 C:/proj（或带尾斜杠）会被当成两个项目，
+    // 在同一目录下建出两条 projects 记录。
+    const rootDir = resolve(dir);
     // 按目录找已有项目，没有则新建
-    const existing = this.projectRepo.list().find((p) => p.rootDir === dir);
-    const project = existing ?? this.projectRepo.create(dir.split(/[\\/]/).pop() ?? '未命名', dir);
+    const existing = this.projectRepo.list().find((p) => resolve(p.rootDir) === rootDir);
+    const project = existing ?? this.projectRepo.create(rootDir.split(/[\\/]/).pop() ?? '未命名', rootDir);
+
+    // ★ 幂等守卫：同一项目重复打开时直接返回，**不重置单例、不重推事件**。
+    //   这是无限 IPC 循环的主进程侧断点——渲染层「收到 project:opened → 刷新」
+    //   若不慎再调 open，没有这道守卫就会成环，且每轮都把下面四个单例置 null，
+    //   摧毁正在执行的 Agent run。
+    if (this.currentProject?.id === project.id) return project;
+
     this.currentProject = project;
-    await ensureDir(join(dir, 'chapters'));
-    await ensureDir(join(dir, 'checkpoints', 'archive'));
-    await ensureDir(join(dir, 'backups'));
+    await ensureDir(join(rootDir, 'chapters'));
+    await ensureDir(join(rootDir, 'checkpoints', 'archive'));
+    await ensureDir(join(rootDir, 'backups'));
 
     // 重置项目相关状态
     this.registryInstance = null;
@@ -116,7 +138,11 @@ export class AppServices {
   closeProject(): void {
     this.currentProject = null;
     this.checkpointsInstance?.clearProject();
+    // ★ 四个单例必须全部置空。此前漏了 checkpoints/replayer，
+    //   导致切换项目后回滚操作仍绑定**旧项目**的 checkpoint store。
     this.registryInstance = null;
+    this.checkpointsInstance = null;
+    this.replayerInstance = null;
     this.agentHostInstance = null;
     this.push.clear();
   }
@@ -262,9 +288,16 @@ export class AppServices {
       this.llmInstance = new LlmClient({
         provider: this.provider,
         baseUrl: this.baseUrlOverride || this.provider.defaultBaseUrl,
-        model: this.model || 'deepseek-chat',
+        // 兜底模型必须来自 provider 自身。此前这里硬编码 'deepseek-chat' 当六家通用兜底，
+        // 切到 OpenRouter 却没填模型时会把 DeepSeek 的模型名发过去，必然失败。
+        model: this.model || this.provider.defaultModel || '',
         mode: this.effectiveMode,
         tools: this.registry.list(),
+        // ★ Key 走动态解析：构造时不取出，每次请求才从 safeStorage 解密一次。
+        //   此前这里**根本不传 Key**，导致六家云 provider 的 Agent 请求全部不带
+        //   Authorization 头 → 401；而「测试连接」却是通的（那条路径单独取了 Key），
+        //   故障表现为「配置成功但 Agent 不可用」，极难归因。
+        apiKeyProvider: () => getApiKeyForFetch(),
       });
     }
     return this.llmInstance;
@@ -538,6 +571,54 @@ export class AppServices {
   conflicts(_projectId: string, _kind?: string): LedgerConflict[] {
     // 冲突检测在 query_ledger 内部按需算；这里返回空表示「尚未登记冲突」
     return [];
+  }
+
+  // ── L3 全量备份（架构 §1.8）──
+
+  /**
+   * 构建全量备份载荷。
+   *
+   * ★★ 必须含正文 ★★
+   * 修复前唯一调用点传的是 `{ at: Date.now() }`——一个纯时间戳，
+   * 落盘的 `.mzproj` 里没有任何章节内容，所谓三层备份实为零层。
+   * 现在返回结构化的 ProjectBackup，类型上就不允许再退化成时间戳。
+   *
+   * @returns 未打开项目时为 null（不是错误，调用方静默跳过）
+   */
+  buildBackupPayload(trigger: BackupTrigger): ProjectBackup | null {
+    const project = this.currentProject;
+    if (!project) return null;
+
+    // 这是「一次读全书」的唯一正当入口：全量备份是显式冷路径，
+    // 只在手动保存 / 退出 / 空闲三个低频时机触发（见 listAllWithBody 注释）。
+    const chapters = this.chapterRepo.listAllWithBody(project.id);
+    const totalChars = chapters.reduce((sum, c) => sum + countChars(c.body), 0);
+
+    return {
+      formatVersion: PROJECT_BACKUP_FORMAT_VERSION,
+      createdAt: Date.now(),
+      trigger,
+      project,
+      volumes: this.projectRepo.volumes(project.id),
+      chapters,
+      // 账本当前是内存态（docs/REMAINING.md §1.4），一并落进备份，
+      // 至少守住「重启不丢」这条底线。
+      ledger: {
+        characters: this.characters(project.id),
+        numbers: this.numbers(project.id),
+        timeline: this.timeline(project.id),
+        foreshadows: this.foreshadows(project.id),
+      },
+      style: this.styleRepo.get(project.id),
+      integrity: { chapterCount: chapters.length, totalChars },
+    };
+  }
+
+  /** 立即做一次全量备份。未打开项目时返回 null。 */
+  async backupNow(trigger: BackupTrigger): Promise<BackupStats | null> {
+    const payload = this.buildBackupPayload(trigger);
+    if (!payload) return null;
+    return this.backup.backup(trigger, payload.project.name, payload);
   }
 
   dispose(): void {

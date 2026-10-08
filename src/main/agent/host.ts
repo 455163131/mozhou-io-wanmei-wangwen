@@ -99,10 +99,20 @@ export class AgentHost {
     return this.current ? (this.current as unknown as { runId: string }).runId : null;
   }
 
+  /**
+   * 是否有 run 正在执行（terminated 的不算）。
+   * ★ 与 start() 的 E_RUN_CONFLICT 判据**同源**——两处必须一致，
+   *   否则会出现「空闲备份以为没在跑、start 却拒绝新 run」这类互相打脸的状态。
+   *   空闲备份靠它避开 run 期间：拍到半改状态的快照，恢复出来比不恢复更难理解。
+   */
+  get isRunning(): boolean {
+    return !!this.current && this.current.currentPhase !== 'terminated';
+  }
+
   /** 启动一次 run。立即返回 runId，实际执行异步进行。 */
   async start(opts: RunOptions): Promise<{ runId: string }> {
     // 同一时间只允许一个 run（E_RUN_CONFLICT）
-    if (this.current && this.current.currentPhase !== 'terminated') {
+    if (this.isRunning) {
       throw new MzError('E_RUN_CONFLICT', '已有 run 在执行中，请先叫停或等待结束。');
     }
 

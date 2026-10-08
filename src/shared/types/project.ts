@@ -2,6 +2,12 @@
  * 项目与章节元数据。
  * 正文不在类型里：正文走 chapter.get 按需拉取，永不「一次读全书」（架构 §1.9）。
  */
+import type {
+  CharacterProfile,
+  Foreshadow,
+  NumberAnchor,
+  TimelineEvent,
+} from './ledger';
 
 export interface Project {
   id: string;
@@ -100,4 +106,55 @@ export interface ScanBatch {
     band: [number, number];
     level: 'warn' | 'risk';
   }>;
+}
+
+/** .mzproj 备份格式版本。读回时据此分派加载器（本地优先应用无法强制升级） */
+export const PROJECT_BACKUP_FORMAT_VERSION = 1;
+
+/**
+ * L3 全量备份载荷（架构 §1.8）。
+ *
+ * ★ 必须含**正文**。修复前 `backup()` 的 payload 只有一个时间戳
+ *   （`{ at: Date.now() }`），产出的 `.mzproj` 里没有任何章节内容 ——
+ *   所谓「三层备份」实为零层，用户没有任何可恢复的稿件副本。
+ *
+ * 关于 §1.9「永不一次读全书」：那条约束针对的是编辑器与 Agent 每步的热路径。
+ * 全量备份是**显式的冷路径**，且只在三个低频时机触发（手动保存 / 退出 / 空闲 30 分钟），
+ * 是这条约束的正当例外。
+ */
+export interface ProjectBackup {
+  formatVersion: typeof PROJECT_BACKUP_FORMAT_VERSION;
+  /** 备份生成时刻 */
+  createdAt: number;
+  /** 触发时机，便于用户判断该信哪一份 */
+  trigger: string;
+  project: Project;
+  volumes: Volume[];
+  /** 章节元数据 + 正文。这是备份的主体，缺了它备份就没有意义 */
+  chapters: Array<{ meta: ChapterMeta; body: string }>;
+  /**
+   * 设定账本。当前实现是内存态（见 docs/REMAINING.md §1.4），
+   * 一并落进备份，至少保证「重启不丢」这条底线。
+   */
+  ledger: {
+    characters: CharacterProfile[];
+    numbers: NumberAnchor[];
+    timeline: TimelineEvent[];
+    foreshadows: Foreshadow[];
+  };
+  /**
+   * 风格档（用户自建基线）。形状与 `StyleProfileRepo.get()` 的返回一致，
+   * 为 null 表示尚未构建过——恢复时据此决定是否提示用户重建基线。
+   */
+  style: {
+    source: string;
+    sampleChapters: number;
+    metrics: Record<string, unknown>;
+    markerDensity: Record<string, unknown>;
+  } | null;
+  /** 读回时自检用：章数与去空白总字数对不上就说明备份不完整 */
+  integrity: {
+    chapterCount: number;
+    totalChars: number;
+  };
 }

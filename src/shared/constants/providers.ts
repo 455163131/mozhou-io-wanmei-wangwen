@@ -12,6 +12,7 @@ export const PROVIDERS: LlmProvider[] = [
     name: 'DeepSeek',
     requiresKey: true,
     defaultBaseUrl: 'https://api.deepseek.com/v1',
+    defaultModel: 'deepseek-chat',
     pricing: { inputPerMTok: 2, outputPerMTok: 8, currency: 'CNY' },
     capabilities: { functionCalling: 'native', streaming: true, maxContextTokens: 64_000 },
   },
@@ -20,6 +21,8 @@ export const PROVIDERS: LlmProvider[] = [
     name: 'OpenRouter',
     requiresKey: true,
     defaultBaseUrl: 'https://openrouter.ai/api/v1',
+    // OpenRouter 按「厂商/模型」路由，此处给一个中文网文场景可用的默认路由
+    defaultModel: 'deepseek/deepseek-chat',
     // 按模型路由，单价不固定；此处为保守占位，实际按用户选的 model 覆盖
     pricing: { inputPerMTok: 5, outputPerMTok: 15, currency: 'CNY' },
     capabilities: { functionCalling: 'native', streaming: true, maxContextTokens: 32_000 },
@@ -29,6 +32,7 @@ export const PROVIDERS: LlmProvider[] = [
     name: 'OpenCode Zen',
     requiresKey: true,
     defaultBaseUrl: 'https://api.opencode-zen.com/v1',
+    // 无 defaultModel：该厂商的模型目录未确认，宁要用户显式填，也不猜一个错的发出去
     pricing: { inputPerMTok: 5, outputPerMTok: 15, currency: 'CNY' },
     capabilities: { functionCalling: 'native', streaming: true, maxContextTokens: 32_000 },
   },
@@ -37,6 +41,7 @@ export const PROVIDERS: LlmProvider[] = [
     name: 'Ollama（本地）',
     requiresKey: false,
     defaultBaseUrl: 'http://127.0.0.1:11434/v1',
+    // 无 defaultModel：本地 pull 了什么模型只有用户知道，猜一个必然 404
     // 本地模型恒0 —— cost.ts 先判 pricing===0 再累加，改记本机耗时
     pricing: { inputPerMTok: 0, outputPerMTok: 0, currency: 'CNY' },
     capabilities: {
@@ -51,6 +56,7 @@ export const PROVIDERS: LlmProvider[] = [
     name: 'LM Studio（本地）',
     requiresKey: false,
     defaultBaseUrl: 'http://127.0.0.1:1234/v1',
+    // 无 defaultModel：同 ollama
     pricing: { inputPerMTok: 0, outputPerMTok: 0, currency: 'CNY' },
     capabilities: { functionCalling: 'prompted', streaming: true, maxContextTokens: 8_192 },
   },
@@ -59,6 +65,7 @@ export const PROVIDERS: LlmProvider[] = [
     name: '自定义（OpenAI 兼容）',
     requiresKey: false,
     defaultBaseUrl: '',
+    // 无 defaultModel：自定义端点的模型名完全由用户决定
     pricing: { inputPerMTok: 0, outputPerMTok: 0, currency: 'CNY' },
     capabilities: { functionCalling: 'prompted', streaming: true, maxContextTokens: 8_192 },
   },

@@ -33,6 +33,16 @@ function toMeta(r: ChapterRow): ChapterMeta {
   };
 }
 
+/**
+ * `IN (...)` 单批绑定变量上限。
+ *
+ * SQLite 的 `SQLITE_MAX_VARIABLE_NUMBER` 旧版是 999、新版 32766。把全部 chapterId
+ * 一次摊进占位符，会在大项目上抛 "too many SQL variables"——而网文的常态规模
+ * （500~2000 章）正好踩在这条线上。受影响的是导出、建基线、状态哈希与全量备份，
+ * 全是用户感知最强的路径。取 500 一档：远离任何版本的上限，单批内存也可控。
+ */
+const IN_CLAUSE_CHUNK = 500;
+
 export class ChapterRepo {
   constructor(private readonly db: Database) {}
 
@@ -117,14 +127,36 @@ export class ChapterRepo {
     })();
   }
 
-  /** 批量取正文（按批扫描用；批读完释放引用） */
+  /** 批量取正文（按批扫描用；批读完释放引用）。★ 分块，见 IN_CLAUSE_CHUNK */
   getBodies(chapterIds: string[]): Map<string, string> {
     if (chapterIds.length === 0) return new Map();
-    const placeholders = chapterIds.map(() => '?').join(',');
-    const rows = this.db
-      .prepare(`SELECT chapter_id, body FROM chapter_bodies WHERE chapter_id IN (${placeholders})`)
-      .all(...chapterIds) as Array<{ chapter_id: string; body: string }>;
-    return new Map(rows.map((r) => [r.chapter_id, r.body]));
+    const out = new Map<string, string>();
+    for (let i = 0; i < chapterIds.length; i += IN_CLAUSE_CHUNK) {
+      const slice = chapterIds.slice(i, i + IN_CLAUSE_CHUNK);
+      const placeholders = slice.map(() => '?').join(',');
+      const rows = this.db
+        .prepare(
+          `SELECT chapter_id, body FROM chapter_bodies WHERE chapter_id IN (${placeholders})`,
+        )
+        .all(...slice) as Array<{ chapter_id: string; body: string }>;
+      for (const r of rows) out.set(r.chapter_id, r.body);
+    }
+    return out;
+  }
+
+  /**
+   * 某项目的全部章节（元数据 + 正文），供全量备份使用。
+   *
+   * ★ 这是「一次读全书」的唯一正当入口（架构 §1.9 的例外）：
+   *   全量备份是显式冷路径，只在手动保存 / 退出 / 空闲 30 分钟三个低频时机触发。
+   *   编辑器与 Agent 每步的热路径**不得**调用它。
+   *   按 IN_CLAUSE_CHUNK 分块读取，避免大项目一次性把全书正文摊进单条 SQL。
+   */
+  listAllWithBody(projectId: string): Array<{ meta: ChapterMeta; body: string }> {
+    const metas = this.listMeta(projectId);
+    if (metas.length === 0) return [];
+    const bodies = this.getBodies(metas.map((m) => m.id));
+    return metas.map((meta) => ({ meta, body: bodies.get(meta.id) ?? '' }));
   }
 
   insert(meta: Omit<ChapterMeta, 'rev' | 'updatedAt' | 'charCount'> & { body: string }): ChapterMeta {

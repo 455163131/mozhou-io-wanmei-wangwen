@@ -101,8 +101,15 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   handle('project:list', () => services.projectRepo.list(), services);
   handle('project:save', () => {
     if (!services.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
-    // L3 备份之一：用户主动保存（架构 §1.8）
-    void services.backup.backup('manual-save', services.project.name, { at: Date.now() });
+    // L3 备份之一：用户主动保存（架构 §1.8）。
+    // ★ 修复前这里传的是 `{ at: Date.now() }` —— 一个纯时间戳，
+    //   落盘的 .mzproj 里没有任何正文，备份等于没做。现在走 backupNow()，
+    //   载荷是含全部章节正文的 ProjectBackup。
+    // 刻意 fire-and-forget：3.75MB 级写入若 await，每次保存都会明显卡顿。
+    // 但失败必须留痕 —— 静默失败的备份比没有备份更危险（用户以为有）。
+    void services.backupNow('manual-save').catch((e) => {
+      console.error('[backup] 手动保存时的全量备份失败：', e);
+    });
     services.projectRepo.touch(services.project.id);
     services.backup.noteEdit();
     return services.project;
