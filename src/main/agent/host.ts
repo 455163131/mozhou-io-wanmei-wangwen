@@ -143,6 +143,7 @@ export class AgentHost {
     }, limits);
 
     loop.setIdempotentTools(toolSpecs.filter((t) => t.idempotent).map((t) => t.name));
+    loop.setToolReport(toolSpecs, writePolicy.policy);
     this.current = loop;
     this.abortedRuns.delete(runId);
 

@@ -22,7 +22,7 @@ import type {
   StepRecord,
   TerminationReason,
 } from '@shared/types/agent';
-import type { ToolCall, ToolResult } from '@shared/types/tool';
+import type { ToolCall, ToolDanger, ToolResult, WritePolicy } from '@shared/types/tool';
 import { BudgetGuard } from './budget-guard';
 import { LoopDetector } from './loop-detector';
 
@@ -52,7 +52,7 @@ export interface LoopDeps {
 export type LoopEvent =
   | { type: 'plan'; runId: string; plan: Plan }
   | { type: 'step'; runId: string; step: StepRecord }
-  | { type: 'tool-call'; runId: string; stepNo: number; toolName: string; danger: number; writePolicy: string; argsSummary: string }
+  | { type: 'tool-call'; runId: string; stepNo: number; toolName: string; danger: ToolDanger | null; writePolicy: WritePolicy | null; argsSummary: string }
   | { type: 'terminated'; runId: string; reason: TerminationReason; stats: RunStats; keptChanges: number };
 
 export function newRunStats(): RunStats {
@@ -78,6 +78,10 @@ export class AgentLoop {
   private stepNo = 0;
   private stats: RunStats = newRunStats();
   private termination: TerminationReason | null = null;
+  /** 工具名 → 回滚成本，由 AgentHost 从 registry 注入；缺省 null = 不谎报 */
+  private dangerByName: Map<string, ToolDanger> | null = null;
+  /** 本次 run 生效的写策略，由 AgentHost 注入 */
+  private reportedPolicy: WritePolicy | null = null;
 
   constructor(
     private readonly runId: string,
@@ -158,8 +162,12 @@ export class AgentLoop {
           runId: this.runId,
           stepNo,
           toolName: call.name,
-          danger: 1,
-          writePolicy: 'auto-with-undo',
+          // ★ 取的是 registry 里这个工具的 spec 与本次 run 已解析的策略，不是常量。
+          //   修复前这里硬写 danger:1 / 'auto-with-undo'，把 ★2~★5 一律报成 ★1、
+          //   把用户切过的写策略一律报成老板默认值。
+          //   null 只表示「宿主没注入」——宁可如实说不知道，绝不编一个好看的数字。
+          danger: this.dangerByName?.get(call.name) ?? null,
+          writePolicy: this.reportedPolicy ?? null,
           argsSummary: JSON.stringify(call.args).slice(0, 200),
         });
 
@@ -330,5 +338,16 @@ export class AgentLoop {
   /** 供 AgentHost 设置幂等工具集合 */
   setIdempotentTools(names: string[]): void {
     (this as unknown as { idempotentSet?: Set<string> }).idempotentSet = new Set(names);
+  }
+
+  /**
+   * 供 AgentHost 注入 `agent:tool-call` 事件的真实载荷。
+   *
+   * 与 `setIdempotentTools` 同样是装配期注入——loop 拿不到 registry，
+   * 但事件里的 danger/writePolicy 必须来自真实配置，不能是 loop 自己编的常量。
+   */
+  setToolReport(specs: ReadonlyArray<{ name: string; danger: ToolDanger }>, policy: WritePolicy): void {
+    this.dangerByName = new Map(specs.map((s) => [s.name, s.danger]));
+    this.reportedPolicy = policy;
   }
 }

@@ -11,7 +11,7 @@ import type { ChangeSet, ToolSpec } from './tool';
 import type { LedgerQuery, LedgerConflict, CharacterProfile } from './ledger';
 import type { Checkpoint, RollbackResult } from './checkpoint';
 import type { RunState, TerminationReason, RunStats, StepRecord } from './agent';
-import type { WritePolicyConfig } from './tool';
+import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
 
 // ───────────────────────── 请求/响应载荷 ─────────────────────────
 
@@ -394,8 +394,10 @@ export interface IpcPushMap {
     runId: string;
     stepNo: number;
     toolName: string;
-    danger: number;
-    writePolicy: string;
+    /** 该工具在 registry 中声明的回滚成本；null = 宿主未注入（不谎报） */
+    danger: ToolDanger | null;
+    /** 本次 run 实际生效的写策略；null = 同上 */
+    writePolicy: WritePolicy | null;
     argsSummary: string;
   };
   'agent:change': {
