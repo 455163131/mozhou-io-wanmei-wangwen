@@ -349,6 +349,107 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 9,
+    name: 'chapters_composite_key',
+    /**
+     * §4 第 18 条：`chapters.id` 从单列主键换成 `(project_id, id)` 复合主键。
+     *
+     * 为什么要换：`id` 既是主键又是**给用户看的章节号**（`第${id}章`、提示词、
+     * 导出文件名都用它），单列主键等于规定"全书的章节号全局唯一"——
+     * 第二本书永远拿不到自己的第 1 章。
+     *
+     * ★ 删表顺序是本迁移唯一的雷：
+     *   better-sqlite3 默认开着 `PRAGMA foreign_keys`，而 SQLite 的 DROP TABLE
+     *   会先按行删除父表、于是触发子表的 ON DELETE CASCADE。
+     *   若先 drop `chapters`，两张子表的正文与指标会被级联清空——
+     *   迁移"成功"，用户的稿子没了。（`PRAGMA foreign_keys=OFF` 在这里救不了场：
+     *   本函数跑在 migrate() 的事务里，而该 pragma 在事务内是 no-op。）
+     *   所以顺序是：正文/指标先整体抄进 backup 表 → drop 两张子表 →
+     *   这时已经没有表引用 chapters，才 drop 它 → 换上复合主键的新表 →
+     *   重建子表并从 backup 抄回来。
+     *
+     * 抄回时用 INNER JOIN 而不是 LEFT JOIN：老库里可能残留"有正文没有章"的孤儿行
+     * （历史 bug 留下的），LEFT JOIN 会把 project_id 落成 NULL，
+     * 而 NOT NULL 一抛、整个迁移回滚；INNER JOIN 是把这些行如实丢掉——
+     * 它们本来就点不到，把它们编派给随便一本书才是新问题。
+     *
+     * ★ 两个让这次重建**不会撞新主键**的前提，写给后来人：
+     *   ① 旧库 `chapters.id` 全局唯一，所以 `bodies_backup JOIN chapters ON id = chapter_id`
+     *     每条正文至多配到一个项目，回填不出重复的 (project_id, chapter_id)；
+     *   ② 应用自己从不删项目也不删章（全仓 `DELETE FROM projects`/`chapters` 零调用方），
+     *     所以"章指向已不存在的项目"只可能来自手工改库。真出现了，`chapters_new` 上
+     *     `REFERENCES projects(id)` 会拦下 INSERT，整条迁移在事务里回滚——
+     *     库退回 v8 原样、正文表还在，最坏是起不来，不是迁到一半把稿子删了。
+     */
+    up(db) {
+      db.exec(`
+        CREATE TABLE chapters_new (
+          id         TEXT NOT NULL,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          title      TEXT NOT NULL DEFAULT '',
+          volume_id  TEXT REFERENCES volumes(id) ON DELETE SET NULL,
+          ord        INTEGER NOT NULL,
+          status     TEXT NOT NULL DEFAULT 'todo',
+          char_count INTEGER NOT NULL DEFAULT 0,
+          rev        INTEGER NOT NULL DEFAULT 1,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (project_id, id)
+        );
+        INSERT INTO chapters_new (id, project_id, title, volume_id, ord, status, char_count, rev, updated_at)
+          SELECT id, project_id, title, volume_id, ord, status, char_count, rev, updated_at FROM chapters;
+
+        CREATE TABLE bodies_backup  AS SELECT * FROM chapter_bodies;
+        CREATE TABLE metrics_backup AS SELECT * FROM chapter_metrics;
+
+        DROP TABLE chapter_bodies;
+        DROP TABLE chapter_metrics;
+        DROP TABLE chapters;
+        ALTER TABLE chapters_new RENAME TO chapters;
+        CREATE INDEX IF NOT EXISTS idx_chapters_project ON chapters(project_id, ord);
+
+        CREATE TABLE chapter_bodies (
+          project_id TEXT NOT NULL,
+          chapter_id TEXT NOT NULL,
+          body       TEXT NOT NULL DEFAULT '',
+          PRIMARY KEY (project_id, chapter_id),
+          FOREIGN KEY (project_id, chapter_id) REFERENCES chapters(project_id, id) ON DELETE CASCADE
+        );
+        INSERT INTO chapter_bodies (project_id, chapter_id, body)
+          SELECT c.project_id, b.chapter_id, b.body
+          FROM bodies_backup b JOIN chapters c ON c.id = b.chapter_id;
+
+        CREATE TABLE chapter_metrics (
+          project_id     TEXT NOT NULL,
+          chapter_id     TEXT NOT NULL,
+          chars          INTEGER NOT NULL,
+          paras          INTEGER NOT NULL,
+          sents          INTEGER NOT NULL,
+          avg_sent       REAL NOT NULL,
+          sent_cv        REAL NOT NULL,
+          avg_para       REAL NOT NULL,
+          sents_per_para REAL NOT NULL,
+          ttr            REAL NOT NULL,
+          bigram_ttr     REAL NOT NULL,
+          tri_repeat     REAL NOT NULL,
+          dialog_ratio   REAL NOT NULL,
+          score          REAL NOT NULL,
+          computed_at    INTEGER NOT NULL,
+          PRIMARY KEY (project_id, chapter_id),
+          FOREIGN KEY (project_id, chapter_id) REFERENCES chapters(project_id, id) ON DELETE CASCADE
+        );
+        INSERT INTO chapter_metrics (project_id, chapter_id, chars, paras, sents, avg_sent, sent_cv,
+          avg_para, sents_per_para, ttr, bigram_ttr, tri_repeat, dialog_ratio, score, computed_at)
+          SELECT c.project_id, m.chapter_id, m.chars, m.paras, m.sents, m.avg_sent, m.sent_cv,
+            m.avg_para, m.sents_per_para, m.ttr, m.bigram_ttr, m.tri_repeat, m.dialog_ratio,
+            m.score, m.computed_at
+          FROM metrics_backup m JOIN chapters c ON c.id = m.chapter_id;
+
+        DROP TABLE bodies_backup;
+        DROP TABLE metrics_backup;
+      `);
+    },
+  },
 ];
 
 export function migrate(db: Database): void {

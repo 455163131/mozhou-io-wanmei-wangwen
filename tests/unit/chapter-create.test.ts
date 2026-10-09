@@ -86,16 +86,15 @@ describe('A. 章节号由主进程算', () => {
     expect([a.id, b.id]).toEqual(['1', '2']);
   });
 
-  it('★ 同机第二本书建章不撞主键：号跳过已被别的书占用的（chapters.id 是全局主键）', () => {
+  it('★ 同机第二本书建章从 1 开始：号只在书内唯一（chapters 主键是 (project_id, id)，§4 第 18 条）', () => {
     chapters.createChapter(pid, { title: 'A' });
     chapters.createChapter(pid, { title: 'B' });
     const m = chapters.createChapter(otherPid, { title: '别人的第一章' });
-    // '1'/'2' 已被 pid 占用，chapters.id 单列主键装不下两本各自从 1 开始的书。
-    // 这里钉死当前语义：能建、号全局唯一；改成按书从 1 开始需要把主键换成
-    // (project_id, id) 复合键 —— 见 PROJECT-STATUS.md §4「章节号跨书不隔离」。
-    expect(m.id).toBe('3');
+    // 作者的心智模型是"每本书都有自己的第一章"。修复前 chapters.id 是单列主键，
+    // 只能让第二本书接着往 3、4 编；换成复合主键后各书独立算号。
+    expect(m.id).toBe('1');
     expect(chapters.listMeta(pid).map((c) => c.id)).toEqual(['1', '2']);
-    expect(chapters.listMeta(otherPid).map((c) => c.id)).toEqual(['3']);
+    expect(chapters.listMeta(otherPid).map((c) => c.id)).toEqual(['1']);
   });
 });
 
@@ -114,7 +113,7 @@ describe('B. 建出来的章长什么样', () => {
   it('正文为空、字数 0、rev 1', () => {
     const m = chapters.createChapter(pid, { title: 'A' });
     expect(m).toMatchObject({ charCount: 0, rev: 1 });
-    expect(chapters.getBody(m.id)).toBe('');
+    expect(chapters.getBody(pid, m.id)).toBe('');
   });
 
   it('★ chapters 与 chapter_bodies 两行都落盘（有章无文=半状态）', () => {
@@ -163,7 +162,7 @@ describe('C. 与日增量的关系', () => {
 
   it('建章后写正文，净增按正文全长度记（走 updateBody 那条咽喉）', () => {
     const m = chapters.createChapter(pid, { title: 'A' });
-    chapters.updateBody(m.id, '一二三四五', m.rev);
+    chapters.updateBody(pid, m.id, '一二三四五', m.rev);
     expect(daily.summary(pid).today).toBe(5);
   });
 });

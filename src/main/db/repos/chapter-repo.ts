@@ -104,22 +104,25 @@ export class ChapterRepo {
     return r.n;
   }
 
-  /** 取单章：元信息 + 正文 */
-  get(chapterId: string): Chapter | null {
-    const row = this.db.prepare('SELECT * FROM chapters WHERE id = ?').get(chapterId) as
-      | ChapterRow
-      | undefined;
+  /**
+   * 取单章：元信息 + 正文。
+   * ★ 章节号只在**书内**唯一（§4 第 18 条），只给 chapterId 定位不了记录。
+   */
+  get(projectId: string, chapterId: string): Chapter | null {
+    const row = this.db
+      .prepare('SELECT * FROM chapters WHERE project_id = ? AND id = ?')
+      .get(projectId, chapterId) as ChapterRow | undefined;
     if (!row) return null;
     const bodyRow = this.db
-      .prepare('SELECT body FROM chapter_bodies WHERE chapter_id = ?')
-      .get(chapterId) as { body: string } | undefined;
+      .prepare('SELECT body FROM chapter_bodies WHERE project_id = ? AND chapter_id = ?')
+      .get(projectId, chapterId) as { body: string } | undefined;
     return { meta: toMeta(row), body: bodyRow?.body ?? '' };
   }
 
-  getBody(chapterId: string): string | null {
+  getBody(projectId: string, chapterId: string): string | null {
     const row = this.db
-      .prepare('SELECT body FROM chapter_bodies WHERE chapter_id = ?')
-      .get(chapterId) as { body: string } | undefined;
+      .prepare('SELECT body FROM chapter_bodies WHERE project_id = ? AND chapter_id = ?')
+      .get(projectId, chapterId) as { body: string } | undefined;
     return row ? row.body : null;
   }
 
@@ -127,11 +130,11 @@ export class ChapterRepo {
    * 更新正文，乐观锁。
    * @param expectedRev 不匹配则抛 E_REVISION_CONFLICT（说明有外部改动，如用户手动改过）
    */
-  updateBody(chapterId: string, body: string, expectedRev: number): ChapterMeta {
+  updateBody(projectId: string, chapterId: string, body: string, expectedRev: number): ChapterMeta {
     return this.db.transaction(() => {
-      const row = this.db.prepare('SELECT * FROM chapters WHERE id = ?').get(chapterId) as
-        | ChapterRow
-        | undefined;
+      const row = this.db
+        .prepare('SELECT * FROM chapters WHERE project_id = ? AND id = ?')
+        .get(projectId, chapterId) as ChapterRow | undefined;
       if (!row) throw new Error(`章节不存在：${chapterId}`);
       if (row.rev !== expectedRev) {
         const err = new Error(
@@ -146,17 +149,19 @@ export class ChapterRepo {
       const chars = countChars(body);
 
       this.db
-        .prepare('UPDATE chapters SET rev = ?, char_count = ?, updated_at = ? WHERE id = ?')
-        .run(rev, chars, now, chapterId);
+        .prepare('UPDATE chapters SET rev = ?, char_count = ?, updated_at = ? WHERE project_id = ? AND id = ?')
+        .run(rev, chars, now, projectId, chapterId);
       this.db
         .prepare(
-          'INSERT INTO chapter_bodies(chapter_id, body) VALUES(?, ?) ' +
-            'ON CONFLICT(chapter_id) DO UPDATE SET body = excluded.body',
+          'INSERT INTO chapter_bodies(project_id, chapter_id, body) VALUES(?, ?, ?) ' +
+            'ON CONFLICT(project_id, chapter_id) DO UPDATE SET body = excluded.body',
         )
-        .run(chapterId, body);
+        .run(projectId, chapterId, body);
 
       // 指标缓存作废：正文变了，缓存的指标不再可信
-      this.db.prepare('DELETE FROM chapter_metrics WHERE chapter_id = ?').run(chapterId);
+      this.db
+        .prepare('DELETE FROM chapter_metrics WHERE project_id = ? AND chapter_id = ?')
+        .run(projectId, chapterId);
 
       // ★ 日增量（§4 第 3 条）：记在事务里，与正文同一存亡。
       //   rev 冲突在上方就抛了，走不到这里，所以失败的保存不会记账。
@@ -167,7 +172,7 @@ export class ChapterRepo {
   }
 
   /** 批量取正文（按批扫描用；批读完释放引用）。★ 分块，见 IN_CLAUSE_CHUNK */
-  getBodies(chapterIds: string[]): Map<string, string> {
+  getBodies(projectId: string, chapterIds: string[]): Map<string, string> {
     if (chapterIds.length === 0) return new Map();
     const out = new Map<string, string>();
     for (let i = 0; i < chapterIds.length; i += IN_CLAUSE_CHUNK) {
@@ -175,9 +180,10 @@ export class ChapterRepo {
       const placeholders = slice.map(() => '?').join(',');
       const rows = this.db
         .prepare(
-          `SELECT chapter_id, body FROM chapter_bodies WHERE chapter_id IN (${placeholders})`,
+          `SELECT chapter_id, body FROM chapter_bodies ` +
+            `WHERE project_id = ? AND chapter_id IN (${placeholders})`,
         )
-        .all(...slice) as Array<{ chapter_id: string; body: string }>;
+        .all(projectId, ...slice) as Array<{ chapter_id: string; body: string }>;
       for (const r of rows) out.set(r.chapter_id, r.body);
     }
     return out;
@@ -194,7 +200,7 @@ export class ChapterRepo {
   listAllWithBody(projectId: string): Array<{ meta: ChapterMeta; body: string }> {
     const metas = this.listMeta(projectId);
     if (metas.length === 0) return [];
-    const bodies = this.getBodies(metas.map((m) => m.id));
+    const bodies = this.getBodies(projectId, metas.map((m) => m.id));
     return metas.map((meta) => ({ meta, body: bodies.get(meta.id) ?? '' }));
   }
 
@@ -209,8 +215,8 @@ export class ChapterRepo {
         )
         .run(meta.id, meta.projectId, meta.title, meta.volumeId, meta.order, meta.status, chars, now);
       this.db
-        .prepare('INSERT INTO chapter_bodies(chapter_id, body) VALUES(?,?)')
-        .run(meta.id, meta.body);
+        .prepare('INSERT INTO chapter_bodies(project_id, chapter_id, body) VALUES(?,?,?)')
+        .run(meta.projectId, meta.id, meta.body);
       // 新建一章带正文 = 全部字数都是净增
       this.dailyWrites.recordDelta(meta.projectId, chars, now);
     })();
@@ -226,9 +232,9 @@ export class ChapterRepo {
    * 新建一章（§4 第 17 条）。此前 `insert()` 全仓**零调用方**，
    * 于是 UI、IPC、Agent 三条路上都没有建章入口，`chapters` 表恒为空。
    *
-   * ★ 章节号（也就是主键 `id`）在这里算，**不由调用方传**：
+   * ★ 章节号（书内的 `id`）在这里算，**不由调用方传**：
    *   把主键交给界面决定，双击就多一章、或两次拿到同一个号撞主键。
-   *   口径 = 现有可解析为数字的最大号 + 1（不是"条数 + 1"——删过一章就不该把号退回去）；
+   *   口径 = 本项目现有可解析为数字的最大号 + 1（不是"条数 + 1"——删过一章就不该把号退回去）；
    *   非数字 id（楔子、番外这类占位）不参与算号。
    *   `ord` 由库里的 `MAX(ord)+1` 算，追加到全书末尾。
    */
@@ -254,21 +260,17 @@ export class ChapterRepo {
     }
 
     const rows = this.db
-      .prepare('SELECT id, project_id FROM chapters')
-      .all() as Array<{ id: string; project_id: string }>;
+      .prepare('SELECT id FROM chapters WHERE project_id = ?')
+      .all(projectId) as Array<{ id: string }>;
     let maxNo = 0;
-    const taken = new Set<string>();
     for (const r of rows) {
-      taken.add(r.id);
-      if (r.project_id !== projectId) continue;
       const n = Number(r.id);
       if (Number.isFinite(n) && n > maxNo) maxNo = n;
     }
-    // 章节号就是主键，而 `chapters.id` 是**单列**主键（不是 (project_id, id) 复合键），
-    // 所以本机另一本书已经占用的号必须跳过，否则第二本书建第一章直接撞 UNIQUE。
-    // 代价是第二本书从别的书的号接着往下编 —— 修它要换主键，见 PROJECT-STATUS.md §4。
-    let no = maxNo + 1;
-    while (taken.has(String(no))) no += 1;
+    // 主键是 (project_id, id)（§4 第 18 条），所以号只在本项目内比较就够了——
+    // 别的书占过 1/2/3 不影响这本书从 1 开始。修复前这里是全局主键，
+    // 第二本书建第一章拿到的是 4，"每本书各自从 1 开始"在 schema 层就不成立。
+    const no = maxNo + 1;
 
     const next = this.db
       .prepare('SELECT COALESCE(MAX(ord), -1) + 1 AS n FROM chapters WHERE project_id = ?')
@@ -308,22 +310,25 @@ export class ChapterRepo {
 
   /**
    * 把一章挪进某一卷；`volumeId = null` 表示「未分卷」。
-   * 卷必须属于同一本书 —— 否则是拿 A 书的卷 id 改 B 书的章（跨项目越权写入）。
+   * 章按 (projectId, chapterId) 定位，卷必须属于同一个项目 ——
+   * 否则是拿 A 书的章/卷改 B 书的数据（跨项目越权写入）。
    */
-  setVolume(chapterId: string, volumeId: string | null): ChapterMeta {
-    const row = this.db.prepare('SELECT * FROM chapters WHERE id = ?').get(chapterId) as
-      | ChapterRow
-      | undefined;
+  setVolume(projectId: string, chapterId: string, volumeId: string | null): ChapterMeta {
+    const row = this.db
+      .prepare('SELECT * FROM chapters WHERE project_id = ? AND id = ?')
+      .get(projectId, chapterId) as ChapterRow | undefined;
     if (!row) throw new Error(`章节不存在：${chapterId}`);
     if (volumeId !== null) {
       const vol = this.db.prepare('SELECT project_id FROM volumes WHERE id = ?').get(volumeId) as
         | { project_id: string }
         | undefined;
       if (!vol) throw new Error(`卷不存在：${volumeId}`);
-      if (vol.project_id !== row.project_id) throw new Error('该卷不属于当前项目');
+      if (vol.project_id !== projectId) throw new Error('该卷不属于当前项目');
     }
-    this.db.prepare('UPDATE chapters SET volume_id = ? WHERE id = ?').run(volumeId, chapterId);
-    const meta = this.listMeta(row.project_id).find((c) => c.id === chapterId);
+    this.db
+      .prepare('UPDATE chapters SET volume_id = ? WHERE project_id = ? AND id = ?')
+      .run(volumeId, projectId, chapterId);
+    const meta = this.listMeta(projectId).find((c) => c.id === chapterId);
     if (!meta) throw new Error(`章节状态读取失败：${chapterId}`);
     return meta;
   }
@@ -331,27 +336,28 @@ export class ChapterRepo {
   saveMetrics(m: ChapterMetrics): void {
     this.db
       .prepare(
-        'INSERT INTO chapter_metrics(chapter_id, chars, paras, sents, avg_sent, sent_cv, avg_para, ' +
+        'INSERT INTO chapter_metrics(project_id, chapter_id, chars, paras, sents, avg_sent, sent_cv, avg_para, ' +
           'sents_per_para, ttr, bigram_ttr, tri_repeat, dialog_ratio, score, computed_at) ' +
-          'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ' +
-          'ON CONFLICT(chapter_id) DO UPDATE SET chars=excluded.chars, paras=excluded.paras, ' +
+          'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ' +
+          'ON CONFLICT(project_id, chapter_id) DO UPDATE SET chars=excluded.chars, paras=excluded.paras, ' +
           'sents=excluded.sents, avg_sent=excluded.avg_sent, sent_cv=excluded.sent_cv, ' +
           'avg_para=excluded.avg_para, sents_per_para=excluded.sents_per_para, ttr=excluded.ttr, ' +
           'bigram_ttr=excluded.bigram_ttr, tri_repeat=excluded.tri_repeat, ' +
           'dialog_ratio=excluded.dialog_ratio, score=excluded.score, computed_at=excluded.computed_at',
       )
       .run(
-        m.chapterId, m.chars, m.paras, m.sents, m.avgSent, m.sentCv, m.avgPara,
+        m.projectId, m.chapterId, m.chars, m.paras, m.sents, m.avgSent, m.sentCv, m.avgPara,
         m.sentsPerPara, m.ttr, m.bigramTtr, m.triRepeat, m.dialogRatio, m.score, m.computedAt,
       );
   }
 
-  getMetrics(chapterId: string): ChapterMetrics | null {
+  getMetrics(projectId: string, chapterId: string): ChapterMetrics | null {
     const r = this.db
-      .prepare('SELECT * FROM chapter_metrics WHERE chapter_id = ?')
-      .get(chapterId) as Record<string, number> | undefined;
+      .prepare('SELECT * FROM chapter_metrics WHERE project_id = ? AND chapter_id = ?')
+      .get(projectId, chapterId) as Record<string, number> | undefined;
     if (!r) return null;
     return {
+      projectId,
       chapterId,
       chars: r.chars,
       paras: r.paras,

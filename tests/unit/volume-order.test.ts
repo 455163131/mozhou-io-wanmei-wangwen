@@ -151,11 +151,11 @@ describe('C. 章节重排与跨卷移动', () => {
 
   it('重排不许顺手改正文与 rev（排序不是编辑）', () => {
     const ids = ['第一章', '第二章'].map((t) => addChapter(t));
-    const revBefore = chapters.get(ids[0])!.meta.rev;
-    const bodyBefore = chapters.getBody(ids[0]);
+    const revBefore = chapters.get(pid, ids[0])!.meta.rev;
+    const bodyBefore = chapters.getBody(pid, ids[0]);
     chapters.reorder(pid, [ids[1], ids[0]]);
-    expect(chapters.get(ids[0])!.meta.rev).toBe(revBefore);
-    expect(chapters.getBody(ids[0])).toBe(bodyBefore);
+    expect(chapters.get(pid, ids[0])!.meta.rev).toBe(revBefore);
+    expect(chapters.getBody(pid, ids[0])).toBe(bodyBefore);
   });
 
   it('漏条/越界同样抛且顺序不动', () => {
@@ -169,22 +169,22 @@ describe('C. 章节重排与跨卷移动', () => {
   it('setVolume：把章挪进某卷，再挪回未分卷（null）', () => {
     const vid = addVolume('第一卷');
     const cid = addChapter('第一章');
-    expect(chapters.setVolume(cid, vid).volumeId).toBe(vid);
+    expect(chapters.setVolume(pid, cid, vid).volumeId).toBe(vid);
     expect(chapters.listMeta(pid)[0].volumeId).toBe(vid);
-    expect(chapters.setVolume(cid, null).volumeId).toBeNull();
+    expect(chapters.setVolume(pid, cid, null).volumeId).toBeNull();
   });
 
   it('setVolume：卷不属于本项目就抛，章保持原样', () => {
     const cid = addChapter('第一章');
     const theirs = projects.createVolume(otherPid, '别人的卷').id;
-    expect(() => chapters.setVolume(cid, theirs)).toThrow();
-    expect(chapters.get(cid)!.meta.volumeId).toBeNull();
+    expect(() => chapters.setVolume(pid, cid, theirs)).toThrow();
+    expect(chapters.get(pid, cid)!.meta.volumeId).toBeNull();
   });
 
   it('删卷后章不悬空：volume_id 由外键置空（ON DELETE SET NULL 真的生效）', () => {
     const vid = addVolume('第一卷');
     const cid = addChapter('第一章', vid);
     db.prepare('DELETE FROM volumes WHERE id = ?').run(vid);
-    expect(chapters.get(cid)!.meta.volumeId).toBeNull();
+    expect(chapters.get(pid, cid)!.meta.volumeId).toBeNull();
   });
 });

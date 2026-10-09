@@ -178,16 +178,13 @@ export class AppServices {
       if (!this.currentProject) throw new Error('未打开项目');
       this.checkpointsInstance = new CheckpointManager(
         {
-          getBody: async (id) => this.chapterRepo.getBody(id),
+          getBody: async (id) => this.bodyOf(id),
           setBody: async (id, body) => {
             // ★ 上面那句判空只覆盖「构造本 manager 的那一刻」；这个闭包是之后才跑的，
             //   期间 closeProject() 会把 currentProject 置空。所以在此重取，不用 !。
-            const projectId = this.currentProject?.id;
-            if (projectId === undefined) {
-              throw new MzError('E_INTERNAL', '写入正文时项目已被关闭');
-            }
+            const projectId = this.projectIdStrict('写入正文时项目已被关闭');
             const meta = this.chapterRepo.listMeta(projectId).find((m) => m.id === id);
-            this.chapterRepo.updateBody(id, body, meta?.rev ?? 1);
+            this.chapterRepo.updateBody(projectId, id, body, meta?.rev ?? 1);
             this.backup.noteEdit();
             this.push.send('chapter:changed', {
               chapterId: id,
@@ -205,15 +202,12 @@ export class AppServices {
   get replayer(): Replayer {
     if (!this.replayerInstance) {
       this.replayerInstance = new Replayer(this.checkpoints, {
-        getBody: async (id) => this.chapterRepo.getBody(id),
+        getBody: async (id) => this.bodyOf(id),
         setBody: async (id, body) => {
           // 同 checkpoints 的 setBody：回滚跑得更晚，项目可能已被关掉
-          const projectId = this.currentProject?.id;
-          if (projectId === undefined) {
-            throw new MzError('E_INTERNAL', '回滚写入时项目已被关闭');
-          }
+          const projectId = this.projectIdStrict('回滚写入时项目已被关闭');
           const meta = this.chapterRepo.listMeta(projectId).find((m) => m.id === id);
-          this.chapterRepo.updateBody(id, body, meta?.rev ?? 1);
+          this.chapterRepo.updateBody(projectId, id, body, meta?.rev ?? 1);
           this.push.send('chapter:changed', { chapterId: id, rev: (meta?.rev ?? 1) + 1, source: 'agent' });
         },
       });
@@ -232,17 +226,18 @@ export class AppServices {
     this.depsCache = {
         allChapterIds: async () =>
           this.currentProject ? this.chapterRepo.listMeta(this.currentProject.id).map((m) => m.id) : [],
-        getBodies: async (ids) => this.chapterRepo.getBodies(ids),
-        getBody: async (id) => this.chapterRepo.getBody(id),
+        getBodies: async (ids) =>
+          this.currentProject ? this.chapterRepo.getBodies(this.currentProject.id, ids) : new Map<string, string>(),
+        getBody: async (id) => this.bodyOf(id),
         setBody: async (id, body) => {
           if (!this.currentProject) return;
           const meta = this.chapterRepo.listMeta(this.currentProject.id).find((m) => m.id === id);
           if (!meta) return;
-          const updated = this.chapterRepo.updateBody(id, body, meta.rev);
+          const updated = this.chapterRepo.updateBody(this.currentProject.id, id, body, meta.rev);
           this.backup.noteEdit();
           this.push.send('chapter:changed', { chapterId: id, rev: updated.rev, source: 'agent' });
         },
-        chapterTitle: (id) => this.chapterRepo.get(id)?.meta.title ?? `第${id}章`,
+        chapterTitle: (id) => this.titleOf(id),
         baseline: () => this.baseline,
         undoToCheckpoint: async (checkpointId, force) => {
           const r = await this.replayer.undoTo(checkpointId, force);
@@ -259,8 +254,9 @@ export class AppServices {
           const ck = await this.checkpoints.read(checkpointId);
           const patch = ck?.patches.find((p) => p.chapterId === chapterId);
           const restoreTo = patch?.beforeText ?? newBody;
-          const meta = this.chapterRepo.get(chapterId)?.meta;
-          if (meta) this.chapterRepo.updateBody(chapterId, restoreTo, meta.rev);
+          const projectId = this.projectIdStrict('回滚规则执行时项目已被关闭');
+          const meta = this.chapterRepo.get(projectId, chapterId)?.meta;
+          if (meta) this.chapterRepo.updateBody(projectId, chapterId, restoreTo, meta.rev);
           this.push.send('chapter:changed', {
             chapterId,
             rev: (meta?.rev ?? 1) + 1,
@@ -276,7 +272,9 @@ export class AppServices {
         upsertLedger: (projectId, entries) => this.upsertLedger(projectId, entries),
         currentProjectId: () => this.currentProject?.id ?? null,
         saveMetrics: (chapterId, score, raw, chars, paras, sents) => {
+          const projectId = this.projectIdStrict('缓存逐章指标时项目已被关闭');
           this.chapterRepo.saveMetrics({
+            projectId,
             chapterId,
             chars,
             paras,
@@ -443,11 +441,14 @@ export class AppServices {
         projectName: () => this.currentProject?.name ?? '未打开项目',
         chapterIds: async () =>
           this.currentProject ? this.chapterRepo.listMeta(this.currentProject.id).map((m) => m.id) : [],
-        chapterTitle: (id) => this.chapterRepo.get(id)?.meta.title ?? `第${id}章`,
-        getBodies: async (ids) => this.chapterRepo.getBodies(ids),
+        chapterTitle: (id) => this.titleOf(id),
+        getBodies: async (ids) =>
+          this.currentProject ? this.chapterRepo.getBodies(this.currentProject.id, ids) : new Map<string, string>(),
         setBody: async (id, body) => {
-          const meta = this.chapterRepo.get(id)?.meta;
-          if (meta) this.chapterRepo.updateBody(id, body, meta.rev);
+          const projectId = this.currentProject?.id;
+          if (projectId === undefined) return;
+          const meta = this.chapterRepo.get(projectId, id)?.meta;
+          if (meta) this.chapterRepo.updateBody(projectId, id, body, meta.rev);
         },
         baseline: () => this.baseline,
         stateHash: async () => this.computeStateHash(),
@@ -464,7 +465,7 @@ export class AppServices {
     if (!this.currentProject) return hashProjectState([], '');
     const projectId = this.currentProject.id;
     const metas = this.chapterRepo.listMeta(projectId);
-    const bodies = this.chapterRepo.getBodies(metas.map((m) => m.id));
+    const bodies = this.chapterRepo.getBodies(projectId, metas.map((m) => m.id));
     const chapters = metas.map((m) => ({ id: m.id, body: bodies.get(m.id) ?? '' }));
     // ★ 账本必须进指纹：Agent 补一条人物设定而没动正文时，若这里传空数组，
     //   判据 B 会算出与上一步逐字相同的哈希，把「确实改了账本」误报成 no-effect。
@@ -553,7 +554,7 @@ export class AppServices {
     if (!this.currentProject) throw new Error('未打开项目');
     const metas = this.chapterRepo.listMeta(this.currentProject.id);
     const ids = chapterIds?.length ? chapterIds : metas.map((m) => m.id);
-    const bodies = this.chapterRepo.getBodies(ids);
+    const bodies = this.chapterRepo.getBodies(this.currentProject.id, ids);
 
     const metricValues: Record<string, number[]> = {};
     const markerValues: Record<string, number[]> = {};
@@ -716,8 +717,36 @@ export class AppServices {
     return this.currentProject?.id ?? null;
   }
 
+  /**
+   * 现取当前项目 id。
+   *
+   * ★ 为什么每次调用都要现取，而不是在装配闭包时捕获：章节号只在**书内**唯一
+   *   （§4 第 18 条把主键换成 `(project_id, id)`），只给 chapterId 已经定位不了记录。
+   *   而 checkpoint / Agent 这些闭包是构造之后很久才跑的，期间可能已经
+   *   `closeProject()` 甚至换了书——捕获下来的 id 会拿旧项目的号去查新书的章。
+   */
+  private projectIdStrict(when: string): string {
+    const projectId = this.currentProject?.id;
+    if (projectId === undefined) throw new MzError('E_INTERNAL', when);
+    return projectId;
+  }
+
+  /** 读正文：未打开项目时返回 null（读路径不抛，调用方按"没有这一章"处理） */
+  private bodyOf(chapterId: string): string | null {
+    const projectId = this.currentProject?.id;
+    if (projectId === undefined) return null;
+    return this.chapterRepo.getBody(projectId, chapterId);
+  }
+
+  /** 章节标题：未打开项目或查不到都退回 `第N章` 的兜底显示 */
+  private titleOf(chapterId: string): string {
+    const projectId = this.currentProject?.id;
+    if (projectId === undefined) return `第${chapterId}章`;
+    return this.chapterRepo.get(projectId, chapterId)?.meta.title ?? `第${chapterId}章`;
+  }
+
   getChapterBody(id: string): string {
-    return this.chapterRepo.getBody(id) ?? '';
+    return this.bodyOf(id) ?? '';
   }
 
   allChapterIds(): string[] {
@@ -731,9 +760,10 @@ export class AppServices {
    * 走 repo.updateBody 以复用乐观锁（expectedRev 不匹配会抛 E_REVISION_CONFLICT）。
    */
   async updateChapterBody(id: string, body: string, _source: string): Promise<void> {
-    const meta = this.chapterRepo.get(id);
+    const projectId = this.projectIdStrict('改写正文时项目已被关闭');
+    const meta = this.chapterRepo.get(projectId, id);
     if (!meta) throw new Error(`章节不存在：${id}`);
-    this.chapterRepo.updateBody(id, body, meta.meta.rev);
+    this.chapterRepo.updateBody(projectId, id, body, meta.meta.rev);
   }
 
   // ── 专家团配置 ──
@@ -795,7 +825,7 @@ export class AppServices {
     if (!this.currentProject) throw new Error('未打开项目');
     const metas = this.chapterRepo.listMeta(this.currentProject.id);
     const ids = chapterIds && chapterIds.length > 0 ? chapterIds : metas.map((m) => m.id);
-    const bodies = this.chapterRepo.getBodies(ids);
+    const bodies = this.chapterRepo.getBodies(this.currentProject.id, ids);
     const samples = ids.map((id) => ({ chapterId: id, text: bodies.get(id) ?? '' }));
 
     // ★ 特征版本由服务注入（builder 保持纯函数：不 import 版本常量、不读库）。

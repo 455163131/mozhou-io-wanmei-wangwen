@@ -174,8 +174,9 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     return services.chapterRepo.listMeta(services.project.id);
   }, services);
 
-  handle('chapter:get', (p) => {
-    const ch = services.chapterRepo.get(p.chapterId);
+  handle('chapter:get', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    const ch = s.chapterRepo.get(s.project.id, p.chapterId);
     if (!ch) throw new MzError('E_INVALID_ARGS', `章节不存在：${p.chapterId}`);
     return ch;
   }, services);
@@ -183,7 +184,7 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   handle('chapter:update', (p, s) => {
     if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
     try {
-      const meta = s.chapterRepo.updateBody(p.chapterId, p.body, p.expectedRev);
+      const meta = s.chapterRepo.updateBody(s.project.id, p.chapterId, p.body, p.expectedRev);
       s.backup.noteEdit();
       s.push.send('chapter:changed', { chapterId: p.chapterId, rev: meta.rev, source: 'user' });
       return meta;
@@ -234,7 +235,7 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
       throw new MzError('E_INVALID_ARGS', 'volumeId 只能是卷 id 或 null');
     }
     try {
-      const meta = s.chapterRepo.setVolume(p.chapterId, p.volumeId);
+      const meta = s.chapterRepo.setVolume(s.project.id, p.chapterId, p.volumeId);
       s.backup.noteEdit();
       return meta;
     } catch (e) {
@@ -490,7 +491,7 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
     const metas = services.chapterRepo.listMeta(s.project.id);
     const targets = p.chapterIds.length ? metas.filter((m) => p.chapterIds.includes(m.id)) : metas;
-    const bodies = services.chapterRepo.getBodies(targets.map((m) => m.id));
+    const bodies = services.chapterRepo.getBodies(s.project.id, targets.map((m) => m.id));
 
     let content: string;
     if (p.kind === 'md') {

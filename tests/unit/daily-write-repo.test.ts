@@ -217,22 +217,22 @@ describe('E. 记账点在正文写入的咽喉上', () => {
     const id = addChapter('第一章', '一'.repeat(100));
     const day = dayKey(Date.now());
     expect(daily.summary(pid, Date.now()).today).toBe(100);
-    const meta = chapters.get(id)!.meta;
-    chapters.updateBody(id, '一'.repeat(40), meta.rev);
+    const meta = chapters.get(pid, id)!.meta;
+    chapters.updateBody(pid, id, '一'.repeat(40), meta.rev);
     expect(daily.summary(pid, Date.now()).today).toBe(40);
     expect(rawRows()).toEqual([{ project_id: pid, day, delta_chars: 40 }]);
   });
 
   it('★ 乐观锁冲突时不落账：失败的保存不该改统计', () => {
     const id = addChapter('第一章', '一'.repeat(100));
-    expect(() => chapters.updateBody(id, '一'.repeat(500), 99)).toThrow();
+    expect(() => chapters.updateBody(pid, id, '一'.repeat(500), 99)).toThrow();
     expect(daily.summary(pid, Date.now()).today).toBe(100);
   });
 
   it('删除正文（净增为负）同样入账', () => {
     const id = addChapter('第一章', '一'.repeat(100));
-    const meta = chapters.get(id)!.meta;
-    chapters.updateBody(id, '', meta.rev);
+    const meta = chapters.get(pid, id)!.meta;
+    chapters.updateBody(pid, id, '', meta.rev);
     expect(daily.summary(pid, Date.now()).today).toBe(0);
   });
 
@@ -248,7 +248,7 @@ describe('E. 记账点在正文写入的咽喉上', () => {
     const a = addChapter('第一章', '一'.repeat(50));
     const vol = projects.createVolume(pid, '第一卷').id;
     const before = daily.summary(pid, Date.now()).today;
-    chapters.setVolume(a, vol);
+    chapters.setVolume(pid, a, vol);
     expect(daily.summary(pid, Date.now()).today).toBe(before);
   });
 });
@@ -276,8 +276,10 @@ describe('F. 千字单价（稿费口径）', () => {
 });
 
 describe('G. 迁移本身', () => {
-  it('迁移版本推进到 8，daily_writes 表建出来了', () => {
-    expect(currentVersion(db)).toBe(8);
+  it('迁移版本推进到至少 8，daily_writes 表建出来了', () => {
+    // 不钉死等于 8：本仓库每次加迁移这里就得改一次，而这条测试真正要验收的是
+    // "v8 跑过了、表在"。往后加的版本（v9 复合主键）不该让它变红。
+    expect(currentVersion(db)).toBeGreaterThanOrEqual(8);
     const t = db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='daily_writes'")
       .get() as { name: string } | undefined;

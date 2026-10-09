@@ -105,8 +105,14 @@ export interface StyleProfile {
   updatedAt: number;
 }
 
-/** 逐章指标缓存（500 章仅 0.25MB，可全量缓存；架构 §1.8） */
+/**
+ * 逐章指标缓存（500 章仅 0.25MB，可全量缓存；架构 §1.8）
+ *
+ * ★ 带 `projectId`：章节号（`chapterId`）只在书内唯一（§4 第 18 条换成
+ *   `(project_id, id)` 复合主键后，只给章节号已经定位不了一条记录了）。
+ */
 export interface ChapterMetrics {
+  projectId: string;
   chapterId: string;
   chars: number;
   paras: number;
