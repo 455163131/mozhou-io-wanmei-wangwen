@@ -85,6 +85,7 @@ const bridge: MzBridge = {
     create: (payload) => invoke('chapter:create', payload),
     reorder: (ids) => invoke('chapter:reorder', { ids }),
     setVolume: (chapterId, volumeId) => invoke('chapter:set-volume', { chapterId, volumeId }),
+    setTitle: (chapterId, title) => invoke('chapter:set-title', { chapterId, title }),
   },
 
   health: {

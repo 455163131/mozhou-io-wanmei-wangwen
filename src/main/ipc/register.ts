@@ -243,6 +243,23 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     }
   }, services);
 
+  /**
+   * 改章节标题（§4 第 19 条①）。空标题放行：与 `chapter:create` 同口径，
+   * 界面按 `第N章` 兜底显示，这里不做"必须起个名"的强制。
+   */
+  handle('chapter:set-title', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    if (typeof p.chapterId !== 'string') throw new MzError('E_INVALID_ARGS', 'chapterId 必须是字符串');
+    if (typeof p.title !== 'string') throw new MzError('E_INVALID_ARGS', '标题必须是字符串');
+    try {
+      const meta = s.chapterRepo.setTitle(s.project.id, p.chapterId, p.title);
+      s.backup.noteEdit();
+      return meta;
+    } catch (e) {
+      throw new MzError('E_INVALID_ARGS', e instanceof Error ? e.message : String(e));
+    }
+  }, services);
+
   // ── health（只读）──
   handle('health:analyze', async (p, s) => {
     const ctx = fakeCtx();

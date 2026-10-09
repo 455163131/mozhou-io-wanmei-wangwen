@@ -113,6 +113,16 @@ export interface IpcInvokeMap {
     req: { chapterId: string; volumeId: string | null };
     res: ChapterMeta;
   };
+  /**
+   * 改章节标题（§4 第 19 条①）。
+   * ★ 只改标题：**不动 `rev`**，也不动正文与 `updated_at`。
+   *   改了 rev 会让编辑器里那份未保存的正文在下次保存时撞上乐观锁——
+   *   用户感知就是"我改了个标题，怎么写不回去了"。空标题允许，界面按 `第N章` 兜底。
+   */
+  'chapter:set-title': {
+    req: { chapterId: string; title: string };
+    res: ChapterMeta;
+  };
 
   'health:analyze': { req: { chapterIds?: string[] }; res: ChapterAnalysis[] };
   'health:report': { req: { chapterIds?: string[] }; res: HealthReport };
@@ -371,6 +381,7 @@ export const IPC_CHANNELS = [
   'chapter:create',
   'chapter:reorder',
   'chapter:set-volume',
+  'chapter:set-title',
   'health:analyze',
   'health:report',
   'health:locate',

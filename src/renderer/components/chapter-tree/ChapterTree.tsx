@@ -6,6 +6,10 @@
  *
  * 建章（§4 第 17 条）：标题框 + 「新建章节」，章节号由主进程算，这里只交标题和归属卷。
  * 新章跟着当前章所在卷走，建完立刻回读整表并选中——不然点了按钮像没反应。
+ *
+ * 改名（§4 第 19 条①）：双击某章进入行内改名，Enter/失焦提交、Esc 取消。
+ * 提交后以主进程返回的 meta 覆盖那一行——改名不动 `rev`，编辑器里正在写的正文
+ * 不该因为改标题而撞乐观锁。
  */
 import { useMemo, useState } from 'react';
 import { useProjectStore } from '../../store';
@@ -36,6 +40,8 @@ export function ChapterTree(): JSX.Element {
   const [err, setErr] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [creating, setCreating] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   // 按卷分组；无卷的放「未分卷」
   const grouped = useMemo(() => {
@@ -80,6 +86,29 @@ export function ChapterTree(): JSX.Element {
       setErr(errorText(e));
     } finally {
       setCreating(false);
+    }
+  };
+
+  /**
+   * 提交改名（§4 第 19 条①）。空标题也放行——与建章同口径，界面按 `第N章` 兜底。
+   * 先把输入框关掉再发请求：Enter 提交后紧接着的失焦会再触发一次，两次改名打到
+   * 同一个标题上虽然无害，但会多一次备份记账和一次整表回读。
+   * 失败时整表回读：宁可看到旧名，也不要"界面新名 / 库里旧名"两张脸。
+   */
+  const commitRename = async (): Promise<void> => {
+    const api = bridge();
+    if (!api || renamingId === null) return;
+    const chapterId = renamingId;
+    const title = renameValue;
+    setRenamingId(null);
+    setErr(null);
+    try {
+      const updated = await api.chapter.setTitle(chapterId, title);
+      setChapters(chapters.map((c) => (c.id === updated.id ? updated : c)));
+    } catch (e) {
+      setErr(errorText(e));
+      const fresh = await api.chapter.list().catch(() => null);
+      if (fresh) setChapters(fresh);
     }
   };
 
@@ -212,39 +241,71 @@ export function ChapterTree(): JSX.Element {
             <div className={styles.volumeTitle} title="把章节拖到这里可换卷">
               {vtitle}
             </div>
-            {visible.map((c) => (
-              <button
-                key={c.id}
-                className={`${styles.node} ${c.id === current ? styles.active : ''} ${
-                  dragId === c.id ? styles.nodeDrag : ''
-                } ${overKey === c.id && dragId !== null && dragId !== c.id ? styles.nodeOver : ''}`}
-                draggable
-                onClick={() => setCurrent(c.id)}
-                onDragStart={() => {
-                  setDragId(c.id);
-                }}
-                onDragEnd={() => {
-                  setDragId(null);
-                  setOverKey(null);
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  e.dataTransfer.dropEffect = 'move';
-                  if (overKey !== c.id) setOverKey(c.id);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  void dropOnChapter(c.id);
-                }}
-                title={`${c.title || `第${c.id}章`}（${c.charCount} 字）拖动可改顺序，拖到卷名上可换卷`}
-              >
-                <span className={styles.status}>{STATUS_MARK[c.status] ?? '○'}</span>
-                <span className={styles.nodeTitle}>{c.title || `第${c.id}章`}</span>
-                <span className={styles.chars}>{c.charCount}</span>
-              </button>
-            ))}
+            {visible.map((c) => {
+              if (renamingId === c.id) {
+                return (
+                  <div key={c.id} className={`${styles.node} ${styles.active}`}>
+                    <span className={styles.status}>{STATUS_MARK[c.status] ?? '○'}</span>
+                    <input
+                      className={styles.input}
+                      value={renameValue}
+                      maxLength={40}
+                      autoFocus
+                      aria-label="修改章节标题"
+                      onChange={(e) => {
+                        setRenameValue(e.target.value);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void commitRename();
+                        else if (e.key === 'Escape') setRenamingId(null);
+                      }}
+                      onBlur={() => {
+                        void commitRename();
+                      }}
+                    />
+                    <span className={styles.chars}>{c.charCount}</span>
+                  </div>
+                );
+              }
+              return (
+                <button
+                  key={c.id}
+                  className={`${styles.node} ${c.id === current ? styles.active : ''} ${
+                    dragId === c.id ? styles.nodeDrag : ''
+                  } ${overKey === c.id && dragId !== null && dragId !== c.id ? styles.nodeOver : ''}`}
+                  draggable
+                  onClick={() => setCurrent(c.id)}
+                  onDoubleClick={() => {
+                    setErr(null);
+                    setRenameValue(c.title);
+                    setRenamingId(c.id);
+                  }}
+                  onDragStart={() => {
+                    setDragId(c.id);
+                  }}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setOverKey(null);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (overKey !== c.id) setOverKey(c.id);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    void dropOnChapter(c.id);
+                  }}
+                  title={`${c.title || `第${c.id}章`}（${c.charCount} 字）拖动可改顺序，拖到卷名上可换卷，双击可改标题`}
+                >
+                  <span className={styles.status}>{STATUS_MARK[c.status] ?? '○'}</span>
+                  <span className={styles.nodeTitle}>{c.title || `第${c.id}章`}</span>
+                  <span className={styles.chars}>{c.charCount}</span>
+                </button>
+              );
+            })}
           </div>
         );
       })}

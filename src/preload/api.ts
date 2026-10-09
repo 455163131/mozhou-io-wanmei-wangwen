@@ -42,6 +42,8 @@ export interface MzBridge {
     create(payload: IpcInvokeMap['chapter:create']['req']): Promise<IpcInvokeMap['chapter:create']['res']>;
     reorder(ids: string[]): Promise<IpcInvokeMap['chapter:reorder']['res']>;
     setVolume(chapterId: string, volumeId: string | null): Promise<IpcInvokeMap['chapter:set-volume']['res']>;
+    /** 改标题：只改 title，不动正文与 rev（见 IpcInvokeMap['chapter:set-title'] 的注释） */
+    setTitle(chapterId: string, title: string): Promise<IpcInvokeMap['chapter:set-title']['res']>;
   };
 
   // 体检（只读）
@@ -159,6 +161,7 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'chapter:create',
   'chapter:reorder',
   'chapter:set-volume',
+  'chapter:set-title',
   'health:analyze',
   'health:report',
   'health:locate',

@@ -333,6 +333,30 @@ export class ChapterRepo {
     return meta;
   }
 
+  /**
+   * 改标题（§4 第 19 条①）。
+   *
+   * 只改 `title`。`rev` 与 `updated_at` 是跟着正文一起写的（见 `updateBody`），
+   * 而改名不是编辑正文：动了 rev 会让编辑器里那份未保存的正文在下次保存时撞上乐观锁，
+   * 用户感知就是"我改了个标题，怎么写不回去了"——与 `reorder` 同一个理由。
+   * 空标题允许，与 `createChapter` 同口径（界面按 `第N章` 兜底显示）。
+   *
+   * ★ 定位必须带 project_id（§4 第 18 条）：两本书都有自己的第 1 章，
+   *   少了这一维就是拿 A 书的改名打到 B 书头上。
+   */
+  setTitle(projectId: string, chapterId: string, title: string): ChapterMeta {
+    const row = this.db
+      .prepare('SELECT id FROM chapters WHERE project_id = ? AND id = ?')
+      .get(projectId, chapterId) as { id: string } | undefined;
+    if (!row) throw new Error(`章节不存在：${chapterId}`);
+    this.db
+      .prepare('UPDATE chapters SET title = ? WHERE project_id = ? AND id = ?')
+      .run(title.trim(), projectId, chapterId);
+    const meta = this.listMeta(projectId).find((c) => c.id === chapterId);
+    if (!meta) throw new Error(`章节状态读取失败：${chapterId}`);
+    return meta;
+  }
+
   saveMetrics(m: ChapterMetrics): void {
     this.db
       .prepare(
