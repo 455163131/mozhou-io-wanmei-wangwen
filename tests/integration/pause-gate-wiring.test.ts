@@ -43,6 +43,12 @@ interface Harness {
   toolCalls(): number;
   steps(): StepRecord[];
   status(): RunState['status'] | null;
+  /**
+   * ★ 第 25 条：`agent:phase` 这条 push 事件的到达顺序。
+   *   渲染层的「暂停中」只能来自这里——修复前这条通道**根本不存在**，
+   *   `useAgentStore.setStatus` 全仓零调用方，界面永远只会报 planning／terminated。
+   */
+  phaseEvents(): Array<{ runId: string; phase: string }>;
   termination(): { code: string; atStep?: number } | null;
   resume(): void;
   abort(): void;
@@ -157,6 +163,13 @@ function makeHost(pauseInFirstCall = false): Harness {
     },
     resume: () => host.resume(runId),
     abort: () => host.abort(runId),
+    phaseEvents: () =>
+      events
+        .filter((e) => e.channel === 'agent:phase')
+        .map((e) => ({
+          runId: String((e.payload as { runId?: unknown }).runId ?? ''),
+          phase: String((e.payload as { phase?: unknown }).phase ?? ''),
+        })),
   };
 }
 
@@ -215,6 +228,35 @@ describe('B. resume 必须真的把 run 放走（同一根线，反向）', () =
     expect(h.termination()?.code, '挂在暂停里没醒').toBe('USER_ABORTED');
     expect(h.termination()?.atStep).toBe(2);
     expect(h.toolCalls(), '叫停后不许把暂停中的那一步补跑掉').toBe(1);
+  });
+});
+
+describe('D. 暂停状态必须报得出去（第 25 条：渲染层唯一的真相来源是 push 事件）', () => {
+  it('挂住时推 paused、放走时推回真状态，两条都带 runId', async () => {
+    const h = makeHost(true);
+    await h.startRun();
+    expect(await h.waitSteps(1)).toBe(true);
+    await sleep(60);
+
+    // 修复前：这条通道根本不存在，phaseEvents() 恒空——于是 store 里
+    // setStatus 零调用方，界面永远只在 planning／terminated 之间跳。
+    expect(h.phaseEvents().map((p) => p.phase), '挂住时没报 paused').toContain('paused');
+
+    h.resume();
+    expect(await h.waitTerminated()).toBe(true);
+    expect(h.phaseEvents().map((p) => p.phase), '放走时没报回真状态').toContain('planning');
+
+    for (const p of h.phaseEvents()) {
+      // 不带 runId 的 phase 事件会被渲染层算到别的 run 头上
+      expect(p.runId).not.toBe('');
+    }
+  });
+
+  it('不暂停就不许多发 phase 事件（不许把每个阶段都刷屏）', async () => {
+    const h = makeHost();
+    await h.startRun();
+    expect(await h.waitTerminated()).toBe(true);
+    expect(h.phaseEvents(), '没暂停却有 phase 事件＝噪声通道被打开了').toEqual([]);
   });
 });
 

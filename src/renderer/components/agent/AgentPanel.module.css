@@ -83,6 +83,13 @@
   border-color: var(--mz-sem-ai-border);
   font-size: var(--mz-fs-xs);
 }
+/* 暂停是中性动作（不终止、不丢改动），语义色用一致性族，与叫停的 ai 族分开 */
+.pauseBtn {
+  color: var(--mz-sem-con-fg);
+  background: var(--mz-sem-con-bg);
+  border-color: var(--mz-sem-con-border);
+  font-size: var(--mz-fs-xs);
+}
 .rollbackBtn {
   color: var(--mz-sem-warn-fg);
   background: var(--mz-sem-warn-bg);
@@ -174,7 +181,7 @@
   border-color: var(--mz-border-strong);
   opacity: 0.7;
 }
-/* aborted 今天还没有产出方（loop.ts:282 只写 succeeded/failed），但 StepStatus 声明了它、工具栏也有中止按钮：类型说得出，界面就得接得住。 */
+/* 第 23 条起 aborted 有产出方了（叫停落在正在跑的那一步时由 loop 写出），这条边框自此真的会被用上。 */
 .step.aborted {
   border-color: var(--mz-sem-con-border);
 }

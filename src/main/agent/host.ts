@@ -655,6 +655,11 @@ export class AgentHost {
       case 'step':
         this.deps.emit('agent:step', { runId, step: e.step });
         break;
+      // ★ 第 25 条：阶段变化转推。渲染层的 status 只有这一条来源，
+      //   没有它「暂停中」在界面上无处可来（setStatus 此前零调用方）。
+      case 'phase':
+        this.deps.emit('agent:phase', { runId, phase: e.phase });
+        break;
       case 'tool-call':
         this.deps.emit('agent:tool-call', {
           runId,

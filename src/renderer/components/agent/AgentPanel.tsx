@@ -4,7 +4,7 @@
  * ★ 必须满足的 6 条（架构 §4.2），逐条对应实现：
  *   1. 每步可见：工具名 + 参数 + 结果摘要 + 耗时   → StepTimeline
  *   2. 决策理由可见：为什么选它不选别的            → rationale 字段
- *   3. 可叫停：⏸ 叫停 = 停止下一步，已执行保留
+ *   3. 可叫停：⏹ 叫停 = 停止下一步，已执行保留；⏸ 暂停 = 这步跑完挂住，可继续（第 25 条）
  *   4. 可回滚：按 checkpoint 回退                   → RollbackHint
  *   5. 失败不隐藏：失败步骤红显 + 写明原因与已尝试策略
  *   6. 半成品可续：关闭后重开能接着跑
@@ -12,6 +12,7 @@
  * ★★★ 三态区分（架构 §6.1 第 12 条）★★★：
  *   叫停 / 停止 run / 回滚到 N 步是**三个独立控件**。
  *   叫停保留改动，回滚丢弃改动。混为一谈会导致用户误删自己满意的段落。
+ *   ⏸ 这个图标**只给暂停**——以前它挂在叫停按钮上，现在暂停真存在了，两个动作不能共用一颗图标。
  */
 import { useState } from 'react';
 import { useAgentStore, useProjectStore } from '../../store';
@@ -220,6 +221,21 @@ export function AgentPanel(): JSX.Element {
     }
   }
 
+  /**
+   * ★ 第 25 条：暂停／继续。与叫停是两回事——不终止、不留终止原因、不算失败，
+   *   只是**这一步跑完就不再开下一步**，等这里放走。
+   *   按钮上的「暂停中」来自 `agent:phase` 报回来的 store.status，不是本地记一笔「我按过了」。
+   */
+  async function setPaused(want: boolean): Promise<void> {
+    if (!runId) return;
+    try {
+      if (want) await bridge().agent.pause(runId);
+      else await bridge().agent.resume(runId);
+    } catch (e) {
+      useProjectStore.getState().setError(errorText(e));
+    }
+  }
+
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
@@ -249,8 +265,14 @@ export function AgentPanel(): JSX.Element {
       {/* ★★★ 三态独立控件，绝不能合并 ★★★ */}
       {running && (
         <div className={styles.controls}>
+          <button
+            className={styles.pauseBtn}
+            onClick={() => void setPaused(status !== 'paused')}
+          >
+            {status === 'paused' ? '▶ 继续（跑下一步）' : '⏸ 暂停（这步跑完就停）'}
+          </button>
           <button className={styles.abortBtn} onClick={() => void abort()}>
-            ⏸ 叫停（保留已改）
+            ⏹ 叫停（保留已改）
           </button>
           <RollbackHint />
         </div>

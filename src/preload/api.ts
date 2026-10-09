@@ -224,6 +224,7 @@ export const SUBSCRIBE_CHANNELS: IpcPushChannel[] = [
   'agent:terminated',
   'agent:need-approval',
   'agent:plan',
+  'agent:phase',
   'chapter:changed',
   'project:opened',
   'project:closed',

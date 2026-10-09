@@ -28,6 +28,14 @@ export function useAgentStream(): void {
       agent().setPlan(p.plan as Plan);
     });
 
+    // ★ 第 25 条：run 的阶段。这是 setStatus 在全仓**唯一**的调用方——
+    //   修复前 store 声明并实现了 setStatus，却没人调它，
+    //   status 只能停在 setRun 写死的 'planning' 与 setTermination 写死的 'terminated'，
+    //   于是「暂停中」这个 RunStatus 成员在界面上根本不存在。
+    const offPhase = onAgentEvent('agent:phase', (p) => {
+      agent().setStatus(p.phase);
+    });
+
     const offTerminated = onAgentEvent('agent:terminated', (p) => {
       agent().setTermination(
         p.reason as TerminationReason,
@@ -69,6 +77,7 @@ export function useAgentStream(): void {
     return () => {
       offStep();
       offPlan();
+      offPhase();
       offTerminated();
       offCheckpoint();
       offChapterChanged();

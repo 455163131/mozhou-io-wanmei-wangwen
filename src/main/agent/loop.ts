@@ -61,6 +61,9 @@ export type LoopEvent =
   | { type: 'plan'; runId: string; plan: Plan }
   | { type: 'step'; runId: string; step: StepRecord }
   | { type: 'tool-call'; runId: string; stepNo: number; toolName: string; danger: ToolDanger | null; writePolicy: WritePolicy | null; argsSummary: string }
+  // ★ 第 25 条：阶段变化只在这两个时刻发（其余阶段各有自己的事件，不需要额外刷屏）。
+  //   渲染层的 status 全靠它，否则「暂停中」在界面上无处可来。
+  | { type: 'phase'; runId: string; phase: 'paused' | 'planning' }
   | { type: 'terminated'; runId: string; reason: TerminationReason; stats: RunStats; keptChanges: number };
 
 export function newRunStats(): RunStats {
@@ -153,10 +156,14 @@ export class AgentLoop {
       //   abort 落在等待里也要醒来——否则 run 永远挂在闸门上。
       if (this.deps.isPaused(this.runId)) {
         this.phase = 'paused';
+        // ★ 第 25 条：报给渲染层。放在 await 之前——挂住这件事本身就得让人看见
+        this.deps.emit({ type: 'phase', runId: this.runId, phase: 'paused' });
         const { aborted } = await this.deps.waitWhilePaused(this.runId);
         if (aborted || this.deps.isAborted(this.runId)) {
           return this.terminate({ code: 'USER_ABORTED', atStep: stepNo });
         }
+        // 放走了就报回下一步真正要进入的阶段（下面 try 块的第一件事就是 planning）
+        this.deps.emit({ type: 'phase', runId: this.runId, phase: 'planning' });
       }
 
       try {

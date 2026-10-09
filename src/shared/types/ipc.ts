@@ -525,6 +525,13 @@ export interface IpcPushMap {
     changeSetSummary: string;
   };
   'agent:plan': { runId: string; plan: RunState['plan'] };
+  /**
+   * ★ 第 25 条：run 的阶段变化。只在**进入 paused** 与**从 paused 放走**两个时刻发，
+   *   不是每个阶段都刷——其余阶段本来就有各自的事件（plan / tool-call / step）。
+   *   没有这条通道时渲染层无从得知「暂停中」：`setStatus` 在全仓零调用方，
+   *   status 只会是 planning／terminated 两个写死值。
+   */
+  'agent:phase': { runId: string; phase: RunState['status'] };
   'chapter:changed': { chapterId: string; rev: number; source: 'agent' | 'user' };
   'project:opened': { projectId: string };
   'project:closed': { projectId: string };
@@ -546,6 +553,7 @@ export const IPC_PUSH_CHANNELS = [
   'agent:terminated',
   'agent:need-approval',
   'agent:plan',
+  'agent:phase',
   'chapter:changed',
   'project:opened',
   'project:closed',
