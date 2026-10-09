@@ -22,6 +22,8 @@ export interface MzBridge {
 
   // 项目
   project: {
+    /** 原生目录选择器；取消返回 null（不是抛错） */
+    pickDir(): Promise<IpcInvokeMap['project:pick-dir']['res']>;
     open(dir: string): Promise<IpcInvokeMap['project:open']['res']>;
     close(): Promise<void>;
     list(): Promise<IpcInvokeMap['project:list']['res']>;
@@ -151,6 +153,7 @@ export interface MzBridge {
 export const INVOKE_CHANNELS: IpcChannel[] = [
   'app:getPaths',
   'app:window',
+  'project:pick-dir',
   'project:open',
   'project:close',
   'project:list',

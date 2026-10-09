@@ -87,6 +87,12 @@ export interface IpcInvokeMap {
   'app:getPaths': { req: void; res: { userData: string; documents: string } };
   'app:window': { req: { action: 'minimize' | 'maximize' | 'close' }; res: void };
 
+  /**
+   * 弹原生目录选择器，返回选中的绝对路径；**用户按取消返回 null**。
+   * ★ 取消是正常结果不是错误：res 带 null 就是为了逼调用方早退，
+   *   而不是把 null 当目录丢给 project:open 去抛一个吓人的错。
+   */
+  'project:pick-dir': { req: void; res: string | null };
   'project:open': { req: OpenProjectPayload; res: Project };
   'project:close': { req: void; res: void };
   'project:list': { req: void; res: Project[] };
@@ -396,6 +402,7 @@ export interface FlavorScanResult {
 export const IPC_CHANNELS = [
   'app:getPaths',
   'app:window',
+  'project:pick-dir',
   'project:open',
   'project:close',
   'project:list',

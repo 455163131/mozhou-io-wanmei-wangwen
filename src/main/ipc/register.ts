@@ -8,7 +8,7 @@
  * ★ 错误序列化：把 MzError 的 code 一并返回，渲染层据此决定动作
  *   （回喂 Agent 自纠 / 弹确认框 / 终止 run），而不是只弹个 toast。
  */
-import { ipcMain, app, type BrowserWindow } from 'electron';
+import { ipcMain, app, dialog, type BrowserWindow } from 'electron';
 import type { IpcChannel, IpcInvokeMap } from '@shared/types/ipc';
 import { MzError } from '@shared/types/ipc';
 import type { AppServices } from '../services';
@@ -82,6 +82,25 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   }, services);
 
   // ── project ──
+  /**
+   * ★ 第 29 条：打开 / 切换项目以前走 `App.tsx` 里的 `window.prompt`，
+   *   让用户**手打绝对路径**——而这是网文作者进这个应用的第一个动作，
+   *   他们的工具是文件夹，不是路径字符串。这里换成原生目录选择器。
+   *   **取消返回 null 而不是抛**：取消是正常结果，不该在界面上留下一条错误。
+   */
+  handle('project:pick-dir', async () => {
+    const win = getWindow();
+    if (!win) return null;
+    const picked = await dialog.showOpenDialog(win, {
+      title: '选择书稿目录',
+      buttonLabel: '打开这个目录',
+      // createDirectory：作者常常要先建一个「新书」文件夹再选它，少了这个标记就得两步走
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (picked.canceled || picked.filePaths.length === 0) return null;
+    return picked.filePaths[0];
+  }, services);
+
   handle('project:open', async (p) => {
     const project = await services.openProject(p.dir);
     // 检测上次是否有未闭合的 run —— 必须提示，不静默（架构 T24）

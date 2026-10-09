@@ -135,8 +135,10 @@ export function App(): JSX.Element {
 
   async function openProject(): Promise<void> {
     try {
-      const dir = window.prompt('输入项目目录的绝对路径：');
-      if (!dir) return;
+      // ★ 第 29 条：这里曾经是 `window.prompt('输入项目目录的绝对路径：')`——
+      //   让一个写网文的人自己拼 `C:\Users\...\我的书`。改成原生目录选择器。
+      const dir = await bridge().project.pickDir();
+      if (!dir) return; // 取消是正常结果，静默返回，不记错误
       const p = await bridge().project.open(dir);
       useProjectStore.getState().setProject(p);
       useProjectStore.getState().setChapters(await bridge().chapter.list());

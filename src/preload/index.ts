@@ -67,6 +67,7 @@ const bridge: MzBridge = {
   window: (action) => invoke('app:window', { action }),
 
   project: {
+    pickDir: () => invoke('project:pick-dir'),
     open: (dir) => invoke('project:open', { dir }),
     close: () => invoke('project:close'),
     list: () => invoke('project:list'),
