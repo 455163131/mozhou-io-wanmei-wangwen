@@ -137,6 +137,15 @@
   margin-bottom: 6px;
 }
 
+/* 「第 N 卷」的序号。修 §4 第 20 条①：这条以前不存在，span 拿到的是 class="undefined" */
+.no {
+  color: var(--mz-text-secondary);
+  font-weight: 600;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  margin-right: 6px;
+}
+
 .ot {
   font-size: 13.5px;
   color: var(--mz-text-primary);
