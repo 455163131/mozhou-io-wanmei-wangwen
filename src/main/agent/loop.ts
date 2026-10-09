@@ -26,7 +26,7 @@ import type { ToolCall, ToolDanger, ToolResult, WritePolicy } from '@shared/type
 import { BudgetGuard } from './budget-guard';
 import { LoopDetector } from './loop-detector';
 
-export type LoopPhase = 'idle' | 'planning' | 'selecting' | 'executing' | 'observing' | 'evaluating' | 'terminated';
+export type LoopPhase = 'idle' | 'planning' | 'selecting' | 'executing' | 'observing' | 'evaluating' | 'paused' | 'terminated';
 
 export interface LoopDeps {
   /** 规划：goal + observations → Plan */
@@ -45,6 +45,14 @@ export interface LoopDeps {
   emit: (event: LoopEvent) => void;
   /** 用户是否叫停 */
   isAborted: (runId: string) => boolean;
+  /**
+   * ★ 第 24 条：用户是否按了暂停。
+   *   修复前 `LoopDeps` 里没有这一项，`host.pausedRuns` 只写不读——
+   *   「暂停」是一条谁都不看的通道，run 一步都不会停。
+   */
+  isPaused: (runId: string) => boolean;
+  /** 暂停闸门：挂着等 resume（或 abort）落地；返回是否已被叫停 */
+  waitWhilePaused: (runId: string) => Promise<{ aborted: boolean }>;
   isLocal: boolean;
   maxHistory: number;
 }
@@ -137,6 +145,18 @@ export class AgentLoop {
       // ── 用户叫停（独立于回滚）──
       if (this.deps.isAborted(this.runId)) {
         return this.terminate({ code: 'USER_ABORTED', atStep: stepNo });
+      }
+
+      // ── 用户暂停：停在步与步之间，等 resume 放走 ──
+      // ★ 第 24 条。粒度与叫停一致（正在跑的那一步跑完，绝不半途中断写操作），
+      //   但语义相反：不终止、不留终止原因、不算失败，等。
+      //   abort 落在等待里也要醒来——否则 run 永远挂在闸门上。
+      if (this.deps.isPaused(this.runId)) {
+        this.phase = 'paused';
+        const { aborted } = await this.deps.waitWhilePaused(this.runId);
+        if (aborted || this.deps.isAborted(this.runId)) {
+          return this.terminate({ code: 'USER_ABORTED', atStep: stepNo });
+        }
       }
 
       try {

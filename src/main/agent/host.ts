@@ -85,6 +85,11 @@ export class AgentHost {
    * 叫停只在下一轮循环起点（`loop.ts:138`）被看见，正在跑的那一步照跑到底。
    */
   private runControllers = new Map<string, AbortController>();
+  /**
+   * ★ 第 24 条：runId → 唤醒「停在暂停闸门上的循环」的那颗 resolve。
+   *   没有它，`waitWhilePaused` 会把 run 挂死——resume 与 abort 都必须来敲这扇门。
+   */
+  private pauseWaiters = new Map<string, () => void>();
   private runStates = new Map<string, RunState>();
   private costState: CostState = { tokensIn: 0, tokensOut: 0, costCny: 0, localMs: 0, requests: 0 };
 
@@ -146,6 +151,8 @@ export class AgentHost {
       stateHash: () => this.deps.stateHash(),
       emit: (e) => this.handleEvent(runId, e),
       isAborted: (id) => this.abortedRuns.has(id),
+      isPaused: (id) => this.pausedRuns.has(id),
+      waitWhilePaused: (id) => this.waitWhilePaused(id),
       isLocal: isFree(this.deps.provider),
       maxHistory: RECENT_OBSERVATIONS_RAW,
     }, limits);
@@ -682,6 +689,8 @@ export class AgentHost {
     // ★ 同时落到控制器：正在跑的那一步（sandbox 早退、长工具自己的轮询）才看得见中止。
     //   只 get 不 set：叫停一个早已结束的 run 不该在表里留下条目。
     this.runControllers.get(runId)?.abort();
+    // 停在暂停闸门里的循环也得醒，否则它永远等不到 abortedRuns
+    this.pauseWaiters.get(runId)?.();
   }
 
   /** 暂停：与叫停不同，暂停后可 resume */
@@ -695,6 +704,26 @@ export class AgentHost {
     // AbortSignal 不可逆，旧的那把已经脏了：丢掉它，`controllerFor` 会给仍在跑的 run
     // 建一把干净的。不清则「叫停后又继续」的 run 之后每一步都被当成已叫停。
     this.runControllers.delete(runId);
+    // ★ 第 24 条：敲醒挂在暂停闸门上的循环——这才是「继续」真正的落地动作
+    this.pauseWaiters.get(runId)?.();
+    this.pauseWaiters.delete(runId);
+  }
+
+  /**
+   * 暂停闸门：一直等到 resume／abort 落地再返回。
+   *
+   * ★ 第 24 条。修复前这个方法根本不存在：`pause()` 只往 `pausedRuns` 里塞一个 id，
+   *   全仓没有任何读取方，于是「暂停」是一条纯粹的空线——run 一步都不停。
+   *   单线程下「检查条件 → 登记 resolve」之间没有 await，不会和 resume 错身错过唤醒。
+   */
+  private async waitWhilePaused(runId: string): Promise<{ aborted: boolean }> {
+    while (this.pausedRuns.has(runId) && !this.abortedRuns.has(runId)) {
+      await new Promise<void>((resolve) => {
+        this.pauseWaiters.set(runId, resolve);
+      });
+    }
+    this.pauseWaiters.delete(runId);
+    return { aborted: this.abortedRuns.has(runId) };
   }
 
   /** 回滚：撤销改动（≠ 叫停）。走 Replayer，含手动修改冲突检测 */

@@ -66,6 +66,8 @@ async function runLoop(opts: LoopOpts = {}): Promise<{ code: string; used: numbe
       stateHash: async () => opts.stateHashFor?.(step) ?? `h${step}`,
       emit: () => undefined,
       isAborted: () => false,
+      isPaused: () => false,
+      waitWhilePaused: async () => ({ aborted: false }),
       isLocal: false,
       maxHistory: 50,
     },
@@ -101,6 +103,8 @@ describe('10 种结构化终止原因 —— 每条路径都要被覆盖', () =>
       stateHash: async () => 'h',
       emit: () => undefined,
       isAborted: () => false,
+      isPaused: () => false,
+      waitWhilePaused: async () => ({ aborted: false }),
       isLocal: false,
       maxHistory: 50,
     }, { ...LIMITS, maxTokens: 10 });
@@ -166,6 +170,8 @@ describe('10 种结构化终止原因 —— 每条路径都要被覆盖', () =>
       emit: () => undefined,
       // 第 3 步开始时用户叫停
       isAborted: () => n >= 3,
+      isPaused: () => false,
+      waitWhilePaused: async () => ({ aborted: false }),
       isLocal: false,
       maxHistory: 50,
     }, LIMITS);
@@ -212,6 +218,8 @@ describe('★ 闸门终止不回滚（架构 §1.4.1 关键决策）', () => {
       stateHash: async () => `h${Math.random()}`,
       emit: () => undefined,
       isAborted: () => false,
+      isPaused: () => false,
+      waitWhilePaused: async () => ({ aborted: false }),
       isLocal: false,
       maxHistory: 50,
     }, { ...LIMITS, maxSteps: 3 });

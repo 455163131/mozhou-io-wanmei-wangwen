@@ -44,6 +44,8 @@ describe('① VALIDATION_FAILED：真实可触发且带错误路径', () => {
         stateHash: async () => `h${n}`,
         emit: () => undefined,
         isAborted: () => false,
+        isPaused: () => false,
+        waitWhilePaused: async () => ({ aborted: false }),
         isLocal: false,
         maxHistory: 50,
       },
@@ -111,6 +113,8 @@ describe('① VALIDATION_FAILED：真实可触发且带错误路径', () => {
       stateHash: async () => `h${n}`,
       emit: () => undefined,
       isAborted: () => false,
+      isPaused: () => false,
+      waitWhilePaused: async () => ({ aborted: false }),
       isLocal: false,
       maxHistory: 50,
     }, DEFAULT_BUDGET);
@@ -337,6 +341,8 @@ describe('③ GOAL_ACHIEVED 端到端：健康分从低位升到达标', () => {
       stateHash: async () => (step === 1 ? 'h1' : `h${step}`),
       emit: () => undefined,
       isAborted: () => false,
+      isPaused: () => false,
+      waitWhilePaused: async () => ({ aborted: false }),
       isLocal: false,
       maxHistory: 50,
     }, { ...DEFAULT_BUDGET, maxSteps: 24 });
