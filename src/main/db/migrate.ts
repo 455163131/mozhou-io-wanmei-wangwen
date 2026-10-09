@@ -450,6 +450,20 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 10,
+    name: 'add_runs_unclosed_reported',
+    up(db) {
+      db.exec(`
+        -- ★ §4 第 26 条：T24「上次有 run 没走到收尾」这句提示要**只报一次**，
+        --   所以需要一个跟 run 本身状态无关的「已告知」时刻。
+        --   不复用 ended_at：那一列的语义是「run 什么时候结束」，而被强杀的 run
+        --   结束时刻是未知的——把我们注意到的那一刻写进去等于造一个假时间。
+        --   也不改 status：那条 run 确实没走到 terminated，历史上就该留着这个事实。
+        ALTER TABLE runs ADD COLUMN unclosed_reported_at INTEGER;
+      `);
+    },
+  },
 ];
 
 export function migrate(db: Database): void {

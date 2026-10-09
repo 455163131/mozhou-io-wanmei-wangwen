@@ -165,6 +165,11 @@ export class AgentHost {
     this.runControllers.set(runId, new AbortController());
 
     // 异步执行，不阻塞 IPC 返回
+    // ★ 第 26 条：**开跑这一刻先落一次库**。修复前 saveRun 只在 loop.run() 返回之后调一次
+    //   （见 runLoop），于是应用被强杀时 runs 表里连一行都没有——「上次有 run 没闭合」
+    //   这件事在数据上根本不存在，检测代码写得再好也读不出东西。
+    //   saveRun 走的是 upsert，结束那次会把 status / ended_at 覆盖掉，不会留脏行。
+    this.deps.saveRun(loop.state);
     void this.runLoop(loop);
     return { runId };
   }
@@ -202,7 +207,15 @@ export class AgentHost {
         stats: loop.state.stats,
         keptChanges: loop.state.stats.edits,
       });
+      // ★ 第 26 条：抛错这条路也必须落一次库。少了它，start 时那次写入留下的
+      //   「未闭合」行会永远停在那儿——下次开项目弹的是「上次崩了」，
+      //   而其实这次是走完并告知过用户的。
+      this.deps.saveRun(loop.state);
     } finally {
+      // ★ 第 26 条：跑完（或抛错）的快照必须留在 runStates 里。
+      //   修复前这张 map **全仓只读不写**，于是 getState(runId) 恒 null、
+      //   listRuns() 恒空——`agent:state`、`agent:history` 与 T24 的未闭合提示一起空转。
+      this.runStates.set(runId, loop.state);
       this.current = null;
       this.runControllers.delete(runId);
     }
@@ -741,13 +754,26 @@ export class AgentHost {
     });
   }
 
+  /**
+   * 读一条 run 的状态。`agent:state` 通道的实现就是它，所以**带 runId 也必须读得到正在跑的那条**——
+   * 修复前带 id 的分支只查 `runStates`（从没被写过）⇒ 连自己刚 start 的 run 都返回 null。
+   */
   getState(runId?: string): RunState | null {
-    if (!runId) return this.current?.state ?? null;
+    const live = this.current?.state ?? null;
+    if (!runId || live?.runId === runId) return live;
     return this.runStates.get(runId) ?? null;
   }
 
+  /**
+   * 本进程的 run 列表：当前这条排最前，其后是跑完的（按开跑时间倒序）。
+   * `agent:history` 走的就是这里。跨进程的「上次」不归它管，那是 `runs` 表 +
+   * `services.listUnclosedRuns()`（第 26 条）。
+   */
   listRuns(): RunState[] {
-    return [...this.runStates.values()].sort((a, b) => b.startedAt - a.startedAt);
+    const past = [...this.runStates.values()].sort((a, b) => b.startedAt - a.startedAt);
+    const live = this.current?.state ?? null;
+    if (!live) return past;
+    return [live, ...past.filter((r) => r.runId !== live.runId)];
   }
 
   /** 章节摘要（供上下文构建） */

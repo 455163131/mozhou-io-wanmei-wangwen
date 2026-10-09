@@ -103,6 +103,14 @@ export class AgentLoop {
     this.guard = new BudgetGuard(budgetLimits);
   }
 
+  /**
+   * 本次 run 的开始时刻（RunState.startedAt 的来源）。
+   * ★ 第 26 条：以前 `state.startedAt` 硬写 0，于是 runs 表里的 started_at 全靠
+   *   services 落库那一刻补 Date.now()（≈ 结束时间），「什么时候开的」永远读不到，
+   *   listRuns 的排序也只是在排一堆零。
+   */
+  private readonly startedAtMs = Date.now();
+
   /** 预算上限，供 UI 预算仪表展示 */
   get limits(): BudgetLimits {
     return this.budgetLimits;
@@ -124,7 +132,7 @@ export class AgentLoop {
       stats: this.stats,
       termination: this.termination,
       keptChanges: this.stats.edits,
-      startedAt: 0,
+      startedAt: this.startedAtMs,
       endedAt: this.phase === 'terminated' ? Date.now() : null,
     };
   }

@@ -59,6 +59,16 @@ const LEGACY_DDL = `
     day TEXT NOT NULL, delta_chars INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL,
     PRIMARY KEY (project_id, day)
   );
+  -- ★ runs 从 v2 就存在，真·v8 库里一定有这张表。这份"旧库"以前只造了本条迁移
+  --   用得上的六张表，结果任何后续迁移只要合法地碰 runs 就会在这里假失败——
+  --   §4 第 26 条的 v10 加列就是这么撞上的。补齐保真度，而不是把迁移写成带眼识人。
+  CREATE TABLE runs (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    goal TEXT NOT NULL, status TEXT NOT NULL, termination TEXT, stats_json TEXT,
+    kept_changes INTEGER NOT NULL DEFAULT 0,
+    started_at INTEGER NOT NULL, ended_at INTEGER
+  );
 `;
 
 function freshDb(): DB {

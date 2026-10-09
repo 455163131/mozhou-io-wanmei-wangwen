@@ -85,18 +85,24 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   handle('project:open', async (p) => {
     const project = await services.openProject(p.dir);
     // 检测上次是否有未闭合的 run —— 必须提示，不静默（架构 T24）
-    const unclosed = services.agentHost.listRuns().filter((r) => r.status !== 'terminated');
-    if (unclosed.length > 0) {
+    // ★ 第 26 条：以前判据是 `agentHost.listRuns()`——一张**从没被写过**的进程内 map，
+    //   恒空，所以这段提示一次都没发过；何况进程内的东西本来就看不见「上次」。
+    //   现在读真正存东西的 runs 表（配套：host 在开跑那一刻就先落一次库）。
+    //   终止码仍用 USER_ABORTED —— 10 种码是架构承诺（§1.4.1），不为「进程被强杀」新增第 11 种；
+    //   剩下的码里它最不离真：用户关掉了应用、停在第 N 步、改动都保留了。
+    //   不用 CONSECUTIVE_FAILURE：那会让面板打上「连续多次工具失败」，把关软件说成工具坏了。
+    const unclosed = services.listUnclosedRuns();
+    const [firstUnclosed] = unclosed;
+    if (firstUnclosed) {
       services.push.send('agent:terminated', {
-        runId: unclosed[0].runId,
-        reason: {
-          code: 'CONSECUTIVE_FAILURE',
-          failures: 1,
-          lastError: '上次运行异常中断（应用被强制关闭）。改动已保留，可在「改动历史」回滚。',
-        },
-        stats: unclosed[0].stats,
-        keptChanges: unclosed[0].keptChanges,
+        runId: firstUnclosed.runId,
+        reason: { code: 'USER_ABORTED', atStep: firstUnclosed.stats.steps + 1 },
+        stats: firstUnclosed.stats,
+        keptChanges: firstUnclosed.keptChanges,
       });
+      // ★ 报过就封账：这条提示是一次性的。少了这一句，强杀一次就会**每次开项目都弹同一条**，
+      //   比不弹更糟——用户会以为每次都崩了一回。
+      services.markUnclosedRunReported(firstUnclosed.runId);
     }
     return project;
   }, services);

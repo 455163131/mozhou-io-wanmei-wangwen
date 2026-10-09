@@ -18,6 +18,7 @@ import { DB_FILENAME } from './data-dir';
 import { ChapterRepo, ProjectRepo, StyleProfileRepo, percentiles } from './db/repos/chapter-repo';
 import { LedgerRepo } from './db/repos/ledger-repo';
 import { DailyWriteRepo } from './db/repos/daily-write-repo';
+import { RunRepo, type UnclosedRun } from './db/repos/run-repo';
 import { ToolRegistry, type ToolDeps } from './tools/registry';
 import { CheckpointManager } from './checkpoint/manager';
 import { Replayer } from './checkpoint/replayer';
@@ -69,6 +70,12 @@ export class AppServices {
   readonly ledgerRepo: LedgerRepo;
   /** 日增量账（§4 第 3 条：今日新增 / 连更 / 本月净增的唯一数据源） */
   readonly dailyWrites: DailyWriteRepo;
+  /**
+   * run 的读侧（§4 第 26 条）。单独一个 repo 而不是内联 SQL：
+   * AppServices 在 ELECTRON_RUN_AS_NODE 下造不出来，SQL 写在里面就一行测试都加不了——
+   * 那正是「未闭合检测」能空转到今天的原因之一。
+   */
+  readonly runs: RunRepo;
   readonly push = new PushChannel();
   readonly backup: BackupManager;
 
@@ -98,6 +105,8 @@ export class AppServices {
     this.dailyWrites = new DailyWriteRepo(this.db);
     this.chapterRepo = new ChapterRepo(this.db, this.dailyWrites);
     this.projectRepo = new ProjectRepo(this.db);
+    // run 的读侧（§4 第 26 条）：未闭合检测与一次性提示
+    this.runs = new RunRepo(this.db);
     this.styleRepo = new StyleProfileRepo(this.db);
     this.expertRepo = new ExpertReviewRepo(this.db);
     this.flavorRepo = new FlavorRepo(this.db);
@@ -558,6 +567,25 @@ export class AppServices {
       // 轨迹持久化失败不应中断 run——轨迹只是复盘用的
       void e;
     }
+  }
+
+  /**
+   * 上次没走到收尾的 run（应用被强杀 / 崩溃时留下的痕迹）。
+   *
+   * ★ 第 26 条。`project:open` 里那段「未闭合 run 必须提示，不静默」（架构 T24）以前读的是
+   *   `agentHost.listRuns()`——一张**从没被写过**的进程内 map，恒空，所以那段提示
+   *   一次都没发过；而且进程内的东西本来也看不见「上次」。
+   *   配套的另一半在 `host.ts`：开跑那一刻就先落一次库，否则被强杀的 run 连一行都没有。
+   *   口径与 SQL 都在 `RunRepo`——那里能上真库测试，写在这里一行测不了。
+   */
+  listUnclosedRuns(): UnclosedRun[] {
+    if (!this.currentProject) return [];
+    return this.runs.listUnclosed(this.currentProject.id);
+  }
+
+  /** 提示报过一次就封账：否则强杀一次，此后每次开项目都弹同一条 */
+  markUnclosedRunReported(runId: string): void {
+    this.runs.markReported(runId, Date.now());
   }
 
   // ── 风格指纹 ──
