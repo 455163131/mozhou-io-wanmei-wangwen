@@ -15,6 +15,7 @@ import type { StepRecord, TerminationReason, Plan, RunStats } from '@shared/type
 import type { LlmStatus } from '@shared/types/provider';
 import type { Checkpoint } from '@shared/types/checkpoint';
 import type { ChapterAnalysis, HealthReport } from '@shared/types/health';
+import { DEFAULT_THEME, type Theme } from '../lib/theme';
 
 // ───────────────────────── project-store ─────────────────────────
 
@@ -299,8 +300,15 @@ export const useAgentStore = create<AgentStoreState>()(
 interface SettingsState {
   writePolicy: 'preview-only' | 'auto-with-undo' | 'ask-per-tool';
   budget: { maxSteps: number; maxCostCny: number; maxTokens: number };
+  /**
+   * 皮肤。初值是 DEFAULT_THEME，**不在这里读 storage**——本文件归 tsconfig.node.json 管，
+   * 那个工程没有 DOM lib。启动时由 main.tsx 用 readTheme(localStorage) 同步进来。
+   */
+  theme: Theme;
   setWritePolicy: (p: SettingsState['writePolicy']) => void;
   setBudget: (b: Partial<SettingsState['budget']>) => void;
+  /** 只改状态。落 DOM 与持久化在 lib/theme-dom.ts 的 commitTheme，两边必须一起调 */
+  setTheme: (t: Theme) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -308,6 +316,7 @@ export const useSettingsStore = create<SettingsState>()(
     immer((set) => ({
       writePolicy: 'auto-with-undo',
       budget: { maxSteps: 24, maxCostCny: 5, maxTokens: 200_000 },
+      theme: DEFAULT_THEME,
       setWritePolicy: (p) =>
         set((s) => {
           s.writePolicy = p;
@@ -315,6 +324,10 @@ export const useSettingsStore = create<SettingsState>()(
       setBudget: (b) =>
         set((s) => {
           Object.assign(s.budget, b);
+        }),
+      setTheme: (t) =>
+        set((s) => {
+          s.theme = t;
         }),
     })),
   ),

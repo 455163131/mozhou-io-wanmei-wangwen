@@ -7,9 +7,17 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { bridge, errorText } from '../../hooks/use-mz-bridge';
+import { useSettingsStore } from '../../store';
+import { commitTheme } from '../../lib/theme-dom';
+import type { Theme } from '../../lib/theme';
 import { PROVIDERS } from '@shared/constants/providers';
 import type { LlmStatus } from '@shared/types/provider';
 import styles from './SettingsModal.module.css';
+
+const THEMES: Array<{ id: Theme; name: string }> = [
+  { id: 'ink', name: '深寂' },
+  { id: 'paper', name: '素笺' },
+];
 
 interface Props {
   status: LlmStatus | null;
@@ -20,6 +28,8 @@ interface Props {
 
 export function SettingsModal({ status, onClose, onSaved }: Props): JSX.Element {
   const settings = status?.settings ?? null;
+  const theme = useSettingsStore((s) => s.theme);
+  const setTheme = useSettingsStore((s) => s.setTheme);
   const [providerId, setProviderId] = useState(settings?.providerId ?? 'deepseek');
   const [baseUrl, setBaseUrl] = useState(settings?.baseUrl ?? '');
   const [model, setModel] = useState(settings?.model ?? '');
@@ -112,6 +122,29 @@ export function SettingsModal({ status, onClose, onSaved }: Props): JSX.Element 
           <button className={styles.close} onClick={onClose} aria-label='关闭'>
             ✕
           </button>
+        </div>
+
+        <div className={styles.themeRow}>
+          <span className={styles.themeLabel}>皮肤</span>
+          <div className={styles.themeSeg} role='group' aria-label='皮肤'>
+            {THEMES.map((t) => (
+              <button
+                key={t.id}
+                type='button'
+                className={theme === t.id ? styles.themeOn : styles.themeOpt}
+                aria-pressed={theme === t.id}
+                onClick={() => {
+                  // commitTheme 落 DOM + 写存储，setTheme 让这颗段控件自己显示选中态。
+                  // 三件事少做任一件：要么当场不变、要么重启忘光、要么按钮停在原处
+                  commitTheme(t.id);
+                  setTheme(t.id);
+                }}
+              >
+                {t.name}
+              </button>
+            ))}
+          </div>
+          <span className={styles.themeHint}>深寂给夜里日更，素笺是纸面原样。当场生效，重启记住。</span>
         </div>
 
         {!configured && (

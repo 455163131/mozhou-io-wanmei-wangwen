@@ -35,6 +35,15 @@
   --mz-bg-selected:  #F6E6E2; /* 朱砂淡晕选中（浓墨字 13.3:1）*/
   --mz-bg-subtle:    rgba(31, 33, 26, 0.05); /* 极淡墨染（v2 补：组件此前引用了未定义的幽灵令牌）*/
 
+  /* 氛围光 / 选区 / 遮罩 / 淡洗：此前**硬写**在 global.css 与组件里（6 处裸 rgba），
+   * 换肤时没人会想起来改它们，于是暗色下出现「纸面是黑的、选区是浅纸的淡朱」。
+   * 全部升格为令牌，两套皮肤各给一份。 */
+  --mz-ambient-a:    rgba(194, 76, 59, 0.03);  /* body 左上朱晕 */
+  --mz-ambient-b:    rgba(61, 90, 138, 0.03);  /* body 右下黛晕 */
+  --mz-selection-bg: rgba(194, 76, 59, 0.18);  /* ::selection */
+  --mz-scrim:        rgba(31, 33, 26, 0.42);   /* 模态压暗罩：暖墨而非纯黑 */
+  --mz-wash-ai:      rgba(194, 76, 59, 0.04);  /* 卡片渐变起点（PlanView .bookg）*/
+
   /* --------------------------------------------------------------------------
    * 2. TEXT
    * ------------------------------------------------------------------------ */
@@ -272,6 +281,96 @@
   --mz-status-risk:  var(--mz-sem-ai-fg);
   --mz-status-info:  var(--mz-sem-con-fg);
 }
+/* ============================================================================
+ * DARK SKIN  "深寂" (ink)   ——   [data-theme="ink"]，2026-10-10 定为默认皮肤
+ * ---------------------------------------------------------------------------
+ * 这里覆盖 :root 的**每一个**颜色与阴影令牌。漏一个不会报错，只会在暗色下变成
+ * 白字白底——所以成对与可读性由 tests/unit/theme-ink.test.ts 钉住：它按名比对两个块，
+ * 并现场用 WCAG 2.1 相对亮度公式算正文/次级/链接对所在面的比值（>= 4.5:1）。
+ *
+ * 三条与浅色皮肤方向相反的规则，是这套值的由来，不是照抄渲染稿：
+ *   1) **分层靠提亮而不是压暗**。亮度加权和（0-255）：canvas 13.8 < surface 19.8
+ *      < editor 25.5 < elevated 34.4。稿纸必须比桌面底亮，视线焦点才落在稿纸上；
+ *      浅色那套是反过来的（纸最亮、侧栏更沉，靠压暗分层）。
+ *   2) **hover 走亮不走深**。:root 里那条"浅色主题 hover 走深不走浅"在暗面上反过来：
+ *      暗面上加深等于没有反馈。
+ *   3) **朱砂分两档**。实底继续用 #C24C3B（近白字压上去 4.55:1，与浅色一致），
+ *      但凡是要当**字 / 链接 / 描边 / 焦点环**用的，必须提亮到 #EE795F：
+ *      #C24C3B 压在 #0A0E18 上实测只有 4.04:1——够非文本图形（>=3），不够正文（>=4.5）。
+ *      这是"高饱和红在暗底上掉可读性"的算术，不是审美偏好。
+ *
+ * 不用纯黑：最深一层 #0A0E18（藏蓝）。纯黑会让氛围光与阴影同时失效，长读也更累眼。
+ * ========================================================================== */
+[data-theme="ink"] {
+  /* 1. SURFACE LAYERS  (dark layering; separation = luminance + 1px hairline) */
+  --mz-bg-canvas:    #0A0E18; /* 藏蓝桌面底（不是纯黑）*/
+  --mz-bg-editor:    #121A2B; /* 稿纸：比桌面亮一档，焦点落点 */
+  --mz-bg-surface:   #0E1422; /* 侧栏：比稿纸沉，退到背景里 */
+  --mz-bg-elevated:  #18233A; /* 卡片、chips、列表行 */
+  --mz-bg-overlay:   #1B2740; /* 菜单、popover、模态 */
+  --mz-bg-inset:     #0B1120; /* 凹陷井（代码块、空轨道）*/
+  --mz-bg-hover:     #1A2540;
+  --mz-bg-active:    #22304F;
+  --mz-bg-selected:  #2C1B19; /* 朱砂淡晕的暗面对应物：暗红而不是淡红 */
+  --mz-bg-subtle:    rgba(226, 235, 255, 0.05);
+
+  --mz-ambient-a:    rgba(194, 76, 59, 0.07);
+  --mz-ambient-b:    rgba(61, 90, 138, 0.09);
+  --mz-selection-bg: rgba(238, 121, 95, 0.26);
+  --mz-scrim:        rgba(3, 6, 12, 0.62);
+  --mz-wash-ai:      rgba(238, 121, 95, 0.05);
+
+  /* 2. TEXT */
+  --mz-text-primary:   #F2F5FA; /* 浓墨的反面：近白（canvas 上 17.3:1）*/
+  --mz-text-body:      #DCE3EF; /* 正文（editor 上 13.1:1）*/
+  --mz-text-secondary: #A9B4C8; /* 次级（surface 上 8.8:1）*/
+  --mz-text-tertiary:  #8E9CB8; /* 弱化（canvas 上 7.0:1）*/
+  --mz-text-disabled:  #5C6678; /* 禁用（约 2.6:1，WCAG 豁免）*/
+  --mz-text-inverse:   #FFF9F6; /* 朱砂实底上的字，与浅色同 */
+  --mz-text-link:      #EE795F; /* 链接字（canvas 上 6.9:1）*/
+
+  /* 3. BORDER  (暗面上的描边是提亮的冷灰，不是压深的黑) */
+  --mz-border-subtle:  #1B2436;
+  --mz-border-default: #26314A;
+  --mz-border-strong:  #3A486A;
+  --mz-border-accent:  #B4503C;
+
+  /* 4. BRAND ACCENT  (朱砂；实底档不变，字/描边档见 --mz-text-link) */
+  --mz-accent:        #C24C3B; /* 实底：近白字压上去 4.55:1 */
+  --mz-accent-hover:  #D2593F; /* 暗面 hover 走亮 */
+  --mz-accent-active: #E0674B;
+  --mz-accent-soft:   #2A1714; /* 选中/信息条的暗朱底 */
+  --mz-accent-ink:    #FFF9F6;
+
+  /* 语义四族：fg 提亮到可读档，bg 换成同色相的暗洗 */
+  --mz-sem-ai-fg:      #EE795F;  --mz-sem-ai-bg:      #2A1714;
+  --mz-sem-ai-border:  #8E4436;  --mz-sem-ai-strong:  #F08C72;
+  --mz-sem-con-fg:     #8FB3E8;  --mz-sem-con-bg:     #131E33;
+  --mz-sem-con-border: #45608C;  --mz-sem-con-strong: #A6C4F0;
+  --mz-sem-warn-fg:    #E8B45C;  --mz-sem-warn-bg:    #2A2113;
+  --mz-sem-warn-border:#8A6A34;  --mz-sem-warn-strong:#F2C571;
+  --mz-sem-pass-fg:    #6FCB8A;  --mz-sem-pass-bg:    #12241A;
+  --mz-sem-pass-border:#3E7A52;  --mz-sem-pass-strong:#86DCA0;
+  --mz-sem-ink:        #FFF9F6;
+  --mz-focus-color:    #EE795F;  /* 焦点环是非文本图形，取字档亮度才看得见 */
+
+  /* 图表 */
+  --mz-chart-grid:      rgba(148, 163, 204, 0.12);
+  --mz-chart-axis:      #6C7A94;
+  --mz-chart-label:     #8E9CB8;
+  --mz-chart-neutral:   #566178;
+  --mz-chart-track:     #18233A;
+  --mz-chart-band:      rgba(238, 121, 95, 0.10);
+  --mz-chart-band-edge: rgba(238, 121, 95, 0.32);
+
+  /* 阴影：浅纸上的投影靠 6%-16% 墨色就够，暗面必须加重，否则卡片和底面糊成一片 */
+  --mz-shadow-none: none;
+  --mz-shadow-sm:   0 1px 2px rgba(3, 6, 12, 0.50);
+  --mz-shadow-md:   0 4px 14px rgba(3, 6, 12, 0.55);
+  --mz-shadow-lg:   0 12px 34px rgba(3, 6, 12, 0.60);
+  --mz-shadow-xl:   0 24px 60px rgba(3, 6, 12, 0.66);
+}
+
 
 /* ============================================================================
  * BASE / RESET helpers (optional - safe to use or ignore)

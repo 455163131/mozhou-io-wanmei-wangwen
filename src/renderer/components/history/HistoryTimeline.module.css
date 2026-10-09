@@ -101,7 +101,7 @@
 .dialogMask {
   position: fixed;
   inset: 0;
-  background: rgba(31, 33, 26, 0.42);
+  background: var(--mz-scrim);
   display: flex;
   align-items: center;
   justify-content: center;

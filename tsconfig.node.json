@@ -33,7 +33,11 @@
     // composite 项目要求被引用的实现文件出现在 include 里（否则 TS6307）。
     // 只纳入 DOM-free 的渲染层逻辑：store 是纯状态机，inline-marks 是纯区间映射
     // （不碰 document/窗口，只算偏移），组件/hooks 仍归 tsconfig.web.json。
+    // lib/theme.ts 同此例：它被 store 引用，且**必须**保持 DOM-free——
+    // 碰浏览器的部分在 lib/theme-dom.ts（只归 web）。这条由
+    // tests/unit/theme-ink.test.ts 的 D 组钉住，不靠人记得。
     "src/renderer/store/**/*.ts",
+    "src/renderer/lib/theme.ts",
     "src/renderer/components/editor/inline-marks.ts",
     "tests/**/*.ts",
     "electron.vite.config.ts"

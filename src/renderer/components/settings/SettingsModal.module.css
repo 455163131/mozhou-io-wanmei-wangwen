@@ -3,7 +3,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(31, 33, 26, 0.42); /* 纸面主题的压暗罩，暖墨而非纯黑 */
+  background: var(--mz-scrim); /* 压暗罩走令牌：暖墨而非纯黑，两套皮肤各一份 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -201,4 +201,71 @@
 .btnPrimary:hover:not(:disabled) {
   background: var(--mz-accent-hover);
   border-color: var(--mz-accent-hover);
+}
+
+/* ── 皮肤切换（§UI ①）──────────────────────────────────────────────────────
+ * 段控件不用全圆胶囊：圆角尺度是给「仪器」的，28px 高的控件做成 full 圆
+ * 读起来像标签而不像可点段。选中档用暗朱底 + 内描边，两套皮肤都靠令牌给值。 */
+.themeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--mz-border-subtle);
+}
+
+.themeLabel {
+  font-size: var(--mz-fs-sm);
+  color: var(--mz-text-secondary);
+  /* ★ 实测（截图）：不给 nowrap + flex:none，两个 CJK 字会被挤成竖排两行，
+   *   段控件里的「深寂」「素笺」同样上下堆叠——整行看起来像坏了。 */
+  white-space: nowrap;
+  flex: none;
+}
+
+.themeSeg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-sm);
+  flex: none;
+}
+
+.themeOpt,
+.themeOn {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--mz-fs-sm);
+  line-height: var(--mz-lh-sm);
+  padding: 4px 12px;
+  border-radius: var(--mz-radius-xs);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--mz-dur-fast) var(--mz-ease-standard),
+    color var(--mz-dur-fast) var(--mz-ease-standard);
+}
+
+.themeOpt {
+  color: var(--mz-text-secondary);
+}
+
+.themeOpt:hover {
+  color: var(--mz-text-primary);
+  background: var(--mz-bg-hover);
+}
+
+.themeOn {
+  color: var(--mz-accent-hover);
+  background: var(--mz-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--mz-border-accent);
+}
+
+.themeHint {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+  flex: 1 1 160px;
 }

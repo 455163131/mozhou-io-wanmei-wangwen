@@ -22,16 +22,16 @@ body {
   background: var(--mz-bg-canvas);
   /* 素笺环境光：左上朱晕 + 右下黛晕（极低透明度，只给「纸有纹理」的暗示）*/
   background-image:
-    radial-gradient(1200px 600px at 20% -10%, rgba(194, 76, 59, 0.03), transparent 60%),
-    radial-gradient(900px 500px at 95% 110%, rgba(61, 90, 138, 0.03), transparent 60%);
+    radial-gradient(1200px 600px at 20% -10%, var(--mz-ambient-a), transparent 60%),
+    radial-gradient(900px 500px at 95% 110%, var(--mz-ambient-b), transparent 60%);
   /* 桌面应用不需要字体抗锯齿以外的系统字体缩放 */
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 
-/* 文字选区：朱砂淡晕（素笺 selhl）*/
+/* 文字选区：朱砂淡晕（两套皮肤各一份，见 tokens 的 --mz-selection-bg）*/
 ::selection {
-  background: rgba(194, 76, 59, 0.18);
+  background: var(--mz-selection-bg);
   color: var(--mz-text-primary);
 }
 

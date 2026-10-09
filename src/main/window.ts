@@ -22,7 +22,13 @@ export function createWindow(services: AppServices): BrowserWindow {
     minWidth: 1280,
     minHeight: 800,
     show: false,
-    backgroundColor: '#0E1116',
+    /**
+     * 预绘底色，必须等于暗色皮肤的 `--mz-bg-canvas`（tokens.css 的 [data-theme="ink"]）。
+     * 主进程读不到 CSS 变量，所以这是一处**故意的复制**，由
+     * tests/unit/theme-ink.test.ts 断言两边相等来防漂移（改之前它一直停在换肤前的 #0E1116）。
+     * 取舍：默认皮肤是深寂，因此选素笺的用户会看到一帧暗底预绘——比反过来亮屏闪一下温和。
+     */
+    backgroundColor: '#0A0E18',
     title: APP_BRAND_NAME,
     autoHideMenuBar: false,
     webPreferences: {
