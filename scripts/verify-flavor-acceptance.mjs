@@ -12,7 +12,7 @@
  *   C5 值域与确定性                —— NaN/Infinity/负分/随机性
  *   C6 基线数据可复现              —— builder(715章) vs 提交的 JSON（改数据没重算）
  *   C7 builder ≡ DEFAULT_FLAVOR    —— 用户自建基线与内置基线同口径
- *   C8 引擎漂移检测                —— engine.ts md5 vs 基线 enginePin（改引擎没重算基线）
+ *   C8 引擎漂移检测                —— engine.ts 归一化 md5 vs 基线 enginePin（改引擎没重算基线）
  *
  * 运行：node scripts/verify-flavor-acceptance.mjs [--out data/flavor_acceptance_report.md]
  * 退出码：全部通过 = 0；任一 FAIL = 1（可直接接 CI）。
@@ -21,10 +21,9 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { ROOT, ENGINE_SRC, loadEngineBundle } from './lib-engine-bundle.mjs';
+import { ROOT, loadEngineBundle, engineSourceMd5 } from './lib-engine-bundle.mjs';
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 
@@ -44,8 +43,6 @@ const BUILDER_BUNDLE = path.join(__dirname, '.builder-bundle.mjs');
 /** baseline 常量 bundle（DEFAULT_FLAVOR_BASELINE / isBaselineStale） */
 const BASELINE_SRC = path.join(ROOT, 'src', 'shared', 'ai-flavor', 'baseline.ts');
 const BASELINE_BUNDLE = path.join(__dirname, '.baseline-bundle.mjs');
-
-const md5 = (buf) => crypto.createHash('md5').update(buf).digest('hex');
 
 // ── 结果收集 ─────────────────────────────────────────────────────────
 const results = [];
@@ -251,14 +248,14 @@ function c6c7() {
 function c8() {
   const dataJson = JSON.parse(fs.readFileSync(DATA_JSON, 'utf8'));
   const pinned = dataJson.enginePin?.engineSrcMd5 ?? null;
-  const current = md5(fs.readFileSync(ENGINE_SRC));
+  const current = engineSourceMd5();
   const pass = pinned !== null && pinned === current;
   check(
     'C8',
-    '引擎漂移检测（engine.ts md5 = 基线 enginePin）',
+    '引擎漂移检测（engine.ts 行尾归一化 md5 = 基线 enginePin）',
     pass,
     pass
-      ? `md5=${current.slice(0, 8)}… 与基线一致`
+      ? `md5=${current.slice(0, 8)}… 与基线一致（口径：CRLF→LF 归一化后求，与本机行尾无关）`
       : `engine.ts md5=${current.slice(0, 8)}… ≠ 基线 pin=${String(pinned).slice(0, 8)}… —— 改了引擎但没重算基线，分数与基线不可比！`,
   );
 }

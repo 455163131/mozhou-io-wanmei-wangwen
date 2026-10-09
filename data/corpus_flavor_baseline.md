@@ -1,7 +1,7 @@
 # 715 章 AI 味全维度基线（corpus_flavor_baseline）
 
 - **engineVersion**: `2.0.0`
-- **engine.ts md5（口径 pin）**: `88d5a88ebf4b2f5292abaaeb6be72ab8`（1249 行）
+- **engine.ts md5（口径 pin，行尾归一化 CRLF→LF 后求）**：与本机工作区原始字节的 md5 可能不同（autocrlf），但跨机器、跨检出方式稳定：`22437e38248d5c1d645cf80d21eaa1d7`（1249 行）
 - **词表规模**: TEMPLATE_CONNECTORS=18、AI_MARKERS=9（含朱雀 P1 副词+动词）、PARALLEL_PATTERNS=10
 - **语料**: `C:/Users/Administrator/Doubao/chats/2026-09-25/new-chat/分章_修复`
 - **章节**: 715/715 成功，0 跳过

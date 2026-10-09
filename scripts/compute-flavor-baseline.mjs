@@ -27,10 +27,18 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 // ★ bundle 装配（缺失/过期检测 + esbuild JS API 重建 + 动态 import）已抽到共享模块，
 //   与 scripts/verify-flavor-acceptance.mjs（T05）共用同一份——避免两份副本口径漂移。
-import { ROOT, ENGINE_SRC, ENGINE_BUNDLE, loadEngineBundle } from './lib-engine-bundle.mjs';
+//   引擎 pin 的哈希口径（行尾归一化）也从同一处取：compute 落 pin、verify 查漂移，
+//   两边必须是同一个函数，否则换机器/换行尾就会假报「改了引擎没重算基线」。
+import {
+  ROOT,
+  ENGINE_SRC,
+  ENGINE_BUNDLE,
+  loadEngineBundle,
+  md5Normalized,
+  engineSourceMd5,
+} from './lib-engine-bundle.mjs';
 
 // ── 装配引擎 bundle（缺/过期则就地重建），再取其导出 ──────────────────
 //   逻辑在 ./lib-engine-bundle.mjs（共享）；必须用动态 import：
@@ -99,16 +107,16 @@ function percentile(sorted, p) {
 
 const r4 = (x) => (x == null ? null : Number(x.toFixed(4)));
 
-const md5 = (buf) => crypto.createHash('md5').update(buf).digest('hex');
-
 /** 引擎修订 pin：把基线钉死到确切的 engine.ts 版本，避免并发改动导致基线漂移 */
 function buildEnginePin() {
-  const src = fs.readFileSync(ENGINE_SRC);
+  const src = fs.readFileSync(ENGINE_SRC, 'utf8');
   return {
     engineSrc: ENGINE_SRC,
-    engineSrcMd5: md5(src),
-    engineSrcLines: src.toString('utf8').split('\n').length,
-    engineBundleMd5: fs.existsSync(ENGINE_BUNDLE) ? md5(fs.readFileSync(ENGINE_BUNDLE)) : null,
+    engineSrcMd5: engineSourceMd5(),
+    engineSrcLines: src.split('\n').length,
+    engineBundleMd5: fs.existsSync(ENGINE_BUNDLE)
+      ? md5Normalized(fs.readFileSync(ENGINE_BUNDLE, 'utf8'))
+      : null,
     engineVersion: FLAVOR_ENGINE_VERSION,
     counts: {
       TEMPLATE_CONNECTORS: TEMPLATE_CONNECTORS.length,
@@ -116,7 +124,9 @@ function buildEnginePin() {
       PARALLEL_PATTERNS: PARALLEL_PATTERNS.length,
     },
     note:
-      '口径来源 = 上述 engine.ts（md5 已 pin）。若 engine.ts 变更，需重建 .engine-bundle.mjs 并重跑本脚本；' +
+      '口径来源 = 上述 engine.ts（md5 已 pin）。md5 一律**先归一化行尾（CRLF→LF）再求**，' +
+      '所以本机 autocrlf 的工作区与版本库里的 LF 得到同一个值，换机器重跑不会假报漂移。' +
+      '若 engine.ts 变更，需重建 .engine-bundle.mjs 并重跑本脚本；' +
       '注意 AI_MARKERS 实为 ' + AI_MARKERS.length + ' 条（含朱雀 P1「副词+动词」），非任务描述的 8 条。',
   };
 }
@@ -492,7 +502,7 @@ function renderMd(out) {
   lines.push('# 715 章 AI 味全维度基线（corpus_flavor_baseline）');
   lines.push('');
   lines.push(`- **engineVersion**: \`${out.engineVersion}\``);
-  lines.push(`- **engine.ts md5（口径 pin）**: \`${out.enginePin.engineSrcMd5}\`（${out.enginePin.engineSrcLines} 行）`);
+  lines.push(`- **engine.ts md5（口径 pin，行尾归一化 CRLF→LF 后求）**：与本机工作区原始字节的 md5 可能不同（autocrlf），但跨机器、跨检出方式稳定：\`${out.enginePin.engineSrcMd5}\`（${out.enginePin.engineSrcLines} 行）`);
   lines.push(
     `- **词表规模**: TEMPLATE_CONNECTORS=${out.enginePin.counts.TEMPLATE_CONNECTORS}、AI_MARKERS=${out.enginePin.counts.AI_MARKERS}（含朱雀 P1 副词+动词）、PARALLEL_PATTERNS=${out.enginePin.counts.PARALLEL_PATTERNS}`,
   );

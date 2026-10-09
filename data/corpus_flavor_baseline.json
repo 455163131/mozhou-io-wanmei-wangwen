@@ -3,7 +3,7 @@
  "featureVersion": "1.0.0",
  "enginePin": {
   "engineSrc": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-07-19-01-04\\MozhouAgent\\src\\shared\\ai-flavor\\engine.ts",
-  "engineSrcMd5": "88d5a88ebf4b2f5292abaaeb6be72ab8",
+  "engineSrcMd5": "22437e38248d5c1d645cf80d21eaa1d7",
   "engineSrcLines": 1249,
   "engineBundleMd5": "15b433d4f7106dbca2336bc61c595da3",
   "engineVersion": "2.0.0",
@@ -12,7 +12,7 @@
    "AI_MARKERS": 9,
    "PARALLEL_PATTERNS": 10
   },
-  "note": "口径来源 = 上述 engine.ts（md5 已 pin）。若 engine.ts 变更，需重建 .engine-bundle.mjs 并重跑本脚本；注意 AI_MARKERS 实为 9 条（含朱雀 P1「副词+动词」），非任务描述的 8 条。"
+  "note": "口径来源 = 上述 engine.ts（md5 已 pin）。md5 一律**先归一化行尾（CRLF→LF）再求**，所以本机 autocrlf 的工作区与版本库里的 LF 得到同一个值，换机器重跑不会假报漂移。若 engine.ts 变更，需重建 .engine-bundle.mjs 并重跑本脚本；注意 AI_MARKERS 实为 9 条（含朱雀 P1「副词+动词」），非任务描述的 8 条。"
  },
  "generatedBy": "MozhouAgent/scripts/compute-flavor-baseline.mjs",
  "deterministic": true,

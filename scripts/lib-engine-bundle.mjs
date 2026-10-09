@@ -16,6 +16,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -36,6 +37,24 @@ export const ENGINE_BUNDLE_DEPS = [
 export const ESBUILD_CLI =
   'node_modules/.bin/esbuild src/shared/ai-flavor/engine.ts --bundle --format=esm ' +
   '--platform=node --alias:@shared=./src/shared --outfile=scripts/.engine-bundle.mjs';
+
+/**
+ * 行尾归一化（CRLF→LF）后的 md5 —— **引擎 pin 的唯一口径**。
+ *
+ * ★ 为什么要归一化：`.gitattributes` 是 `* text=auto eol=lf`，本机 `core.autocrlf=true`，
+ *   所以 engine.ts 在工作区是 CRLF、在版本库里是 LF。实测两个字节 md5：
+ *   工作区 `88d5a88e…`、`git cat-file -p HEAD:` `22437e38…`，差的正好是每行一个 `\r`
+ *   （53693 vs 52445 字节 = 行数 1248）。直接钉原始字节等于钉死"换台机器就报引擎漂移"，
+ *   而引擎一个字符都没动 —— pin 该钉代码，不该钉编辑器行为。
+ */
+export function md5Normalized(text) {
+  return crypto.createHash('md5').update(String(text).replace(/\r\n/g, '\n'), 'utf8').digest('hex');
+}
+
+/** engine.ts 的归一化 md5：compute 落 pin、verify 查漂移，两边都只走这一个函数 */
+export function engineSourceMd5() {
+  return md5Normalized(fs.readFileSync(ENGINE_SRC, 'utf8'));
+}
 
 /** 一组文件里最新的 mtime（毫秒）；缺失文件按 0 计（存在性另有检查） */
 function newestMtimeMs(paths) {

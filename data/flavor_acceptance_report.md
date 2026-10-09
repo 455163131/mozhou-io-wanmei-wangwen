@@ -1,6 +1,6 @@
 # AI 味校准 · 验收报告
 
-- 时间：2026-10-09T01:48:47.352Z
+- 时间：2026-10-09T02:19:47.306Z
 - 引擎版本：2.0.0｜特征口径：1.0.0
 - 结果：**9/9 通过**
 
@@ -14,4 +14,4 @@
 | C6 | 基线数据可复现（builder vs 提交 JSON） | ✅ PASS | used=715/715；p95 最大偏差 0.0e+0（），阈值 0.01 |
 | C7 | builder ≡ DEFAULT_FLAVOR_BASELINE | ✅ PASS | p95 最大偏差 3.9e-3（comma_period_ratio），阈值 0.01 —— 超标即「用户重建基线换了把尺」 |
 | C6b | 零膨胀 corpusMaxCount 与提交值一致 | ✅ PASS | connector=1（期望 1）、parallel=2（期望 2） |
-| C8 | 引擎漂移检测（engine.ts md5 = 基线 enginePin） | ✅ PASS | md5=88d5a88e… 与基线一致 |
+| C8 | 引擎漂移检测（engine.ts 行尾归一化 md5 = 基线 enginePin） | ✅ PASS | md5=22437e38… 与基线一致（口径：CRLF→LF 归一化后求，与本机行尾无关） |

@@ -141,7 +141,7 @@
   text-decoration-color: var(--mz-sem-ai-fg);
 }
 .severe {
-  text-decoration-color: var(--mz-sem-err-fg);
+  text-decoration-color: var(--mz-sem-ai-strong);
   text-decoration-thickness: 2px;
 }
 
@@ -158,5 +158,5 @@
 }
 .risk {
   text-decoration-style: dotted;
-  text-decoration-color: var(--mz-sem-err-fg);
+  text-decoration-color: var(--mz-sem-ai-fg);
 }
