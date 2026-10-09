@@ -36,7 +36,7 @@ import { MzError } from '@shared/types/ipc';
 import { BackupManager, type BackupStats } from './fs/backup';
 import { ensureDir } from './fs/project-fs';
 import { countChars } from '@shared/util/text-zh';
-import { displayKey, hasApiKey, getApiKeyForFetch, saveApiKey } from './llm/keyring';
+import { credentialState, displayKey, hasApiKey, getApiKeyForFetch, saveApiKey } from './llm/keyring';
 import type { LlmProvider, LlmStatus, ProviderSettings, ProviderCapabilities } from '@shared/types/provider';
 // 专家团（独立模块）
 import { ExpertReviewRepo } from './db/repos/expert-review-repo';
@@ -388,6 +388,8 @@ export class AppServices {
       baseUrl: this.baseUrlOverride || p.defaultBaseUrl,
       model: this.model,
       hasKey,
+      // ★ 必须在 await hasApiKey() 之后取：状态是 loadApiKey 顺手记下的，先读会拿到旧值
+      keyState: credentialState(),
       displayKey: await displayKey(),
       capabilities: this.capabilities ?? p.capabilities,
       probedAt: this.probedAt,

@@ -42,6 +42,23 @@ export interface LlmProvider {
   probe?: () => Promise<Partial<ProviderCapabilities>>;
 }
 
+/**
+ * ★ Key 凭据文件的真实状态（§4 第 14 条②）。
+ *
+ * safeStorage 的密钥按机器 / 按 Windows 用户（DPAPI），所以「有文件」不等于「能用」：
+ * 便携包换机器后旧 llm-credentials.bin 必然解不开。修复前只有 hasKey 一个布尔，
+ * 「从没配过」和「配过但解不开」都显示成"未配置"，用户完全不知道问题出在哪。
+ */
+export type CredentialState =
+  /** 解得开，可用 */
+  | 'ok'
+  /** 根本没有凭据文件：用户确实还没配 Key */
+  | 'none'
+  /** 文件在但解不开 —— 换机器 / 换 Windows 用户，必须让用户重新输入 */
+  | 'needs-reentry'
+  /** 读不出字节或加密后端不可用 —— 原因未知，不能谎报成"换机器了" */
+  | 'unreadable';
+
 /** provider 的可配置项（不含 Key —— Key 走 keyring，渲染层永远拿不到明文） */
 export interface ProviderSettings {
   providerId: string;
@@ -51,6 +68,8 @@ export interface ProviderSettings {
   hasKey: boolean;
   /** 掩码后的 Key，如 sk-a•••xyz；绝不是明文 */
   displayKey: string;
+  /** hasKey 为 false 时区分「没配过」和「配过但解不开」 */
+  keyState: CredentialState;
   capabilities: ProviderCapabilities;
   /** 上次能力探测时间；0 = 从未探测 */
   probedAt: number;

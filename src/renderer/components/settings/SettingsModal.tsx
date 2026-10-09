@@ -128,7 +128,13 @@ export function SettingsModal({ status, onClose, onSaved }: Props): JSX.Element 
             {configured
               ? `${status?.uiState.kind === 'unconfigured' ? '已配置' : '已配置'} · ${
                   settings?.model || '（未填模型 ID）'
-                } · Key ${settings?.hasKey ? settings.displayKey : '未配置'}`
+                } · Key ${
+                  settings?.hasKey
+                    ? settings.displayKey
+                    : settings?.keyState === 'needs-reentry'
+                      ? '旧凭据本机解不开'
+                      : '未配置'
+                }`
               : '未配置'}
           </span>
           <span className={styles.mode}>
@@ -139,6 +145,24 @@ export function SettingsModal({ status, onClose, onSaved }: Props): JSX.Element 
             {uiKind === 'unconfigured' && '规则模式可用（不需要模型）'}
           </span>
         </div>
+
+        {/*
+          ★ §4 第 14 条②：safeStorage 的密钥按机器 / 按 Windows 用户，
+          便携包换机器后旧凭据文件必然解不开。以前这只显示成「Key 未配置」，
+          用户不知道自己手上有一份解不了的旧凭据，得给他一句能照着做的话。
+        */}
+        {settings?.keyState === 'needs-reentry' && (
+          <div className={styles.warn}>
+            检测到一份本机打不开的旧 Key —— 换过电脑或换过 Windows 账户后，加密密钥就变了。
+            请在下方重新输入 API Key 并保存，保存后这条提示会消失。
+          </div>
+        )}
+        {settings?.keyState === 'unreadable' && (
+          <div className={styles.warn}>
+            Key 文件当前读不出来（系统加密后端不可用，或文件被占用）。
+            同样重新输入并保存即可恢复；若保存后仍提示，请检查安全软件是否拦截了数据目录。
+          </div>
+        )}
 
         {/* 表单 */}
         <label className={styles.label}>
