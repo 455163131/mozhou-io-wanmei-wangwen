@@ -3,9 +3,9 @@
  "featureVersion": "1.0.0",
  "enginePin": {
   "engineSrc": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-07-19-01-04\\MozhouAgent\\src\\shared\\ai-flavor\\engine.ts",
-  "engineSrcMd5": "76e30388e0c6ea7f5b785a2eca4ade28",
-  "engineSrcLines": 1251,
-  "engineBundleMd5": "ae0feac010a8d5630a6386a127145b74",
+  "engineSrcMd5": "88d5a88ebf4b2f5292abaaeb6be72ab8",
+  "engineSrcLines": 1249,
+  "engineBundleMd5": "15b433d4f7106dbca2336bc61c595da3",
   "engineVersion": "2.0.0",
   "counts": {
    "TEMPLATE_CONNECTORS": 18,

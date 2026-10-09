@@ -53,6 +53,8 @@ export interface MzBridge {
     analyze(chapterIds?: string[]): Promise<IpcInvokeMap['health:analyze']['res']>;
     report(chapterIds?: string[]): Promise<IpcInvokeMap['health:report']['res']>;
     locate(metric: string, chapterIds?: string[]): Promise<IpcInvokeMap['health:locate']['res']>;
+    /** 编辑器行内标注：一次拿全这一章可定位的偏差项（§4 第 20 条②） */
+    locateChapter(chapterId: string): Promise<IpcInvokeMap['health:locate-chapter']['res']>;
     rules(layer?: string): Promise<IpcInvokeMap['health:rules']['res']>;
   };
 
@@ -168,6 +170,7 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'health:analyze',
   'health:report',
   'health:locate',
+  'health:locate-chapter',
   'health:rules',
   'ledger:query',
   'ledger:upsert',

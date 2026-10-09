@@ -14,7 +14,7 @@ import type {
   StyleProfile,
   Volume,
 } from './project';
-import type { ChapterAnalysis, HealthReport, IssueLocation, RuleInfo } from './health';
+import type { ChapterAnalysis, HealthReport, IssueLocation, LocatedIssue, RuleInfo } from './health';
 import type { ChangeSet, ToolSpec } from './tool';
 import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, LedgerCounts } from './ledger';
 import type { Checkpoint, RollbackResult } from './checkpoint';
@@ -143,6 +143,19 @@ export interface IpcInvokeMap {
   'health:analyze': { req: { chapterIds?: string[] }; res: ChapterAnalysis[] };
   'health:report': { req: { chapterIds?: string[] }; res: HealthReport };
   'health:locate': { req: { metric: string; chapterIds?: string[] }; res: IssueLocation[] };
+  /**
+   * 编辑器行内标注专用（§4 第 20 条②）：把**这一章**所有偏差项一次定位完。
+   *
+   * ★ 为什么不复用 `health:locate` 让渲染层按指标循环调：
+   *   1. 判定（哪些项超标）与坐标必须出自**同一份正文快照**。分 N 次调的话中间
+   *      自动保存一落盘，标注就会莫名消失——用户看到的是"我没改它，线没了"；
+   *   2. `IssueLocation` 只有 `at` 没有长度，画不出区间，也没有能逐字回验的片段，
+   *      所以这条通道回的是 `LocatedIssue`（at + length + excerpt）。
+   *      那是 UI 形状，不该塞给 Agent——工具返回值会原样进提示词。
+   *   3. 渲染层因此不需要知道"哪些指标可定位、radius 多少"，这些口径留在主进程。
+   * 只读通道：不落 checkpoint、不写盘，与 `health:analyze` 同一档。
+   */
+  'health:locate-chapter': { req: { chapterId: string }; res: LocatedIssue[] };
   'health:rules': { req: { layer?: string }; res: RuleInfo[] };
 
   'ledger:query': { req: LedgerQuery; res: { conflicts: LedgerConflict[]; characters: CharacterProfile[] } };
@@ -402,6 +415,7 @@ export const IPC_CHANNELS = [
   'health:analyze',
   'health:report',
   'health:locate',
+  'health:locate-chapter',
   'health:rules',
   'ledger:query',
   'ledger:upsert',

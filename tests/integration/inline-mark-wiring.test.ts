@@ -34,8 +34,13 @@ function block(name: string): string {
 }
 
 describe('A. 编辑器真的用上了映射层', () => {
-  it('从 ./inline-marks 引入 marksFromHits 与 segmentsOf', () => {
-    expect(editor).toMatch(/import \{ marksFromHits, segmentsOf[^}]*\} from '\.\/inline-marks'/);
+  it('从 ./inline-marks 引入映射层（第 20 条②之后又多两个：体检映射 + 跨源合并）', () => {
+    // 原来钉的是字面顺序 `marksFromHits, segmentsOf`，加进 marksFromLocations/mergeMarks
+    // 之后顺序变了。改成"同一条 import 里两个名字都在"，比按顺序匹配更经得起改名。
+    const imp = editor.match(/import \{([^}]*)\} from '\.\/inline-marks'/);
+    expect(imp, '编辑器没从 ./inline-marks 引入映射层').not.toBeNull();
+    expect(imp![1]).toContain('marksFromHits');
+    expect(imp![1]).toContain('segmentsOf');
     expect(editor).toMatch(/marksFromHits\(/);
     expect(editor).toMatch(/segmentsOf\(/);
   });

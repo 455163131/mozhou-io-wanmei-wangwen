@@ -104,7 +104,9 @@ describe('★ 段落定位：重复段落不许都指向第一次出现处', () 
  * §4 原文的另一半猜测是对的，这里用实测把它钉住（node 复核过 split 边界）：
  * `split(/(?<=[。！？…])/)` 是**在终止符之后**断开，换行符归**下一个**片段，
  * 于是跨段的重复句文字自带 `\n` 前缀、整段文本唯一 → indexOf 恰好给对位置。
- * 所以这个缺陷只在段内重复时暴露，跨段那一半边原本是对的，不能弄坏（最后一条用例）。
+ * 所以这个缺陷只在段内重复时暴露。跨段那一半守住的是**累加口径**：逐片段累加必须
+ * 等于逐片段反查（最后一条用例）。至于片段自带的那个 `\n`，§4 第 20 条②起不再算进
+ * 命中区间——它是上一句的行尾，不是这一句的开头。
  *
  * 语义上不需要新决策：修复前的代码本来就把同一句的两次出现各报一条
  * （只是两条都指向首次出现处），本条只把 `at` 改对，命中条数与排序口径不变。
@@ -178,14 +180,25 @@ describe('★ 句子定位：段内重复句不许都指向第一次出现处', 
 
   it('跨段重复句：片段自带 \\n 前缀使文本唯一，累加不许弄坏原本对的那半边', async () => {
     // 断言用 indexOf 独立反查真位置——这里能信，正是因为三个片段文本互不相同
-    // （换行归下一片段）。这条在修复前后都应为绿，是「修 A 不许坏 B」的护栏。
+    // （换行归下一片段）。护栏没松：仍是「逐片段累加 = 逐片段反查」，只是每个位置
+    // 各自减掉它自己的前导空白长度。
     const body = `${SENT_DUP}\n过渡一句。\n${SENT_DUP}\n`;
     const frags = [SENT_DUP, '\n过渡一句。', `\n${SENT_DUP}`];
     const { locations } = await runSentOn(body, 'avgSent');
 
     expect(frags.map((f) => body.indexOf(f))).toEqual([0, SENT_DUP.length, SENT_DUP.length + 6]);
     expect(locations.map((l) => l.at).sort((a, b) => a - b)).toEqual(
-      frags.map((f) => body.indexOf(f)).sort((a, b) => a - b),
+      // ★ §4 第 20 条②改口径：换行符不属于句子。波浪线要从句子第一个字起笔，
+      //   从 `…两次。\n` 的那个 \n 起笔会画在上一句行尾，看着像标错了地方。
+      frags
+        .map((f) => body.indexOf(f) + (f.length - f.trimStart().length))
+        .sort((a, b) => a - b),
     );
+    const trimmed = frags.map((f) => f.trim());
+    for (const l of locations) {
+      const hit = trimmed.find((t) => body.slice(l.at, l.at + t.length) === t);
+      expect(hit, `at=${l.at} 处不是任何一句（去前导空白后）的起点`).toBeTruthy();
+      expect(body[l.at], `at=${l.at} 落在换行/空白上，镜像层的线会从上一行起笔`).not.toBe('\n');
+    }
   });
 });

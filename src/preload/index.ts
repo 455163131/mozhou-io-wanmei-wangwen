@@ -93,6 +93,7 @@ const bridge: MzBridge = {
     analyze: (chapterIds) => invoke('health:analyze', { chapterIds }),
     report: (chapterIds) => invoke('health:report', { chapterIds }),
     locate: (metric, chapterIds) => invoke('health:locate', { metric, chapterIds }),
+    locateChapter: (chapterId) => invoke('health:locate-chapter', { chapterId }),
     rules: (layer) => invoke('health:rules', { layer }),
   },
 

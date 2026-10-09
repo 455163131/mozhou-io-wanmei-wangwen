@@ -18,6 +18,7 @@ import {
   analyzeChapter,
   getHealthReport,
   listFixRules,
+  locateChapterIssues,
   locateIssues,
 } from '../tools/impl/analyze';
 import { atomicWrite, ensureDir, resolveInProject } from '../fs/project-fs';
@@ -302,6 +303,25 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     const r = await locateIssues({ metric: p.metric, chapterIds: p.chapterIds }, fakeCtx(), s.registryDeps());
     if (!r.ok || !r.data) return [];
     return r.data.locations;
+  }, services);
+
+  /**
+   * 编辑器行内标注的数据源（§4 第 20 条②）：一次调用把这一章所有偏差项定位完。
+   *
+   * ★ 与 `health:locate` 的分工见 `ipc.ts` 那条注释——判定与坐标必须出自同一份
+   *   正文快照，所以这里一次调到底，绝不让渲染层按指标循环调（中间一落盘，
+   *   标注就会莫名消失，用户看到的是"我没改它，线没了"）。
+   *   依赖复用 `s.registryDeps()`：与只读工具同一份装配，两处不漂移。
+   *   算不出（章被删 / 切了项目）回空数组——标注是锦上添花，不许打扰写作主链路；
+   *   但 `chapterId` 传了个非字符串进来是调用点的缺陷，那种要响。
+   */
+  handle('health:locate-chapter', async (p, s) => {
+    if (typeof p.chapterId !== 'string' || !p.chapterId) {
+      throw new MzError('E_INVALID_ARGS', 'chapterId 必须是字符串');
+    }
+    const r = await locateChapterIssues({ chapterId: p.chapterId }, fakeCtx(), s.registryDeps());
+    if (!r.ok || !r.data) return [];
+    return r.data.issues;
   }, services);
 
   handle('health:rules', async (p) => {

@@ -46,6 +46,12 @@ import {
   type FlavorMetricKey,
   type MetricBaseline,
 } from './baseline';
+/**
+ * excerpt 口径全仓只有一份（见 `text-zh.ts` 的注释）：检测端写、编辑器端重算回验。
+ * 这里原来自带一个私有 `excerptOf`，与 `inline-marks.ts` 的私有 `excerptAt` 是手抄的两份，
+ * 谁改了 pad 谁悄悄失效——第 20 条②要把体检命中也画上线，三份口径必须并成一份。
+ */
+import { excerptAround } from '@shared/util/text-zh';
 
 export const FLAVOR_ENGINE_VERSION = '2.0.0';
 
@@ -937,14 +943,6 @@ function paragraphOf(slices: ParagraphSlice[], offset: number): number {
   return slices.length > 0 ? slices[slices.length - 1].no : 0;
 }
 
-function excerptOf(text: string, index: number, len: number, pad = 12): string {
-  const s = Math.max(0, index - pad);
-  const e = Math.min(text.length, index + len + pad);
-  const head = s > 0 ? '…' : '';
-  const tail = e < text.length ? '…' : '';
-  return head + text.slice(s, e) + tail;
-}
-
 function makeHit(
   text: string,
   slices: ParagraphSlice[],
@@ -963,7 +961,7 @@ function makeHit(
     kind,
     level,
     severity,
-    excerpt: cfg.includeExcerpts ? excerptOf(text, index, length) : '',
+    excerpt: cfg.includeExcerpts ? excerptAround(text, index, length) : '',
     offset: index,
     length,
     paragraphNo: paragraphOf(slices, index),

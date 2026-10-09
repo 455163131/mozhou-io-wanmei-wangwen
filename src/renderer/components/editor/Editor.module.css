@@ -144,3 +144,19 @@
   text-decoration-color: var(--mz-sem-err-fg);
   text-decoration-thickness: 2px;
 }
+
+/*
+ * 体检的两档（§4 第 20 条②）。线型用点线而不是波浪线：段落级/句子级命中说的是
+ * "统计结果落在这一片"，跟"这个词是 AI 味标志词"不是一回事，一眼要能分开。
+ * 颜色仍按严重程度走既有的语义 token，没引入新色值。
+ * ★ 这两档在 inline-marks.ts 的 LEVEL_ORDER 里排在全部 AI 味档位之下，
+ *   所以与标志词重叠时并入更细的那一条，不会把要改的词涂成统计线的颜色。
+ */
+.warn {
+  text-decoration-style: dotted;
+  text-decoration-color: var(--mz-sem-warn-fg);
+}
+.risk {
+  text-decoration-style: dotted;
+  text-decoration-color: var(--mz-sem-err-fg);
+}

@@ -168,6 +168,27 @@ export function snippetAround(text: string, at: number, radius = 12): string {
   return `${prefix}${text.slice(start, end)}${suffix}`;
 }
 
+/**
+ * 命中区间的原文片段：命中本身（`[start, start+len)`）前后各带 `pad` 个字符，越界补 `…`。
+ *
+ * ★ 这条口径**同时是"正文改过就不许画"的依据**，所以它是全仓唯一的一份：
+ *   生产端 `shared/ai-flavor/engine.ts` 与 `main/tools/impl/analyze.ts` 用它写 excerpt，
+ *   消费端 `renderer/components/editor/inline-marks.ts` 用当前正文在同一位置重算一遍，
+ *   逐字不一致就丢弃那条。两边各写一份的话，只要 pad 或补省略号的条件漂了，
+ *   回验就会**永远失败**（标注静默消失）或**永远通过**（波浪线画到别的句子上）。
+ *
+ * 与 snippetAround 的差别不是 pad 大小，而是**锚点**：这里 `start` 是命中的起点，
+ * 片段要把整条命中框住（`start+len+pad`）；snippetAround 把 `at` 当中心，
+ * 长命中会被截断，反推不出命中有多长，所以不能拿来做回验。
+ */
+export function excerptAround(text: string, start: number, len: number, pad = 12): string {
+  const s = Math.max(0, start - pad);
+  const e = Math.min(text.length, start + len + pad);
+  const head = s > 0 ? '…' : '';
+  const tail = e < text.length ? '…' : '';
+  return `${head}${text.slice(s, e)}${tail}`;
+}
+
 /** 参数摘要：截断长文本，避免把整章正文塞进轨迹面板 */
 export function summarizeArg(v: unknown, maxLen = 60): string {
   if (v === null || v === undefined) return '';

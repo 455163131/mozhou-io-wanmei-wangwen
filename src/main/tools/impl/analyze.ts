@@ -4,11 +4,17 @@
  * 全部 ★1 Precise（只读 + 精确可还原），不落 checkpoint。
  */
 import type { ToolContext, ToolResult } from '@shared/types/tool';
-import type { ChapterAnalysis, AnalysisIssue, IssueLocation, RuleInfo } from '@shared/types/health';
+import type {
+  ChapterAnalysis,
+  AnalysisIssue,
+  IssueLocation,
+  LocatedIssue,
+  RuleInfo,
+} from '@shared/types/health';
 import { analyze, judge, isSufficient, healthScore, MARKERS } from '@shared/metrics-engine';
 import { MARKER_KEYS } from '@shared/metrics-engine';
 import { autoRules, negativeRules } from '../../rule-engine/fix-rules';
-import { snippetAround } from '@shared/util/text-zh';
+import { snippetAround, excerptAround } from '@shared/util/text-zh';
 import type { BaselineLike } from '../../rule-engine/plan-fixes';
 
 export interface ReadOnlyDeps {
@@ -167,6 +173,138 @@ export async function getHealthReport(
   }
 }
 
+/** 一次命中在生产端的完整形状：坐标 + 长度 + 回验凭据 + 展示用短引文 */
+interface RichHit {
+  at: number;
+  length: number;
+  excerpt: string;
+  quote: string;
+  note: string;
+}
+
+/**
+ * 组装一条命中。
+ *
+ * ★ `length === 0` 时 excerpt 必须是空串：渲染层靠「有 excerpt 才可能画」来判断
+ *   这条值不值得逐字回验，给它一个非空片段等于骗它"这里有位置"。
+ */
+function richHit(
+  body: string,
+  at: number,
+  length: number,
+  radius: number,
+  note: string,
+): RichHit {
+  return {
+    at,
+    length,
+    excerpt: length > 0 ? excerptAround(body, at, length) : '',
+    quote: snippetAround(body, at, radius),
+    note,
+  };
+}
+
+/**
+ * 去掉片段首尾的空白后重新算坐标。
+ *
+ * 句子分支的片段跨段时**自带 `\\n` 前缀**（`split(/(?<=[。！？…])/)` 在终止符之后断开，
+ * 换行归下一片段，见 §4 第 12 条的注释），段落分支可能是空行。直接按原样画线，
+ * 波浪线会从行首的空白起笔，看着像标在了上一句上。
+ */
+function trimSpan(body: string, at: number, text: string, radius: number): RichHit | null {
+  const lead = text.length - text.trimStart().length;
+  const span = text.trim();
+  if (span.length === 0) return null;
+  return richHit(body, at + lead, span.length, radius, '');
+}
+
+/** 在单章内定位某指标的具体位置 */
+function locateRichInChapter(body: string, metric: string): RichHit[] {
+  const out: RichHit[] = [];
+
+  // marker 类：直接找命中位置
+  if (metric.startsWith('marker:')) {
+    const name = metric.slice(7);
+    const re = MARKERS[name];
+    if (!re) return out;
+    const rx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
+    let m: RegExpExecArray | null;
+    while ((m = rx.exec(body)) !== null) {
+      const hit = trimSpan(body, m.index, m[0], 14);
+      if (hit) out.push({ ...hit, note: `命中标记「${name}」` });
+      if (m.index === rx.lastIndex) rx.lastIndex++;
+    }
+    return out;
+  }
+
+  // openType：定位首行
+  if (metric === 'openType') {
+    const firstLine = body.split('\n')[0] ?? '';
+    const timeOpen = /^[一二三四五六七八九十百千零两0-9]+(月|号|日|年|点)/.test(firstLine.trim());
+    const note = timeOpen
+      ? '章首为「时间+地点」公式，建议把时间挪到第二段，先给画面'
+      : '章首为叙述/动作起笔';
+    const hit = trimSpan(body, 0, firstLine, 20);
+    out.push(hit ? { ...hit, note } : richHit(body, 0, 0, 20, note));
+    return out;
+  }
+
+  // 结构类指标：定位最长句/最长段（偏离的主要来源）
+  if (metric === 'avgSent' || metric === 'sentCv') {
+    // 最长的几句。偏移必须按 split 顺序逐句累加：`body.indexOf(句子)` 永远从 0 起找，
+    // 同一句重复出现时两条命中都指向首次出现处（§4 第 12 条，与段落分支同病）。
+    // 与段落分支的累加口径差 1：句子片段自带终止符，片段之间没有被吃掉的分隔符。
+    let offset = 0;
+    const sentences = body
+      .split(/(?<=[。！？…])/)
+      .map((s) => {
+        const at = offset;
+        offset += s.length;
+        return { s, at };
+      })
+      .filter((x) => x.s.trim().length > 0)
+      .sort((x, y) => y.s.length - x.s.length)
+      .slice(0, 3);
+    for (const x of sentences) {
+      const hit = trimSpan(body, x.at, x.s, 18);
+      if (hit) out.push({ ...hit, note: '较长的句子（影响句长分布）' });
+    }
+    return out;
+  }
+  if (metric === 'avgPara' || metric === 'sentsPerPara') {
+    const paras = body.split('\n');
+    // 偏移必须按文档顺序逐段累加。用 body.indexOf(段落) 反查会让重复段落
+    // 的两条命中都落到首次出现处，而 at 是给 replace_phrase / UI 高亮用的。
+    let offset = 0;
+    const list = paras
+      .map((p) => {
+        const at = offset;
+        offset += p.length + 1;
+        return { p, at };
+      })
+      .sort((x, y) => y.p.length - x.p.length)
+      .slice(0, 3);
+    for (const x of list) {
+      const hit = trimSpan(body, x.at, x.p, 18);
+      // 空段落也在 top-3 里（原行为，不许改 Agent 的命中条数），但它没有可画的区间
+      out.push(hit ? { ...hit, note: '段落长度影响段落级指标' } : richHit(body, x.at, 0, 18, '段落长度影响段落级指标'));
+    }
+    return out;
+  }
+
+  // 其余指标（TTR 类）：给出全书级说明，不逐句定位
+  out.push(
+    richHit(
+      body,
+      0,
+      0,
+      20,
+      `该指标反映全书用字多样性，无法定位到具体位置；建议用 fix_repetition 处理。`,
+    ),
+  );
+  return out;
+}
+
 /** 工具 3：locate_issues —— 逐字可寻的偏移，供 UI 高亮与 Agent 定位 */
 export async function locateIssues(
   args: { metric: string; chapterIds?: string[] },
@@ -195,7 +333,10 @@ export async function locateIssues(
     for (const id of ids) {
       const body = bodies.get(id);
       if (body === undefined) continue;
-      locations.push(...locateInChapter(id, body, args.metric));
+      // 载荷保持四键：这里的返回值会原样进 Agent 的提示词，多一个字段就多花一份 token
+      for (const h of locateRichInChapter(body, args.metric)) {
+        locations.push({ chapterId: id, at: h.at, quote: h.quote, note: h.note });
+      }
     }
 
     return { ok: true, data: { locations }, durationMs: Date.now() - started };
@@ -208,102 +349,61 @@ export async function locateIssues(
   }
 }
 
-/** 在单章内定位某指标的具体位置 */
-function locateInChapter(chapterId: string, body: string, metric: string): IssueLocation[] {
-  const out: IssueLocation[] = [];
-
-  // marker 类：直接找命中位置
-  if (metric.startsWith('marker:')) {
-    const name = metric.slice(7);
-    const re = MARKERS[name];
-    if (!re) return out;
-    const rx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
-    let m: RegExpExecArray | null;
-    while ((m = rx.exec(body)) !== null) {
-      out.push({
-        chapterId,
-        at: m.index,
-        quote: snippetAround(body, m.index, 14),
-        note: `命中标记「${name}」`,
-      });
-      if (m.index === rx.lastIndex) rx.lastIndex++;
+/**
+ * UI 专用：把**这一章**所有偏差项一次定位完（§4 第 20 条②）。
+ *
+ * ★ 为什么不复用工具 3 让渲染层按指标逐个调：
+ *   1. 一次读正文、一次 `analyze`，判定与坐标出自**同一份快照**——分 N 次调的话
+ *      中间自动保存落盘，判定说「段落均长超标」、坐标却指向改完后的位置，标注会莫名消失；
+ *   2. 渲染层不必知道哪些指标可定位、radius 是多少，这些口径留在生产端。
+ *
+ * 只遍历 `analysis.issues`（level ≠ ok）：达标项不该画上线。
+ */
+export async function locateChapterIssues(
+  args: { chapterId: string },
+  _ctx: ToolContext,
+  deps: ReadOnlyDeps,
+): Promise<ToolResult<{ issues: LocatedIssue[] }>> {
+  const started = Date.now();
+  try {
+    if (!args.chapterId) {
+      return {
+        ok: false,
+        durationMs: Date.now() - started,
+        error: { code: 'E_INVALID_ARGS', message: '缺少 chapterId', retryable: false },
+      };
     }
-    return out;
-  }
+    const bodies = await deps.getBodies([args.chapterId]);
+    const body = bodies.get(args.chapterId);
+    // 章不存在（被删了 / 切了项目）不算错误：没有正文就没有标注
+    if (body === undefined) return { ok: true, data: { issues: [] }, durationMs: Date.now() - started };
 
-  // openType：定位首行
-  if (metric === 'openType') {
-    const firstLine = body.split('\n')[0] ?? '';
-    const timeOpen = /^[一二三四五六七八九十百千零两0-9]+(月|号|日|年|点)/.test(firstLine.trim());
-    out.push({
-      chapterId,
-      at: 0,
-      quote: snippetAround(body, 0, 20),
-      note: timeOpen
-        ? '章首为「时间+地点」公式，建议把时间挪到第二段，先给画面'
-        : '章首为叙述/动作起笔',
-    });
-    return out;
-  }
-
-  // 结构类指标：定位最长句/最长段（偏离的主要来源）
-  if (metric === 'avgSent' || metric === 'sentCv') {
-    // 最长的几句。偏移必须按 split 顺序逐句累加：`body.indexOf(句子)` 永远从 0 起找，
-    // 同一句重复出现时两条命中都指向首次出现处（§4 第 12 条，与段落分支同病）。
-    // 与段落分支的累加口径差 1：句子片段自带终止符，片段之间没有被吃掉的分隔符。
-    let offset = 0;
-    const sentences = body
-      .split(/(?<=[。！？…])/)
-      .map((s) => {
-        const at = offset;
-        offset += s.length;
-        return { s, at };
-      })
-      .filter((x) => x.s.trim().length > 0)
-      .sort((x, y) => y.s.length - x.s.length)
-      .slice(0, 3);
-    for (const x of sentences) {
-      out.push({
-        chapterId,
-        at: x.at,
-        quote: snippetAround(body, x.at, 18),
-        note: '较长的句子（影响句长分布）',
-      });
+    const analysis = analyzeOne(args.chapterId, body, deps.baseline());
+    const issues: LocatedIssue[] = [];
+    for (const iss of analysis.issues) {
+      for (const h of locateRichInChapter(body, iss.key)) {
+        issues.push({
+          metric: iss.key,
+          label: iss.label,
+          level: iss.level,
+          value: iss.value,
+          unit: iss.unit,
+          band: iss.band,
+          at: h.at,
+          length: h.length,
+          excerpt: h.excerpt,
+          note: h.note,
+        });
+      }
     }
-    return out;
+    return { ok: true, data: { issues }, durationMs: Date.now() - started };
+  } catch (e) {
+    return {
+      ok: false,
+      durationMs: Date.now() - started,
+      error: { code: 'E_INTERNAL', message: String(e), retryable: true },
+    };
   }
-  if (metric === 'avgPara' || metric === 'sentsPerPara') {
-    const paras = body.split('\n');
-    // 偏移必须按文档顺序逐段累加。用 body.indexOf(段落) 反查会让重复段落
-    // 的两条命中都落到首次出现处，而 at 是给 replace_phrase / UI 高亮用的。
-    let offset = 0;
-    const list = paras
-      .map((p) => {
-        const at = offset;
-        offset += p.length + 1;
-        return { p, at };
-      })
-      .sort((x, y) => y.p.length - x.p.length)
-      .slice(0, 3);
-    for (const x of list) {
-      out.push({
-        chapterId,
-        at: x.at,
-        quote: snippetAround(body, x.at, 18),
-        note: '段落长度影响段落级指标',
-      });
-    }
-    return out;
-  }
-
-  // 其余指标（TTR 类）：给出全书级说明，不逐句定位
-  out.push({
-    chapterId,
-    at: 0,
-    quote: snippetAround(body, 0, 20),
-    note: `该指标反映全书用字多样性，无法定位到具体位置；建议用 fix_repetition 处理。`,
-  });
-  return out;
 }
 
 /** 工具 4：list_fix_rules —— 让 Agent 自己读规则表 */
