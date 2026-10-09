@@ -10,6 +10,9 @@
  * 改名（§4 第 19 条①）：双击某章进入行内改名，Enter/失焦提交、Esc 取消。
  * 提交后以主进程返回的 meta 覆盖那一行——改名不动 `rev`，编辑器里正在写的正文
  * 不该因为改标题而撞乐观锁。
+ *
+ * 导入旧稿（§4 第 19 条②）：「导入旧稿 .md」把项目 `chapters/` 里已有的稿子读进库。
+ * 只此一个入口，打开项目不会自动导；结果按导入/跳过/认不出三桶原样报给用户。
  */
 import { useMemo, useState } from 'react';
 import { useProjectStore } from '../../store';
@@ -42,6 +45,8 @@ export function ChapterTree(): JSX.Element {
   const [creating, setCreating] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importNote, setImportNote] = useState<string | null>(null);
 
   // 按卷分组；无卷的放「未分卷」
   const grouped = useMemo(() => {
@@ -112,6 +117,40 @@ export function ChapterTree(): JSX.Element {
     }
   };
 
+  /**
+   * 导入 `chapters/*.md` 旧稿（§4 第 19 条②）。
+   * 三个桶都要说：只报"导入 N 章"会让用户以为导完了，而磁盘上还有一堆没进来。
+   * 整表回读而不是本地拼：新章的 `ord` 与字数都由主进程定，界面不猜。
+   */
+  const importMarkdown = async (): Promise<void> => {
+    const api = bridge();
+    if (!api || importing) return;
+    setImporting(true);
+    setErr(null);
+    try {
+      const r = await api.chapter.importMarkdown();
+      setChapters(await api.chapter.list());
+      const parts = [`扫到 ${r.scanned} 个 .md，导入 ${r.imported.length} 章`];
+      if (r.skipped.length > 0) {
+        parts.push(`跳过 ${r.skipped.length} 个（库里已有同号，正文没动）`);
+      }
+      if (r.unresolved.length > 0) {
+        const names = r.unresolved
+          .slice(0, 3)
+          .map((u) => u.fileName)
+          .join('、');
+        parts.push(
+          `认不出 ${r.unresolved.length} 个：${names}${r.unresolved.length > 3 ? '…' : ''}`,
+        );
+      }
+      setImportNote(parts.join('；'));
+    } catch (e) {
+      setErr(errorText(e));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const newForm = (
     <div className={styles.newform}>
       <input
@@ -135,6 +174,15 @@ export function ChapterTree(): JSX.Element {
       >
         {creating ? '建章中…' : '新建章节'}
       </button>
+      <button
+        className={styles.btn}
+        disabled={importing}
+        onClick={() => void importMarkdown()}
+        title="把项目 chapters 目录里已有的 .md 旧稿读进库。库里已有同号的会跳过，正文不覆盖；目录里的文件一个都不删改。"
+      >
+        {importing ? '导入中…' : '导入旧稿 .md'}
+      </button>
+      {importNote && <div className={styles.note}>{importNote}</div>}
     </div>
   );
 

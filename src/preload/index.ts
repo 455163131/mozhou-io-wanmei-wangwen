@@ -86,6 +86,7 @@ const bridge: MzBridge = {
     reorder: (ids) => invoke('chapter:reorder', { ids }),
     setVolume: (chapterId, volumeId) => invoke('chapter:set-volume', { chapterId, volumeId }),
     setTitle: (chapterId, title) => invoke('chapter:set-title', { chapterId, title }),
+    importMarkdown: () => invoke('chapter:import-md'),
   },
 
   health: {

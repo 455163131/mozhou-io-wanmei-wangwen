@@ -5,7 +5,15 @@
  * 禁止在业务代码里手写字符串通道名。契约先冻结再写实现，否则后面全返工（T02 是架构级卡点）。
  */
 import type { LlmStatus } from './provider';
-import type { Chapter, ChapterMeta, DailySummary, Project, Volume, StyleProfile } from './project';
+import type {
+  Chapter,
+  ChapterMeta,
+  DailySummary,
+  MdImportOutcome,
+  Project,
+  StyleProfile,
+  Volume,
+} from './project';
 import type { ChapterAnalysis, HealthReport, IssueLocation, RuleInfo } from './health';
 import type { ChangeSet, ToolSpec } from './tool';
 import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, LedgerCounts } from './ledger';
@@ -123,6 +131,14 @@ export interface IpcInvokeMap {
     req: { chapterId: string; title: string };
     res: ChapterMeta;
   };
+  /**
+   * 导入 `chapters/*.md` 旧稿（§4 第 19 条②）。
+   * ★ req 是 void：要扫的目录永远是**当前项目**的 `chapters/`，故意不给界面传路径——
+   *   那等于开一个目录穿越的口子（见 `resolveInProject` 的防线）。
+   *   非破坏性：库里已有同号就跳过、正文绝不覆盖，磁盘上的 .md 一个都不删不改。
+   *   只在用户显式点「导入旧稿」时调用，打开项目时**不自动跑**。
+   */
+  'chapter:import-md': { req: void; res: MdImportOutcome };
 
   'health:analyze': { req: { chapterIds?: string[] }; res: ChapterAnalysis[] };
   'health:report': { req: { chapterIds?: string[] }; res: HealthReport };
@@ -382,6 +398,7 @@ export const IPC_CHANNELS = [
   'chapter:reorder',
   'chapter:set-volume',
   'chapter:set-title',
+  'chapter:import-md',
   'health:analyze',
   'health:report',
   'health:locate',

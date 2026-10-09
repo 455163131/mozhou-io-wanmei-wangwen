@@ -44,6 +44,8 @@ export interface MzBridge {
     setVolume(chapterId: string, volumeId: string | null): Promise<IpcInvokeMap['chapter:set-volume']['res']>;
     /** 改标题：只改 title，不动正文与 rev（见 IpcInvokeMap['chapter:set-title'] 的注释） */
     setTitle(chapterId: string, title: string): Promise<IpcInvokeMap['chapter:set-title']['res']>;
+    /** 导入 chapters/*.md 旧稿。不传路径：目录固定是当前项目的 chapters/ */
+    importMarkdown(): Promise<IpcInvokeMap['chapter:import-md']['res']>;
   };
 
   // 体检（只读）
@@ -162,6 +164,7 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'chapter:reorder',
   'chapter:set-volume',
   'chapter:set-title',
+  'chapter:import-md',
   'health:analyze',
   'health:report',
   'health:locate',

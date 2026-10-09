@@ -260,6 +260,21 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     }
   }, services);
 
+  /**
+   * 导入 `chapters/*.md` 旧稿（§4 第 19 条②）。
+   * 不接任何参数：目录固定是当前项目的 `chapters/`，传路径就是目录穿越的口子。
+   * 结果原样回给界面 —— 三个桶（导入/跳过/认不出）都得让用户看见，这里不替它汇总。
+   */
+  handle('chapter:import-md', async (_p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    try {
+      return await s.importMarkdownChapters();
+    } catch (e) {
+      if (e instanceof MzError) throw e;
+      throw new MzError('E_INVALID_ARGS', e instanceof Error ? e.message : String(e));
+    }
+  }, services);
+
   // ── health（只读）──
   handle('health:analyze', async (p, s) => {
     const ctx = fakeCtx();

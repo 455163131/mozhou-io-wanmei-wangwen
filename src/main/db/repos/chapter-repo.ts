@@ -287,6 +287,71 @@ export class ChapterRepo {
     });
   }
 
+  /**
+   * 批量导入旧稿（§4 第 19 条②）。与 `createChapter` **刻意相反**：
+   * 这里的 `id`（章号）由调用方从文件名带进来 —— 导入必须保持作者原来的编号，
+   * 重新编号等于把他书里的"见第 12 章"全打乱。
+   *
+   * ★ 三条硬规矩，都在这个事务里：
+   *   · **撞号就整批回滚**。调用方（`planMarkdownImport`）已经按库里的号筛过一遍，
+   *     这里再查一次：计划和库之间可能插进一次 Agent 建章，只信计划等于赌。
+   *     半批导入更糟 —— 用户分不清哪些进来了，再跑一次就是重复。
+   *   · 只收纯数字章号。非数字 id（楔子、番外）得由作者自己命名，不该拿文件名当主键。
+   *   · `volumeId` 一律 null：旧稿的卷归属不能靠猜，导入后由作者拖进卷。
+   *
+   * `ord` 从全书末尾往后追加（按入参顺位），既有章节的顺位一个都不动。
+   */
+  importChapters(
+    projectId: string,
+    drafts: ReadonlyArray<{ id: string; title: string; body: string }>,
+  ): ChapterMeta[] {
+    if (!projectId) throw new Error('导入章节被拒绝：没有打开项目');
+    const proj = this.db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId) as
+      | { id: string }
+      | undefined;
+    if (!proj) throw new Error(`导入章节被拒绝：项目不存在 ${projectId}`);
+
+    const seen = new Set<string>();
+    for (const d of drafts) {
+      if (!/^\d{1,4}$/u.test(d.id)) {
+        throw new Error(`导入章节被拒绝：「${d.id}」不是章号（只认 1-9999 的阿拉伯数字）`);
+      }
+      if (seen.has(d.id)) throw new Error(`第${d.id}章已存在：本次导入里有两个文件解出同一个号`);
+      seen.add(d.id);
+    }
+
+    const rows = this.db
+      .prepare('SELECT id FROM chapters WHERE project_id = ?')
+      .all(projectId) as Array<{ id: string }>;
+    const have = new Set(rows.map((r) => r.id));
+    const next = this.db
+      .prepare('SELECT COALESCE(MAX(ord), -1) + 1 AS n FROM chapters WHERE project_id = ?')
+      .get(projectId) as { n: number };
+
+    const out: ChapterMeta[] = [];
+    let ord = next.n;
+    this.db.transaction(() => {
+      for (const d of drafts) {
+        if (have.has(d.id)) {
+          throw new Error(`第${d.id}章已存在，导入不许覆盖库里正在写的那份正文`);
+        }
+        have.add(d.id);
+        out.push(
+          this.insert({
+            id: d.id,
+            projectId,
+            title: d.title.trim(),
+            volumeId: null,
+            order: ord++,
+            status: 'draft',
+            body: d.body,
+          }),
+        );
+      }
+    })();
+    return out;
+  }
+
   /** 缓存指标（500 章仅 0.25MB，可全量缓存） */
   /**
    * 拖拽重排：`orderedIds` 必须是本项目全部章节的**恰好一个排列**。

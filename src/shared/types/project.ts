@@ -82,6 +82,26 @@ export interface Volume {
   order: number;
 }
 
+/**
+ * 导入 `chapters/*.md` 旧稿的结果（§4 第 19 条②）。
+ *
+ * ★ 三个桶必须分开报，不能只回一个"成功 N 章"：
+ *   跳过的（库里已有同号，正文**没动**）和报不出来的（文件名认不出章号、
+ *   编码解不开、空文件）都是用户接下来要动手处理的东西。吞掉任何一桶，
+ *   用户都会以为"导完了"，而磁盘上还有半屋子稿子没进来。
+ * 契约放 shared 是因为渲染层要直接吃它，而判定逻辑在主进程。
+ */
+export interface MdImportOutcome {
+  /** 扫到的 .md 数量（含没进来的） */
+  scanned: number;
+  /** 真进了库的章，带文件名好让用户对着回看 */
+  imported: Array<{ fileName: string; meta: ChapterMeta }>;
+  /** 库里已有同号 → 原样保留库里的，这份没导入 */
+  skipped: Array<{ fileName: string; reason: string }>;
+  /** 认不出章号 / 解不开编码 / 没有正文 */
+  unresolved: Array<{ fileName: string; reason: string }>;
+}
+
 /** 风格指纹：按章计算分位数而非对拼接文本取均值（架构 §1.7） */
 export interface MetricSpec {
   label: string;

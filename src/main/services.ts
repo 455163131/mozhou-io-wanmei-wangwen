@@ -6,7 +6,7 @@
  */
 import { join, resolve } from 'node:path';
 import { app } from 'electron';
-import type { Project, StyleProfile, ProjectBackup } from '@shared/types/project';
+import type { Project, StyleProfile, ProjectBackup, MdImportOutcome } from '@shared/types/project';
 import { PROJECT_BACKUP_FORMAT_VERSION } from '@shared/types/project';
 import type { CharacterProfile, LedgerConflict, NumberAnchor, TimelineEvent, Foreshadow } from '@shared/types/ledger';
 import type { LedgerCounts, LedgerEntries } from '@shared/types/ledger';
@@ -35,6 +35,8 @@ import { isAllowedLlmBaseUrl } from '@shared/util/external-url';
 import { MzError } from '@shared/types/ipc';
 import { BackupManager, type BackupStats } from './fs/backup';
 import { ensureDir } from './fs/project-fs';
+import { planMarkdownImport } from './fs/md-import';
+import { scanMarkdownChapters } from './fs/md-scan';
 import { countChars } from '@shared/util/text-zh';
 import { credentialState, displayKey, hasApiKey, getApiKeyForFetch, saveApiKey } from './llm/keyring';
 import type { LlmProvider, LlmStatus, ProviderSettings, ProviderCapabilities } from '@shared/types/provider';
@@ -158,6 +160,37 @@ export class AppServices {
 
     this.push.send('project:opened', { projectId: project.id });
     return project;
+  }
+
+  /**
+   * 导入当前项目 `chapters/*.md` 里的旧稿（§4 第 19 条②）。
+   *
+   * ★ 只由 `chapter:import-md` 显式触发，`openProject()` **不调它**：
+   *   打开项目就自动扫描 = 用户什么都没点，库里的章节自己多了几条。
+   *   解析口径不合他意时，那就是"我的书自己变了"。
+   * ★ 非破坏性：磁盘上的 .md 一个都不删、不改名、不移动。导入口径错了，
+   *   原件还在原地，作者可以自己改文件名再点一次（同号的会跳过，不会重复）。
+   * 扫目录的口径（顶层、只收 .md）在 `fs/md-scan.ts`，判定与排队的口径在 `fs/md-import.ts`。
+   */
+  async importMarkdownChapters(): Promise<MdImportOutcome> {
+    const proj = this.currentProject;
+    if (!proj) throw new MzError('E_INVALID_ARGS', '未打开项目');
+
+    const files = await scanMarkdownChapters(join(proj.rootDir, 'chapters'));
+    const existing = this.chapterRepo.listMeta(proj.id).map((m) => m.id);
+    const plan = planMarkdownImport(files, existing);
+    const metas = this.chapterRepo.importChapters(
+      proj.id,
+      plan.imported.map((d) => ({ id: d.id, title: d.title, body: d.body })),
+    );
+    if (metas.length > 0) this.backup.noteEdit();
+
+    return {
+      scanned: files.length,
+      imported: metas.map((meta, i) => ({ fileName: plan.imported[i]?.fileName ?? '', meta })),
+      skipped: plan.skipped,
+      unresolved: plan.unresolved,
+    };
   }
 
   closeProject(): void {
