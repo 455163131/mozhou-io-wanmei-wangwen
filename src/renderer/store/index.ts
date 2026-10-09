@@ -243,11 +243,17 @@ export const useAgentStore = create<AgentStoreState>()(
         set((s) => {
           // 幂等：同 stepNo 重复 push 时更新而非追加（事件重放场景）
           const i = s.steps.findIndex((x) => x.stepNo === step.stepNo);
-          if (i >= 0) s.steps[i] = { ...s.steps[i], ...step };
-          else s.steps.push(step);
+          const prev = i >= 0 ? s.steps[i] : null;
+          const merged = prev ? { ...prev, ...step } : step;
+          if (prev) s.steps[i] = merged;
+          else s.steps.push(merged);
           s.stats.steps = s.steps.length;
-          s.stats.edits += step.edits?.length ?? 0;
-          if (step.checkpointId) s.stats.checkpoints += 1;
+          // ★ 第 27 条：计数必须按**增量**算，不能重推一次就翻一倍。
+          //   修复前这两行是裸 `+=`：注释自称幂等，账却不幂等。以前每步只推一次
+          //   所以看不出来；现在同一步要推两次（running → 终态），回滚后还会再推一次
+          //   （rolled-back），edits / checkpoints 会被算成两倍。
+          s.stats.edits += (merged.edits?.length ?? 0) - (prev?.edits?.length ?? 0);
+          if (merged.checkpointId && !prev?.checkpointId) s.stats.checkpoints += 1;
         }),
       updateStep: (stepNo, patch) =>
         set((s) => {

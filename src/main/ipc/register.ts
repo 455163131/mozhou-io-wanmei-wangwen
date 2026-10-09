@@ -468,13 +468,10 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   // ── checkpoint ──
   handle('checkpoint:list', (p, s) => s.checkpoints.listForRun(p.runId), services);
   handle('checkpoint:undo', async (p, s) => {
-    const r = await s.replayer.undoTo(p.checkpointId, p.force === true);
-    s.push.send('checkpoint:rolled-back', {
-      checkpointId: p.checkpointId,
-      undone: r.undone,
-      lostManualEdits: r.lostManualEdits,
-    });
-    return r;
+    // ★ 第 27 条：走 host 这个唯一入口。修复前这里直连 replayer 并自己再发一次
+    //   checkpoint:rolled-back——结果是 ① 被撤的步骤在轨迹里仍是 ✓（StepStatus 的
+    //   rolled-back 零产出方），② host 那条同名事件形同虚设。现在事件只由 host 发。
+    return s.agentHost.rollbackTo(p.checkpointId, p.force === true);
   }, services);
 
   // ── llm ──

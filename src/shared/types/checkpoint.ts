@@ -48,6 +48,13 @@ export interface RollbackResult {
   undone: number;
   fromSeq: number;
   toSeq: number;
+  /**
+   * ★ 第 27 条：这次**具体撤掉了哪几个 checkpoint 的 id**。
+   *   只有 `undone` 计数的话，调用方知道「撤了 3 步」却不知道是哪 3 步，
+   *   于是没法把对应的 `StepRecord.status` 翻成 `rolled-back`——
+   *   正文已经复原了，轨迹面板上那几步却还挂着绿色 ✓。
+   */
+  undoneCheckpointIds: string[];
   /** 被覆盖的手动修改数（>0 时必须先弹确认，见架构 §6.1 第 14 条） */
   lostManualEdits: number;
   /** 被覆盖的手动修改明细，供确认框展示 */

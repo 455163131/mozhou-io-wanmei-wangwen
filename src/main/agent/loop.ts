@@ -208,6 +208,11 @@ export class AgentLoop {
 
         // ═══ 状态：executing ═══
         this.phase = 'executing';
+        // ★ 第 27 条：这一步得**先**在轨迹里出现，再去执行。
+        //   修复前 StepRecord 只由 pushStep 落，而 pushStep 在 execute 之后才调——
+        //   「正在跑的那一步」在 RunState.steps 里压根不存在，AgentPanel 的 ▶ 分支与
+        //   .step.running 样式从画好那天起就没被渲染过一次。
+        this.pushRunningStep(stepNo, call);
         const result = await this.deps.execute(call, stepNo);
         this.stats.toolCalls += 1;
 
@@ -301,12 +306,16 @@ export class AgentLoop {
         }
       } catch (e) {
         // 规划/选择阶段的异常也算一次失败，走连续失败闸门
-        this.guard.recordToolResult(false, e instanceof Error ? e.message : String(e));
+        const message = e instanceof Error ? e.message : String(e);
+        // ★ 第 27 条：observe/evaluate 抛异常时，pushStep 那一步永远不会走到，
+        //   那条 running 记录就会**永久**留在轨迹里——run 都终止了还显示「正在跑」。
+        this.failRunningStep(stepNo, message);
+        this.guard.recordToolResult(false, message);
         const gate = this.guard.failureCount >= 3
           ? {
               code: 'CONSECUTIVE_FAILURE' as const,
               failures: this.guard.failureCount,
-              lastError: e instanceof Error ? e.message : String(e),
+              lastError: message,
             }
           : null;
         if (gate) return this.terminate(gate);
@@ -314,6 +323,52 @@ export class AgentLoop {
         continue;
       }
     }
+  }
+
+  /**
+   * ★ 第 27 条：工具开跑前先落一条 `running` 记录。
+   *
+   * 不动 `this.stats`：步数/改动数的账一律由 `pushStep` 记一次，
+   * 否则同一步会被算两遍（`pushRunningStep` 一条 + `pushStep` 一条）。
+   * 渲染层靠 stepNo 幂等合并，所以同一步推两次事件是设计如此。
+   */
+  private pushRunningStep(stepNo: number, call: ToolCall): void {
+    const record: StepRecord = {
+      stepNo,
+      runId: this.runId,
+      phase: 'tool-call',
+      status: 'running',
+      toolName: call.name,
+      argsSummary: JSON.stringify(call.args).slice(0, 200),
+      resultSummary: '正在执行…',
+      durationMs: 0,
+    };
+    this.upsertStep(record);
+  }
+
+  /**
+   * 异常路径收尾：把还挂着 `running` 的那条如实改成 `failed`。
+   *
+   * 只在真有 running 记录时才动手（规划/选择阶段抛异常时还没落记录）。
+   * 同样不动 `stats.steps`——异常路径本来就不计步数，别为了对齐而改账。
+   */
+  private failRunningStep(stepNo: number, message: string): void {
+    const i = this.steps.findIndex((s) => s.stepNo === stepNo && s.status === 'running');
+    if (i < 0) return;
+    this.upsertStep({
+      ...this.steps[i],
+      status: 'failed',
+      resultSummary: message,
+      errorMessage: message,
+    });
+  }
+
+  /** 同一个 stepNo 只保留一条：有就原地换，没有才追加 */
+  private upsertStep(record: StepRecord): void {
+    const i = this.steps.findIndex((s) => s.stepNo === record.stepNo);
+    if (i >= 0) this.steps[i] = record;
+    else this.steps.push(record);
+    this.deps.emit({ type: 'step', runId: this.runId, step: record });
   }
 
   private pushStep(
@@ -348,11 +403,11 @@ export class AgentLoop {
       errorMessage: result.ok ? undefined : result.error?.message,
       attempts: obs.attempts,
     };
-    this.steps.push(record);
     this.stats.steps += 1;
     this.stats.edits += result.changeSet?.edits.length ?? 0;
     if (result.changeSet?.checkpointId) this.stats.checkpoints += 1;
-    this.deps.emit({ type: 'step', runId: this.runId, step: record });
+    // ★ 第 27 条：这一步的 running 占位记录**原地换成终态**，不是再追加一条。
+    this.upsertStep(record);
   }
 
   /** 终止：保留改动，发出事件。**不回滚**。 */

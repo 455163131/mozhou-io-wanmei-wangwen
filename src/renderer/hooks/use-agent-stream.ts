@@ -16,7 +16,12 @@ export function useAgentStream(): void {
 
     // ── 轨迹步骤：只订阅 StepTimeline 需要的字段 ──
     const offStep = onAgentEvent('agent:step', (p) => {
-      agent().appendStep(p.step as StepRecord);
+      const step = p.step as StepRecord;
+      agent().appendStep(step);
+      // ★ 第 27 条：同一步现在会推两次（开跑时 running → 跑完换终态），
+      //   回滚后还会再推一次。running 那条是占位、正文一个字都没动，
+      //   为它跑一次 health.analyze 纯属白烧（长文下这一步不便宜）。
+      if (step.status === 'running') return;
       // 本步改动了正文 → 刷新体检面板（增量只更当前章）
       // Edit 类型里没有 chapterId（改动落在哪个章由 ChangeSet 决定），
       // 故从 checkpoint 事件里取不到章号时退化为刷新当前章

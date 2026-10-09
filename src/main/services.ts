@@ -282,13 +282,11 @@ export class AppServices {
         chapterTitle: (id) => this.titleOf(id),
         baseline: () => this.baseline,
         undoToCheckpoint: async (checkpointId, force) => {
-          const r = await this.replayer.undoTo(checkpointId, force);
-          this.push.send('checkpoint:rolled-back', {
-            checkpointId,
-            undone: r.undone,
-            lostManualEdits: r.lostManualEdits,
-          });
-          return r;
+          // ★ 第 27 条：走 host 这个唯一入口。Agent 用 `undo` 工具撤回上一步时，
+          //   正是「这一步已经落了 checkpointId 的 StepRecord」的那个场景——
+          //   不经过 host 就没人把它翻成 rolled-back，正文撤了轨迹还挂着 ✓。
+          //   checkpoint:rolled-back 也改由 host 发，避免两处各发一次。
+          return this.agentHost.rollbackTo(checkpointId, force);
         },
         rollbackRule: async (checkpointId, chapterId, newBody) => {
           // 用 checkpoint 里的原文还原，比接受传入的 newBody 更可靠：

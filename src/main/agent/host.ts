@@ -11,8 +11,9 @@
  *
  *   三者在 UI 上必须是三个独立控件，绝不能混为一谈。
  */
-import type { Evaluation, Observation, Plan, RunState, ToolCall, TerminationReason } from '@shared/types/agent';
+import type { Evaluation, Observation, Plan, RunState, StepRecord, ToolCall, TerminationReason } from '@shared/types/agent';
 import type { ToolResult, ToolSpec } from '@shared/types/tool';
+import type { RollbackResult } from '@shared/types/checkpoint';
 import { AgentLoop, newRunStats, type LoopEvent } from './loop';
 import { LlmClient, LlmError } from '../llm/client';
 import { accrueCost, isFree, type CostState } from '../llm/cost';
@@ -411,7 +412,9 @@ export class AgentHost {
           return this.deps.checkpoints.requireCheckpoint(runId, stepNo, call.name, chs);
         },
         rollbackTo: async (checkpointId) => {
-          await this.deps.replayer.undoTo(checkpointId, true);
+          // ★ 第 27 条：走统一入口，别再直连 replayer——那样 StepRecord 不会翻状态，
+          //   `checkpoint:rolled-back` 也不会发（自动回滚后编辑器一直显示撤回前的正文）。
+          await this.rollbackTo(checkpointId, true);
         },
       },
     });
@@ -744,14 +747,52 @@ export class AgentHost {
     return { aborted: this.abortedRuns.has(runId) };
   }
 
-  /** 回滚：撤销改动（≠ 叫停）。走 Replayer，含手动修改冲突检测 */
-  async rollbackTo(checkpointId: string, force = false): Promise<void> {
+  /**
+   * 回滚：撤销改动（≠ 叫停）。走 Replayer，含手动修改冲突检测。
+   *
+   * ★ 第 27 条：这是**回滚的唯一入口**。修复前本方法全仓零调用方——
+   *   `checkpoint:undo`（register.ts）、`undo` 工具（services.ts）、sandbox 的自动回滚
+   *   三条活路各自直连 `replayer.undoTo`，谁都不碰 StepRecord，
+   *   于是正文撤回了、轨迹里那几步还挂着绿色 ✓。三条现在一律经过这里。
+   *   返回值给调用方（`checkpoint:undo` 要把 RollbackResult 交回渲染层）。
+   */
+  async rollbackTo(checkpointId: string, force = false): Promise<RollbackResult> {
     const result = await this.deps.replayer.undoTo(checkpointId, force);
+    this.markStepsRolledBack(result.undoneCheckpointIds);
     this.deps.emit('checkpoint:rolled-back', {
       checkpointId,
       undone: result.undone,
       lostManualEdits: result.lostManualEdits,
     });
+    return result;
+  }
+
+  /**
+   * 把被撤掉的那些 checkpoint 对应的步骤如实翻成 `rolled-back`，并重推给渲染层。
+   *
+   * ★ 边界（不谎报）：只能翻**本进程还记得**的 run（正在跑的 + 本次进程跑完的）。
+   *   跨进程回滚上一次运行留下的 checkpoint 时，那些 StepRecord 不在内存里，
+   *   翻不到——但也不会翻错。轨迹本来就只活在进程内（第 26 条）。
+   */
+  private markStepsRolledBack(undoneIds: string[]): void {
+    if (undoneIds.length === 0) return;
+    const hit = new Set(undoneIds);
+    const states: RunState[] = [];
+    const live = this.current?.state;
+    if (live) states.push(live);
+    for (const st of this.runStates.values()) {
+      if (!states.some((x) => x.runId === st.runId)) states.push(st);
+    }
+    for (const st of states) {
+      for (let i = 0; i < st.steps.length; i++) {
+        const rec = st.steps[i];
+        if (!rec.checkpointId || !hit.has(rec.checkpointId)) continue;
+        if (rec.status === 'rolled-back') continue; // 重复回滚不许重复推事件
+        const patched: StepRecord = { ...rec, status: 'rolled-back' };
+        st.steps[i] = patched;
+        this.deps.emit('agent:step', { runId: st.runId, step: patched });
+      }
+    }
   }
 
   /**

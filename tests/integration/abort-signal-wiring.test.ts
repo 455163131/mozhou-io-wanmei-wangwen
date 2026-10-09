@@ -129,8 +129,18 @@ function makeHost(mode: Mode): Harness {
 
   return {
     host,
-    steps: () =>
-      events.filter((e) => e.channel === 'agent:step').map((e) => e.payload.step as StepRecord),
+    steps: () => {
+      // ★ 第 27 条：每步现在推两次事件（开跑时 running → 跑完换终态），
+      //   这里按 stepNo 取**最后**一条。不去重的话「这一步记成 aborted」会读到
+      //   中间态那条 running，断言就成了在测事件条数而不是测状态。
+      const byNo = new Map<number, StepRecord>();
+      for (const e of events) {
+        if (e.channel !== 'agent:step') continue;
+        const s = e.payload.step as StepRecord;
+        byNo.set(s.stepNo, s);
+      }
+      return [...byNo.values()];
+    },
     termination: () => {
       const e = events.find((x) => x.channel === 'agent:terminated');
       return e ? (e.payload.reason as { code: string; atStep?: number }) : null;

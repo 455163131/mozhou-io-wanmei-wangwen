@@ -96,6 +96,7 @@ export class Replayer {
         undone: 0,
         fromSeq: ck.seq,
         toSeq: ck.seq,
+        undoneCheckpointIds: [],
         lostManualEdits: 0,
         lostEdits: [],
         restoredChapters: [],
@@ -139,6 +140,9 @@ export class Replayer {
       undone,
       fromSeq: Math.max(...toUndo.map((c) => c.seq)),
       toSeq: ck.seq,
+      // ★ 第 27 条：把「撤了哪几个」如实报出去。调用方（AgentHost）要用它
+      //   把对应的 StepRecord 翻成 rolled-back，否则轨迹与正文各说一套。
+      undoneCheckpointIds: toUndo.map((c) => c.id),
       lostManualEdits: conflicts.length,
       lostEdits: conflicts.slice(0, 20),
       restoredChapters: [...restored],
