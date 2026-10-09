@@ -67,19 +67,6 @@ body {
   font-feature-settings: 'tnum' 1;
 }
 
-/* 编辑器正文：长文可读性 */
-.mz-prose {
-  font-family: var(--mz-editor-font-novel);
-  font-size: var(--mz-editor-size-novel);
-  line-height: var(--mz-editor-lh-novel);
-  max-width: var(--mz-editor-measure-novel);
-  color: var(--mz-text-body);
-  letter-spacing: var(--mz-tracking-cjk);
-  line-break: strict;
-  overflow-wrap: break-word;
-  text-autospace: normal;
-}
-
 /* 表单元素跟随纸面主题 */
 input,
 textarea,

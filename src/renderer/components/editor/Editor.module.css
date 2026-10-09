@@ -7,7 +7,11 @@
   --ed-font: var(--mz-editor-font-novel);
   --ed-size: var(--mz-editor-size-novel);
   --ed-lh: var(--mz-editor-lh-novel);
-  --ed-tracking: var(--mz-tracking-cjk);
+  /**
+   * 正文**不加**正字距。`--mz-tracking-cjk`（+0.01em）是给 UI 标签的；
+   * 汉字本是方格字，18px 正文再加字距只会稀释笔画、把行尾推得更散。
+   */
+  --ed-tracking: 0;
   --ed-pad-y: 24px;
 
   display: flex;
@@ -72,6 +76,15 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  /**
+   * ★ 行长上限落在**两层共同的父**上，不落在 .area / .backdrop 上。
+   *   `syncLayer()` 只把 textarea 的 clientWidth 抄给镜像层、**不同步 left 偏移**，
+   *   所以上限一旦只命中一层，两层就左右错开，行内标注（第 7 条 / 第 20 条②）整体偏掉。
+   *   放在这里两层自动同宽同位。居中是为了右侧不留一大块空白。
+   */
+  width: 100%;
+  max-width: var(--mz-editor-measure-novel);
+  margin-inline: auto;
 }
 
 /* 共用排版：这一条规则同时给 .area 和 .backdrop，从根上不给"改一边忘一边"留机会 */
@@ -94,7 +107,11 @@
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: normal;
-  text-align: center;
+  /* ★ 正文一律左对齐。这里曾经写着 center——textarea 与镜像层共用本条，
+   *   于是**每一行稿子都居中排**（§4 第 28 条）。显式写 left，不靠默认值。 */
+  text-align: left;
+  /* 中英混排自动加空格；不支持的 Chromium 版本忽略这一行，两层同时忽略故不错位 */
+  text-autospace: normal;
 }
 
 .area {
@@ -109,6 +126,17 @@
 }
 .area:focus {
   border: none;
+  /**
+   * ★ 稿纸不镶焦点环。`global.css` 的 `:focus-visible { outline: 2px solid
+   *   var(--mz-focus-color) }` 对按钮/输入框是对的，但写作区**一进应用就一直在焦点上**，
+   *   于是整块稿纸常驻一圈红框（实测截图确认）。
+   *   写在 `.area:focus` 上而不是 `.area`：后者同特异度且被全局那条压后，
+   *   带上 `:focus` 才赢得过它。其余控件的焦点环一条不动。
+   */
+  outline: none;
+}
+.area:focus-visible {
+  outline: none;
 }
 
 /*
