@@ -176,6 +176,19 @@ export class AgentLoop {
         const result = await this.deps.execute(call, stepNo);
         this.stats.toolCalls += 1;
 
+        // ── 用户叫停落在了这一步：工具压根没执行，直接终止 ──
+        // ★ 第 23 条。修复前这里没有分支：一次因为「已被叫停」而失败的返回会
+        //   ① 计入闸门⑤的连续失败（用户意图被当成故障）、② 走一次 evaluate
+        //   （没执行的动作被评估出一句结论）、③ 记成 failed/succeeded 步骤。
+        //   现在它记 aborted，并且立刻以 USER_ABORTED 收尾。
+        if (!result.ok && result.error?.code === 'E_TOOL_REFUSED' && this.deps.isAborted(this.runId)) {
+          const obs = await this.deps.observe(call, result, stepNo);
+          this.observations.push(obs);
+          if (this.observations.length > this.deps.maxHistory) this.observations.shift();
+          this.pushStep(stepNo, call, result, obs, undefined);
+          return this.terminate({ code: 'USER_ABORTED', atStep: stepNo });
+        }
+
         // ═══ 状态：observing ═══
         this.phase = 'observing';
         const obs = await this.deps.observe(call, result, stepNo);
@@ -275,14 +288,23 @@ export class AgentLoop {
     obs: Observation,
     evaluation?: Evaluation,
   ): void {
+    // ★ 第 23 条：`StepStatus` 里的 'aborted' 此前**全仓没有任何产出方**——
+    //   这里只写 succeeded/failed，而轨迹面板把未知状态落到兜底的 ▶，
+    //   于是「中止」显示成「正在跑」。现按「用户叫停导致未执行」如实记 aborted。
+    const isUserAbort =
+      !result.ok && result.error?.code === 'E_TOOL_REFUSED' && this.deps.isAborted(this.runId);
     const record: StepRecord = {
       stepNo,
       runId: this.runId,
       phase: 'tool-call',
-      status: result.ok ? 'succeeded' : 'failed',
+      status: isUserAbort ? 'aborted' : result.ok ? 'succeeded' : 'failed',
       toolName: call.name,
       argsSummary: JSON.stringify(call.args).slice(0, 200),
-      resultSummary: result.ok ? (obs.summary ?? '完成') : (result.error?.message ?? '失败'),
+      resultSummary: isUserAbort
+        ? '已被叫停，本步未执行'
+        : result.ok
+          ? (obs.summary ?? '完成')
+          : (result.error?.message ?? '失败'),
       durationMs: result.durationMs,
       rationale: evaluation?.reason,
       edits: result.changeSet?.edits,

@@ -66,8 +66,18 @@ function terminationBadge(reason: TerminationReason): { cls: string; text: strin
 
 function StepRow({ step }: { step: StepRecord }): JSX.Element {
   const [open, setOpen] = useState(false);
+  // ★ 五个 StepStatus 各给一个显式分支：以前是三元链 + 兜底 '▶'，
+  //   'aborted' 落到兜底上——用户按了中止，轨迹却显示「正在跑」。
   const statusIcon =
-    step.status === 'succeeded' ? '✓' : step.status === 'failed' ? '✗' : step.status === 'rolled-back' ? '↩' : '▶';
+    step.status === 'running'
+      ? '▶'
+      : step.status === 'succeeded'
+        ? '✓'
+        : step.status === 'failed'
+          ? '✗'
+          : step.status === 'rolled-back'
+            ? '↩'
+            : '⏹'; // aborted
 
   return (
     <div className={`${styles.step} ${styles[step.status]}`}>

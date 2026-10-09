@@ -77,6 +77,14 @@ export class AgentHost {
   private current: AgentLoop | null = null;
   private abortedRuns = new Set<string>();
   private pausedRuns = new Set<string>();
+  /**
+   * ★ 第 23 条：runId → 本次 run 的取消控制器。
+   * 修复前 `doExecute` 每次现 `new AbortController().signal`（一个永远不会被 abort 的
+   * 新对象）传给执行层，于是 `sandbox.ts:66` 的「已被叫停，未执行」和长工具自己的
+   * signal 轮询（`scan.ts:60`、`client.ts:152/187`）在 Agent 路径上全是死路：
+   * 叫停只在下一轮循环起点（`loop.ts:138`）被看见，正在跑的那一步照跑到底。
+   */
+  private runControllers = new Map<string, AbortController>();
   private runStates = new Map<string, RunState>();
   private costState: CostState = { tokensIn: 0, tokensOut: 0, costCny: 0, localMs: 0, requests: 0 };
 
@@ -132,7 +140,7 @@ export class AgentHost {
     const loop = new AgentLoop(runId, opts.goal, {
       plan: (goal, observations) => this.doPlan(goal, observations, chapterIds, toolSpecs, limits),
       select: (plan, observations) => this.doSelect(plan, observations, toolSpecs),
-      execute: (call, stepNo) => this.doExecute(call, stepNo, writePolicy),
+      execute: (call, stepNo) => this.doExecute(call, stepNo, writePolicy, runId),
       observe: (call, result, stepNo) => Promise.resolve(this.doObserve(call, result, stepNo)),
       evaluate: (goal, observations) => this.doEvaluate(goal, observations),
       stateHash: () => this.deps.stateHash(),
@@ -146,13 +154,31 @@ export class AgentHost {
     loop.setToolReport(toolSpecs, writePolicy.policy);
     this.current = loop;
     this.abortedRuns.delete(runId);
+    // 控制器与 run 同生命周期：abort(runId) 要能把 aborted 真的落到执行层
+    this.runControllers.set(runId, new AbortController());
 
     // 异步执行，不阻塞 IPC 返回
     void this.runLoop(loop);
     return { runId };
   }
 
+  /**
+   * 本次 run 的取消信号。`execute` 从这里取，**不再现造 controller**。
+   * 与 `abortedRuns` 同生命周期（start 建、resume 换新）。
+   */
+  private controllerFor(runId: string): AbortController {
+    let c = this.runControllers.get(runId);
+    if (!c) {
+      c = new AbortController();
+      this.runControllers.set(runId, c);
+    }
+    // start 前已 abort（极端时序）：新建的 controller 要立刻反映用户的叫停
+    if (this.abortedRuns.has(runId)) c.abort();
+    return c;
+  }
+
   private async runLoop(loop: AgentLoop): Promise<void> {
+    const runId = loop.state.runId;
     try {
       const { reason, stats } = await loop.run();
       this.deps.saveRun(loop.state);
@@ -171,6 +197,7 @@ export class AgentHost {
       });
     } finally {
       this.current = null;
+      this.runControllers.delete(runId);
     }
   }
 
@@ -332,6 +359,7 @@ export class AgentHost {
     call: ToolCall,
     stepNo: number,
     writePolicy: WritePolicyConfig,
+    runId: string,
   ): Promise<ToolResult> {
     const spec = this.deps.registry.specOf(call.name);
     const handler = this.deps.registry.handlerOf(call.name);
@@ -348,11 +376,13 @@ export class AgentHost {
     }
 
     const outcome = await executeTool(spec, handler, call.args, {
-      runId: this.activeRunId ?? 'unknown',
+      runId,
       stepNo,
       dryRun: false,
       writePolicy,
-      signal: new AbortController().signal,
+      // ★ 第 23 条：这里以前是 `new AbortController().signal`——每次现造一个永不 abort 的
+      //   新对象，执行层读到的 aborted 恒为 false，用户的中止到不了正在跑的这一步。
+      signal: this.controllerFor(runId).signal,
       logger: () => undefined,
       deps: {
         requireCheckpoint: async (chs) => {
@@ -649,6 +679,9 @@ export class AgentHost {
   /** 叫停：停止下一步，**保留已改改动**（≠ 回滚） */
   abort(runId: string): void {
     this.abortedRuns.add(runId);
+    // ★ 同时落到控制器：正在跑的那一步（sandbox 早退、长工具自己的轮询）才看得见中止。
+    //   只 get 不 set：叫停一个早已结束的 run 不该在表里留下条目。
+    this.runControllers.get(runId)?.abort();
   }
 
   /** 暂停：与叫停不同，暂停后可 resume */
@@ -659,6 +692,9 @@ export class AgentHost {
   resume(runId: string): void {
     this.pausedRuns.delete(runId);
     this.abortedRuns.delete(runId);
+    // AbortSignal 不可逆，旧的那把已经脏了：丢掉它，`controllerFor` 会给仍在跑的 run
+    // 建一把干净的。不清则「叫停后又继续」的 run 之后每一步都被当成已叫停。
+    this.runControllers.delete(runId);
   }
 
   /** 回滚：撤销改动（≠ 叫停）。走 Replayer，含手动修改冲突检测 */
