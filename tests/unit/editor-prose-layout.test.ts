@@ -191,6 +191,15 @@ describe('D. 死令牌台账：不再允许"写了没人调"却无人知道', ()
     '--mz-editor-gap-toutiao': '同上（T23）',
     '--mz-editor-indent-toutiao': '同上（T23）',
     '--mz-editor-indent-manuscript': '导出稿纸皮肤（T23）用：投稿格式才要 2 字符首行缩进',
+    // ★ §UI ·R1（2026-10-10）新增四格。这四个都是**行长/缩进档**家族的成员，
+    //   和上面那批「等 T12 段级样式」不同：它们的取值本身已经定了（iA Writer 的
+    //   64/72/80 字符三档、中文传统段首缩进 2em），缺的是**用户入口**——
+    //   正文排版偏好要落在设置面板里（R5 皮肤那一刀一起做：排版偏好与主题皮肤
+    //   同属"这本书长什么样"）。所以挂账理由写的是"等谁"，不是"取值未定"。
+    '--mz-editor-measure-narrow': '排版偏好入口在设置面板（§UI ·R5）；窄档对应 iA Writer 的 64 字符档',
+    '--mz-editor-measure-wide': '同上（§UI ·R5）；宽档对应 iA Writer 的 80 字符档',
+    '--mz-editor-indent-novel-manuscript': '稿纸缩进档：2em 首行缩进 + 段距 0（中文传统），入口同 R5',
+    '--mz-editor-gap-novel-manuscript': '同上；与 --mz-editor-gap-novel 构成「缩进档 ↔ 间距档」两个互斥排版',
   };
 
   const names = [...new Set([...tokensCss.matchAll(/(--mz-editor-[\w-]+)\s*:/g)].map((m) => m[1]))];

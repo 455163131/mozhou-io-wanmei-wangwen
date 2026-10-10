@@ -1,0 +1,199 @@
+/* ============================================================================
+ * CommandPalette —— §UI ·R1 命令面板（⌘K）
+ * ----------------------------------------------------------------------------
+ * 全部走令牌，零裸 hex / 零裸 px 刻度（theme-ink C 组 + design-tokens-usage 会查）。
+ * 层高用 --mz-z-popover（面板不是模态：它不遮挡编辑器，只是浮在上面，
+ * 遮罩也是淡的 —— 调研第 10 节「模态弹窗打断写作」是反面教材）。
+ * ========================================================================== */
+
+.mask {
+  position: fixed;
+  inset: 0;
+  z-index: var(--mz-z-popover);
+  /* 比模态遮罩淡：面板允许用户看见底下的稿子，只是把它推到背景。 */
+  background: var(--mz-scrim);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  /* 垂直位置固定在上三分之一处，不是正中 —— 面板打开时用户的视线在
+     屏幕中上部（那里是正文），不是几何中心。 */
+  padding-top: 12vh;
+}
+
+.panel {
+  width: 560px;
+  max-width: calc(100vw - 48px);
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--mz-bg-overlay);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-lg);
+  box-shadow: var(--mz-shadow-xl);
+  overflow: hidden;
+}
+
+/* ── 输入行 ──────────────────────────────────────────────────────────────── */
+.inputRow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  padding: var(--mz-space-3) var(--mz-space-3);
+  border-bottom: 1px solid var(--mz-border-subtle);
+}
+
+.inputIco {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--mz-text-tertiary);
+  stroke-width: 1.8;
+}
+
+/**
+ * 输入框必须把全局的井底样式压掉：global.css 给 `input` 设了
+ * `background: var(--mz-bg-inset); border: 1px solid var(--mz-border-default);
+ * padding: 6px 10px`，那是给「表单里的输入框」用的。命令面板的输入框是
+ * 面板的**标题行**，它和面板同底、无边、占满整行 —— 保留边框就会在
+ * 面板内部画出一个多余的小盒子（这是真机上一眼能看出来的）。
+ */
+.input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  font-size: var(--mz-fs-body);
+  color: var(--mz-text-primary);
+}
+
+.input::placeholder {
+  color: var(--mz-text-tertiary);
+}
+
+.input:focus {
+  border: none;
+  outline: none;
+}
+
+/**
+ * 焦点态单写一份 `.input:focus` 就够（不需要 `:focus-visible`）——
+ * 面板的输入框是「打开就在焦点上、且它本来就是这一屏唯一该聚焦的东西」，
+ * 键盘用户与鼠标用户在这里没有区别。分写两份会让 `:focus-visible` 那条
+ * 在鼠标点击时也生效，反而是多一个需要维护的规则。
+ */
+.input:focus-visible {
+  border: none;
+  outline: none;
+}
+
+.esc {
+  flex: none;
+  font-family: var(--mz-font-numeric);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-xs);
+  padding: 0 var(--mz-space-1);
+}
+
+/* ── 结果列表 ────────────────────────────────────────────────────────────── */
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: var(--mz-space-1) 0;
+}
+
+.groupBlock {
+  list-style: none;
+}
+
+.groupList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.groupTitle {
+  padding: var(--mz-space-half) var(--mz-space-3) var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+  font-weight: var(--mz-fw-medium);
+  color: var(--mz-text-tertiary);
+  letter-spacing: var(--mz-tracking-wide);
+}
+
+.item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mz-space-3);
+  padding: var(--mz-space-2) var(--mz-space-3);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font-size: var(--mz-fs-sm);
+  color: var(--mz-text-body);
+  cursor: pointer;
+}
+
+/**
+ * 高亮行用 `--mz-bg-selected`（朱砂淡晕），不是 accent 实底 ——
+ * 面板里同时可能有 5 行以上，实底会把整块面板染红。这也是全局
+ * `option:checked` 的口径（global.css 里为同一条理由写过注释）。
+ */
+.itemOn {
+  background: var(--mz-bg-selected);
+  color: var(--mz-text-primary);
+}
+
+.itemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kbd {
+  flex: none;
+  font-family: var(--mz-font-numeric);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-xs);
+  padding: 0 var(--mz-space-1);
+}
+
+.empty {
+  padding: var(--mz-space-5) var(--mz-space-3);
+  text-align: center;
+  font-size: var(--mz-fs-sm);
+  color: var(--mz-text-tertiary);
+}
+
+/* ── 底栏：当前状态 ──────────────────────────────────────────────────────── */
+.foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  padding: var(--mz-space-2) var(--mz-space-3);
+  border-top: 1px solid var(--mz-border-subtle);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+}
+
+.footSep {
+  width: 1px;
+  height: 10px;
+  background: var(--mz-border-subtle);
+}

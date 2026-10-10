@@ -1,6 +1,6 @@
 /* ============================================================
- * 外壳布局 v2：竖排模式导航栏(56) + 精简顶栏(44) + 可折叠双栏
- * + 单一统计底栏(28)。颜色全部走 --mz 令牌（素笺·朱批 v2.0）。
+ * 外壳布局 v3：可展开模式导航栏(56/168) + 标题条(48) + 可坍缩三栏
+ * + 默认隐藏的统计底栏(28)。颜色全部走 --mz 令牌（素笺·朱批 v2.0）。
  *
  * ★ 第 33 条（2026-10-10）：宽度账此前从没算过。三个栏宽是魔法数，
  *   窗口下限在 window.ts（minWidth: 1280），两者互不知情 ——
@@ -11,6 +11,24 @@
  *   现在三栏都有「基准宽 + 让位下限」，窄窗时先让 AI 右栏、再让章节树，
  *   编辑器永远拿得到 >= 724px（1280 - 56 - 200 - 300），大于正文下限 504px。
  *   这条算术由 tests/integration/layout-flex-wiring.test.ts 当场算，不靠人眼。
+ *
+ * ★ §UI ·R1（2026-10-10，竞品调研）：三处结构性改动，都是调研证据直接产物。
+ *
+ *   1) **导航栏两态**。此前只有 56px 纯图标一种形态。NN/g 的定量研究
+ *      （179 被试 / 6 站 / 桌面+手机）实测：桌面端隐藏式导航使用率仅 27%、
+ *      可见导航 48%、混合 50%，且「在大屏上 8 项导航栏对 content-to-chrome
+ *      ratio 的影响微乎其微 —— 省下的空间不足以证明隐藏它的成本是合理的」。
+ *      现在 `.shell` 上挂 `railCollapsed` 决定展开(168)/收起(56)，两态都
+ *      在 --mz-layout-rail-* 令牌里，且**宽度账要按最大态算**（见下）。
+ *      注意：展开态 168px 会让 `1280 - 168 - 200 - 300 = 612px` —— 仍 >= 正文
+ *      下限 504px，但**恰好等于**理想行长 34em x 18px = 612px 的紧贴线。
+ *      所以展开态只在窗口 >= 1360 时给（紧凑档强制收起，见文件末断点）。
+ *
+ *   2) **专注模式**（`data-focus="on"`）。Ulysses 的 Hide Toolbar 是本次调研
+ *      里最值得抄的一条：三栏是对的，错的是「三栏且永远占满」。用属性而不是
+ *      条件渲染，是因为条件渲染会卸载 Editor → 滚动位置与 selection 全丢。
+ *
+ *   3) **底栏默认隐藏**（由 App 的条件渲染控制，这里只是高度令牌化）。
  * ============================================================ */
 
 .shell {
@@ -22,15 +40,28 @@
 
 /* ---- 左侧竖排模式导航 ---- */
 .rail {
-  width: var(--mz-layout-rail-w);
+  /* ★ §UI ·R1：展开态宽度由 .railCollapsed 决定（见下）。基准给展开态。 */
+  width: var(--mz-layout-rail-expanded-w);
   flex: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: var(--mz-space-half);
-  padding: var(--mz-space-2h) 0;
+  padding: var(--mz-space-2h) var(--mz-space-2);
   background: var(--mz-bg-surface);
   border-right: 1px solid var(--mz-border-subtle);
+  transition: width var(--mz-dur-base) var(--mz-ease-standard);
+}
+
+/**
+ * 收起态：只剩图标。宽度令牌换一档，内部一切横向排布的间隙归零。
+ * 用 `.shell.railCollapsed .rail` 而不是给 .rail 加两套类名，是因为
+ * 收起是**外壳级**状态（它同时也影响顶栏左侧的对齐），挂在 shell 上是唯一真相。
+ */
+.railCollapsed .rail {
+  width: var(--mz-layout-rail-w);
+  padding: var(--mz-space-2h) var(--mz-space-1);
+  align-items: center;
 }
 
 .mark {
@@ -43,6 +74,11 @@
   place-items: center;
   padding: var(--mz-space-half);
   margin-bottom: var(--mz-space-1);
+  flex: none;
+  align-self: flex-start;
+}
+.railCollapsed .mark {
+  align-self: center;
 }
 .markSvg {
   width: 100%;
@@ -56,20 +92,36 @@
   flex: 1;
 }
 
+/**
+ * ★ §UI ·R1：按钮从「图标 + 两字竖排」改成「图标 + 文字横排」。
+ *
+ * 修复前 `flex-direction: column`、字号 11.5px、宽 46px —— 五个模式里
+ * 「仪表盘」三个字在 46px 里要折行，而调研第 10 节的第 8 条反面教材
+ * 正是「让两个汉字被挤成两行竖排」（SettingsModal 踩过同款）。
+ * 改成横排后，展开态一眼可读，收起态由 JS 把文字隐藏（`.railLabel`）。
+ */
 .railBtn {
-  width: 46px;
-  padding: var(--mz-space-2) 0 var(--mz-space-half);
+  width: 100%;
+  padding: var(--mz-space-2) var(--mz-space-2h);
   border: 0;
   background: transparent;
   border-radius: var(--mz-radius-sm);
   color: var(--mz-text-secondary);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: var(--mz-space-1);
+  gap: var(--mz-space-2h);
   cursor: pointer;
-  font-size: var(--mz-fs-2xs);
+  font-size: var(--mz-fs-sm);
   letter-spacing: var(--mz-tracking-cjk);
+  text-align: left;
+  white-space: nowrap;
+}
+.railCollapsed .railBtn {
+  width: 100%;
+  justify-content: center;
+  gap: 0;
+  padding: var(--mz-space-2) 0;
 }
 .railBtn:hover {
   background: var(--mz-bg-hover);
@@ -80,7 +132,18 @@
   color: var(--mz-accent-hover);
   box-shadow: inset 0 0 0 1px var(--mz-accent);
 }
+
+/**
+ * 收起态隐藏文字标签。用 `display: none` 而不是 `width: 0; overflow: hidden`：
+ * 前者才会把文字从无障碍树里摘掉（避免读屏器念出「写作写作」这种重复），
+ * 而按钮本身的语义由 `title` 属性补上（收起态 title=标签名）。
+ */
+.railCollapsed .railLabel {
+  display: none;
+}
+
 .railIco {
+  flex: none;
   width: 17px;
   height: 17px;
   fill: none;
@@ -90,18 +153,73 @@
   stroke-linejoin: round;
 }
 
+.railLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .railFoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+  flex: none;
+}
+
+.railToggle {
   border: 0;
   background: transparent;
-  padding: 0;
+  color: var(--mz-text-tertiary);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-1) var(--mz-space-2h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  border-radius: 50%;
 }
-.railFoot:hover .avatar {
+.railCollapsed .railToggle {
+  padding: var(--mz-space-1) 0;
+}
+.railToggle:hover {
+  background: var(--mz-bg-hover);
+  color: var(--mz-text-primary);
+}
+.chevronSvg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+}
+
+.railFootBtn {
+  border: 0;
+  background: transparent;
+  padding: var(--mz-space-1) var(--mz-space-2h);
+  cursor: pointer;
+  border-radius: var(--mz-radius-sm);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--mz-space-2h);
+  color: var(--mz-text-secondary);
+  font-size: var(--mz-fs-sm);
+  white-space: nowrap;
+}
+.railCollapsed .railFootBtn {
+  justify-content: center;
+  gap: 0;
+  padding: var(--mz-space-1) 0;
+}
+.railFootBtn:hover .avatar {
   border-color: var(--mz-accent);
+}
+.railFootBtn:hover {
+  background: var(--mz-bg-hover);
+  color: var(--mz-text-primary);
 }
 
 .avatar {
+  flex: none;
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -122,9 +240,9 @@
   flex-direction: column;
 }
 
-/* ---- 顶栏：项目切换 + 面包屑 + 折叠开关 ---- */
+/* ---- 顶栏：项目切换 + 面包屑 + 命令入口 + 面板开关 ---- */
 .top {
-  height: 44px;
+  height: var(--mz-layout-top-h);
   flex: none;
   display: flex;
   align-items: center;
@@ -163,8 +281,54 @@
 .topRight {
   margin-left: auto;
   display: flex;
+  align-items: center;
   gap: var(--mz-space-1);
   flex: none;
+}
+
+/**
+ * ★ §UI ·R1：命令面板入口常驻顶栏。
+ *
+ * 调研的核心结论之一是「命令面板正在成为第一入口」（Zed 官方措辞：
+ * The Command Palette is the main way to access actions）。但这个项目里
+ * 快捷键是唯一入口的话，功能就等于不存在——所以入口本身要有可见的按钮，
+ * `⌘K` 徽标是给熟练用户看的加速提示，不是唯一发现路径。
+ */
+.paletteBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  height: 28px;
+  padding: 0 var(--mz-space-2);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-sm);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-tertiary);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+  transition: border-color var(--mz-dur-base) var(--mz-ease-standard);
+}
+.paletteBtn:hover {
+  border-color: var(--mz-border-strong);
+  color: var(--mz-text-primary);
+}
+.searchSvg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+/* 快捷键徽标：数字字体 + 井底，与命令面板内的 .kbd 同形（跨组件视觉一致） */
+.kbd {
+  font-family: var(--mz-font-numeric);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-xs);
+  padding: 0 var(--mz-space-1);
 }
 
 .panelBtn {
@@ -331,9 +495,9 @@
   background: var(--mz-bg-canvas);
 }
 
-/* ---- 状态栏：全书统计的唯一出口 ---- */
+/* ---- 状态栏：全书统计的唯一出口（★ §UI ·R1：默认隐藏，⌘/ 唤起） ---- */
 .statusBar {
-  height: 28px;
+  height: var(--mz-layout-status-h);
   flex: none;
   display: flex;
   align-items: center;
@@ -396,10 +560,39 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .chipDotWarn {
-    animation: none;
-  }
+/* ============================================================
+ * ★ §UI ·R1：专注模式
+ *
+ * 挂在 `.shell` 上（`data-focus="on"`）。它的作用**不是**隐藏三栏——那是
+ * JS 的事（App 里 showTree/showRail 与 focusMode 一起判断），CSS 只负责
+ * 一件 JS 不容易做的事：让顶栏底色从 `--mz-bg-editor` 退到 `--mz-bg-canvas`。
+ * 顶栏与稿纸同底之后，「这一行往下都是正文」的边界不再被一条横线切开，
+ * 视觉上稿纸往上长了一截——这是零成本的「更专注」，且不卸载任何组件。
+ * 不隐藏导航条是刻意的（调研：iA Writer 的单栏不是「放弃三栏」，而是把
+ * 复杂度外移；导航留着，用户的锚点才不丢）。
+ * ============================================================ */
+.shell[data-focus='on'] .top {
+  background: var(--mz-bg-canvas);
+}
+
+/**
+ ★ §UI ·R1：专注模式的类名落点。这一条**故意不声明任何属性**——
+ * 真正的样式在上面那条 `.shell[data-focus='on'] .top` 上。之所以还要留规则：
+ *
+ *   1) `css-module-classes.test.ts` 的 A 组要求「JSX 里出现的每个 `styles.X`
+ *      必须在同名 .module.css 里有 `.X` 规则」。`App.tsx` 把 `styles.focus`
+ *      拼进 shellCls，没有这条就是 A 组红；
+ *   2) 空规则本身就是一块路标：「专注模式的类名在这里，样式挂在属性上」。
+ *      后来者想加专注样式时，第一反应会是往这个类里塞 —— 而正确做法是加
+ *      属性选择器，因为属性才是状态的唯一真相（类名由 JS 拼字符串，属性由
+ *      `data-focus={focusMode ? 'on' : undefined}` 一处决定）。
+ *
+ * 用 `.focus:not(:focus)` 而不是裸 `.focus`：空规则 `{}` 在某些压缩器下会被
+ * 整条删掉（本项目未启用 CSS 压缩，但门禁不能依赖构建配置不变），而
+ * `:not(:focus)` 让它永远不匹配任何元素——语义上就是「这条规则不该生效」。
+ */
+.focus:not(:focus) {
+  outline: none;
 }
 
 /* ============================================================
@@ -414,6 +607,14 @@
  * 1360 = 桌面默认宽 1440 往回留 80px，是「用户开始觉得挤」的经验位置，
  * 不是算出来的临界值——真正的临界值由上面那条算术保证（>= 724px），
  * 断点只决定**从多宽开始不再给满栏**。
+ *
+ * ★ §UI ·R1 追加：这一档里**导航栏强制收起**。
+ *   展开态 168px 会让最窄情况变成 1280 - 168 - 200 - 300 = 612px，恰好压在
+ *   理想行长 612px 的等号上（余量 0，任何一像素误差都会让正文贴边）。
+ *   两态宽度账都要成立才敢同时提供，所以展开态只在 >= 1360 时给。
+ *   这里用「CSS 物理约束优先于用户偏好」的写法：不靠 JS 覆写状态，而是在
+ *   窄窗下把展开态的外观直接定义成收起态的样子——用户的偏好留在
+ *   localStorage 里没被抹掉，窗口一拉宽就回来。
  * ============================================================ */
 @media (max-width: 1359px) {
   .left {
@@ -421,5 +622,39 @@
   }
   .right {
     width: var(--mz-layout-rail-min-w);
+  }
+  .rail {
+    width: var(--mz-layout-rail-w);
+    padding: var(--mz-space-2h) var(--mz-space-1);
+    align-items: center;
+  }
+  .railBtn {
+    justify-content: center;
+    gap: 0;
+    padding: var(--mz-space-2) 0;
+  }
+  .railLabel {
+    display: none;
+  }
+  .mark {
+    align-self: center;
+  }
+  .railFootBtn {
+    justify-content: center;
+    gap: 0;
+    padding: var(--mz-space-1) 0;
+  }
+  .railToggle {
+    padding: var(--mz-space-1) 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chipDotWarn {
+    animation: none;
+  }
+  /* 栏宽过渡也是动效：这条既覆盖用户偏好，也覆盖 R1 新加的 .rail width 过渡 */
+  .rail {
+    transition: none;
   }
 }

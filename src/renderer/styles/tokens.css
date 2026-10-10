@@ -199,8 +199,30 @@
    *   两处各写一次早晚不同步；写在值里只有一处真相。
    */
   --mz-editor-measure-novel:   clamp(28em, 34em, 100%);
+  /**
+   * ★ §UI ·R2（竞品调研）：行宽此前只有一档（34em）。iA Writer 把它做成**三档选项**
+   *   （64 / 72 / 80 字符/行），Ulysses 干脆做成滑杆 —— 两家都承认这是因人而异的参数。
+   *   中文全角字宽 ≈ 1em，所以三档直接取 28 / 34 / 40 em（≈ 28 / 34 / 40 汉字每行），
+   *   覆盖「校对长句文学 / 网文日更默认 / 快速浏览改稿」三种真实场景。
+   *   默认档仍是 34em（`--mz-editor-measure-novel` 的 clamp 中值），三档只改中值。
+   */
+  --mz-editor-measure-narrow:  clamp(24em, 28em, 100%); /* ≈28 字/行：长句文学、校对 */
+  --mz-editor-measure-wide:    clamp(28em, 40em, 100%); /* ≈40 字/行：快速浏览、改稿 */
   --mz-editor-gap-novel:       1.0em;  /* paragraph gap */
   --mz-editor-indent-novel:    0em;    /* web-fiction style: no indent, one-sentence-per-para */
+  /**
+   * ★ §UI ·R2：首行缩进此前只有 `--mz-editor-indent-manuscript: 2em` 一个值，
+   *   且**从未被任何组件引用**（第 28 条的死令牌台账里等 T12）。但竞品证据显示
+   *   这正是中文长篇的传统分法：Ulysses 的编辑器设置里 `First Line Indent` 是与
+   *   `Paragraph Spacing` 并列的**独立选项**，iA Writer 的 Settings 也单列。
+   *   中文用缩进分段的场景（纸感/文学向）与「一行一段 + 段间距」的网文场景是
+   *   两套排版，不该只留一套。所以此处补一对**互相排他**的令牌，由写作区设置切换：
+   *     缩进档：indent 2em + gap 0     （中文传统，段落靠缩进分）
+   *     间距档：indent 0   + gap 1.0em （网文，段落靠空行分）
+   *   `--mz-editor-indent-manuscript: 2em` 保留原名不动（架构文档 T12 点的就是它）。
+   */
+  --mz-editor-indent-novel-manuscript: 2em;  /* 缩进档（纸感）：配 gap 0 */
+  --mz-editor-gap-novel-manuscript:    0em;  /* 缩进档（纸感）：段落靠缩进分，不额外留空 */
 
   /* wechat article - comfortable on-screen reading: sans, medium measure */
   --mz-editor-font-wechat:     var(--mz-font-ui);
@@ -260,12 +282,30 @@
    *
    * ★ 命名里的 min/max 是**让位区间**，不是固定值：flex 基准取 max，窗口变窄时
    *   收缩到 min。收缩顺序由断点决定（见 App.module.css 的 --mz-layout-* 用法）。
+   *
+   * ★ §UI ·R1（竞品调研）：左侧导航在此之前是 **56px 纯图标**，每个按钮只有 SVG
+   *   和两个字（字号 11.5px），图标语义靠猜。NN/g 的定量研究（179 被试 / 6 站 /
+   *   桌面+手机）实测：桌面端**隐藏式导航使用率仅 27%**，可见导航 48%、混合 50%，
+   *   且「在更大的桌面显示器上，8 项导航栏对 content-to-chrome ratio 的影响微乎
+   *   其微 —— 省下的空间不足以证明隐藏它的成本是合理的」。
+   *   所以 rail 改成**展开态带文字标签 + 收起态纯图标但 hover 立即出 tooltip**，
+   *   两态宽度都升格为令牌，展开宽取 168px（图标 18px + 间隙 8px + 四字标签约 56px
+   *   + 左右 padding 各 12px，留出余量；对应报告里 Ulysses/Obsidian 侧栏的中位档）。
    * ------------------------------------------------------------------------ */
-  --mz-layout-rail-w:      56px;  /* 左侧模式导航：图标 + 两字标签，不再收缩 */
-  --mz-layout-tree-min-w: 200px;  /* 章节树让位下限：容得下「第 123 章」+ 展开箭头 */
-  --mz-layout-tree-max-w: 260px;  /* 章节树基准宽 */
-  --mz-layout-rail-min-w: 300px;  /* AI 右栏让位下限：六个页签摊到 300px 每只 50px */
-  --mz-layout-rail-max-w: 360px;  /* AI 右栏基准宽 */
+  --mz-layout-rail-w:          56px;  /* 左侧模式导航·收起态：纯图标 */
+  --mz-layout-rail-expanded-w: 168px; /* 左侧模式导航·展开态：图标 + 文字标签 */
+  --mz-layout-tree-min-w:     200px;  /* 章节树让位下限：容得下「第 123 章」+ 展开箭头 */
+  --mz-layout-tree-max-w:     260px;  /* 章节树基准宽 */
+  --mz-layout-rail-min-w:     300px;  /* AI 右栏让位下限：六个页签摊到 300px 每只 50px */
+  --mz-layout-rail-max-w:     360px;  /* AI 右栏基准宽 */
+
+  /* ★ §UI ·R1：顶栏与底栏的高度也升格。44px 的顶栏装不下「作品名·章节 + 保存态 +
+   *   目标 + ⌘K」四件（报告建议 48px）；底栏 28px 此前是**常驻**的，而报告的证据
+   *   是「Zettlr 状态栏可关闭、Ulysses 把统计做成可折叠区块」——常驻一行 28px
+   *   在日更万字场景里换不来等值的信息量。改成**默认隐藏 + ⌘/ 唤起**，
+   *   唤起后仍 28px。 */
+  --mz-layout-top-h:       48px;
+  --mz-layout-status-h:    28px;
 
   /* --------------------------------------------------------------------------
    * 10. RADIUS  (restrained; instruments are not pill-shaped)
