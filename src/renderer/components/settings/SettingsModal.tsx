@@ -144,7 +144,7 @@ export function SettingsModal({ status, onClose, onSaved }: Props): JSX.Element 
               </button>
             ))}
           </div>
-          <span className={styles.themeHint}>深寂给夜里日更，素笺是纸面原样。当场生效，重启记住。</span>
+          <span className={styles.themeHint}>深寂给夜里日更，素笺是纸面原样。立即生效，重启后还在。</span>
         </div>
 
         {!configured && (

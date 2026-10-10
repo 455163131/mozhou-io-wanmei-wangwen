@@ -78,15 +78,31 @@ button {
 }
 
 input,
-textarea {
+textarea,
+select {
   background: var(--mz-bg-inset);
   border: 1px solid var(--mz-border-default);
   border-radius: var(--mz-radius-sm);
   padding: 6px 10px;
 }
-input:focus,
-textarea:focus {
-  border-color: var(--mz-accent);
+input:hover:not(:disabled),
+textarea:hover:not(:disabled),
+select:hover:not(:disabled) {
+  border-color: var(--mz-border-strong);
+}
+/* ★ 焦点只留一圈：outline 由上面的 :focus-visible 统一给。这里以前还改一次
+ *   border-color，两圈同色中间隔 2px，看着像描边糊了（真机截图抓到的）。 */
+input:disabled,
+textarea:disabled,
+select:disabled {
+  color: var(--mz-text-disabled);
+  background: var(--mz-bg-canvas);
+  cursor: not-allowed;
+}
+/* 下拉展开后的选中项：不写这一条，操作系统拿系统蓝画它——那是全应用唯一一处蓝 */
+option:checked {
+  background: var(--mz-accent-soft);
+  color: var(--mz-text-primary);
 }
 
 button {
