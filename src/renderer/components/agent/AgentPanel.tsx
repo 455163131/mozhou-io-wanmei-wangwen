@@ -20,6 +20,7 @@ import { bridge, errorText } from '../../hooks/use-mz-bridge';
 import type { StepRecord, TerminationReason } from '@shared/types/agent';
 import { TERMINATION_TEXT } from '@shared/types/ipc';
 import type { Plan } from '@shared/types/agent';
+import { useConfirm } from '../common/ConfirmDialog';
 import styles from './AgentPanel.module.css';
 
 /** 终止原因 → 徽标样式与解释 */
@@ -370,18 +371,30 @@ function TerminationBadgeView({
 /** 回滚入口（与叫停分离的独立控件） */
 function RollbackHint(): JSX.Element | null {
   const checkpoints = useAgentStore((s) => s.checkpoints);
+  const { confirm, node: confirmNode } = useConfirm();
   if (checkpoints.length === 0) return null;
   const last = checkpoints[checkpoints.length - 1];
 
   async function undo(): Promise<void> {
     if (!last) return;
+    // ★ 第 31 条：冲突说明在 catch 里才拿得到，所以先试一次普通回滚。
+    //   ★ 以前这里只说"确认要强制回滚吗"——**连撤回哪一步都不讲**。
+    //   这一颗按钮是作者自己点的（不像改动历史是点某一格），它必须自报家门。
     try {
       await bridge().checkpoint.undo(last.id, false);
     } catch (e) {
       // E_ROLLBACK_CONFLICT 会走到这里——必须让用户看到会丢什么
       const msg = errorText(e);
       if (msg.includes('手动修改')) {
-        const ok = window.confirm(`${msg}\n\n确认要强制回滚吗？`);
+        const ok = await confirm({
+          title: `回滚第 ${last.stepNo} 步（${last.toolName}）？`,
+          body:
+            `${msg}\n` +
+            `这一步改了 ${last.editsCount} 处，涉及：${last.affectedChapters.join('、')}。`,
+          warn: '回滚会丢弃这一步的改动，且无法撤销。仅这一步之前的内容会被还原。',
+          confirmText: '确认回滚',
+          danger: true,
+        });
         if (ok) await bridge().checkpoint.undo(last.id, true);
       } else {
         useProjectStore.getState().setError(msg);
@@ -390,8 +403,11 @@ function RollbackHint(): JSX.Element | null {
   }
 
   return (
-    <button className={styles.rollbackBtn} onClick={() => void undo()}>
-      ↩ 回滚上一步（丢弃改动）
-    </button>
+    <>
+      {confirmNode}
+      <button className={styles.rollbackBtn} onClick={() => void undo()}>
+        ↩ 回滚上一步（丢弃改动）
+      </button>
+    </>
   );
 }

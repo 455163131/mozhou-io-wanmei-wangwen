@@ -1,0 +1,57 @@
+/* 应用内确认框（原来这组样式在 HistoryTimeline.module.css 里，
+ * 但那组规则当时属于一个零调用方的死组件；现在搬到唯一真源，
+ * 两个调用点共用一份遮罩，不许出现第二份。） */
+.dialogMask {
+  position: fixed;
+  inset: 0;
+  background: var(--mz-scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--mz-z-modal);
+}
+.dialog {
+  width: 420px;
+  max-width: calc(100vw - 48px);
+  padding: 16px;
+  background: var(--mz-bg-overlay);
+  border: 1px solid var(--mz-border-strong);
+  border-radius: var(--mz-radius-md);
+  box-shadow: var(--mz-shadow-lg);
+}
+.dialogTitle {
+  font-size: var(--mz-fs-h3);
+  color: var(--mz-text-primary);
+  margin-bottom: 8px;
+}
+.dialogBody {
+  font-size: var(--mz-fs-sm);
+  color: var(--mz-text-secondary);
+  line-height: 1.7;
+  /* 冲突说明来自 IPC，可能很长（含章节名与计数），必须能换行不撑破 */
+  overflow-wrap: anywhere;
+}
+.dialogBody code {
+  font-family: var(--mz-font-numeric);
+  color: var(--mz-text-primary);
+}
+.warnLine {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--mz-sem-warn-bg);
+  border: 1px solid var(--mz-sem-warn-border);
+  border-radius: var(--mz-radius-xs);
+  color: var(--mz-sem-warn-fg);
+  font-size: var(--mz-fs-xs);
+}
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.dangerBtn {
+  background: var(--mz-sem-warn-strong);
+  color: var(--mz-sem-ink);
+  border-color: var(--mz-sem-warn-strong);
+}

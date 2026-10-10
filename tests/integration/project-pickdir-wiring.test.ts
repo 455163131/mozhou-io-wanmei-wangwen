@@ -124,13 +124,11 @@ describe('C. 渲染层必须真的走它，浏览器模态只减不增', () => {
   /**
    * 还欠着的浏览器模态。**这是棘轮不是免罪**：数对不上就红，
    * 修掉一处就把条目删掉；新加一处直接红。
-   * 两处都是 `window.confirm` 问"要不要强制回滚"——最该被设计的一句话
-   * （要说清撤回到哪、丢多少改动），现在是一条浏览器灰条。等 in-app 确认框。
+   * ★ 第 31 条已把最后两处（两处回滚确认）换成应用内确认框，
+   *   于是这张表**空了**——空表本身是有意义的断言：全渲染层
+   *   `window.prompt/alert/confirm` 必须恒为 0。
    */
-  const BROWSER_MODAL_DEBT: Record<string, number> = {
-    'components/agent/AgentPanel.tsx': 1,
-    'components/history/HistoryTimeline.tsx': 1,
-  };
+  const BROWSER_MODAL_DEBT: Record<string, number> = {};
 
   /** 剥掉块注释与行注释：不剥的话，我自己写的"这里曾经是 window.prompt"会被当代码判红 */
   const stripComments = (src: string): string =>
@@ -164,6 +162,12 @@ describe('C. 渲染层必须真的走它，浏览器模态只减不增', () => {
     for (const rel of Object.keys(BROWSER_MODAL_DEBT)) {
       expect(existsSync(fileURLToPath(new URL(`../../src/renderer/${rel}`, import.meta.url))), `${rel} 已不存在，台账要删`).toBe(true);
     }
+  });
+
+  it('★ 第 31 条：台账已清空——浏览器模态在渲染层必须一处都没有', () => {
+    // 反向验：如果有人把某处改回 window.confirm，上一条会红；这一条钉住
+    // "台账被清空"这件事本身不是手滑删错了表头。
+    expect(Object.keys(BROWSER_MODAL_DEBT).length, '台账不空说明还有欠账').toBe(0);
   });
 
   it('打开项目这条路径上不许再有 window.prompt（App.tsx 必须为 0）', () => {
