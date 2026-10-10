@@ -165,7 +165,18 @@
   --mz-editor-font-novel:      var(--mz-font-serif);
   --mz-editor-size-novel:      18px;
   --mz-editor-lh-novel:        1.85;
-  --mz-editor-measure-novel:   34em;   /* ~34 CJK chars per line */
+  /**
+   * ★ 第 33 条：34em 是**理想**行长（约 34 个汉字一行的阅读舒适区），但它此前是硬上限，
+   *   在最小窗口下 34em x 18px = 612px 已经大于编辑器容器 604px —— max-width 形同不存在，
+   *   `margin-inline: auto` 两边余量同时归零，正文就被压到左贴边（§4 第 28 条修的是同一
+   *   条规则在**宽窗口**下的另一面：居中失效）。
+   *
+   *   改成 clamp()：窗口充裕时仍是 34em；编辑器被挤到 604px 以下时跟着缩到 28em
+   *   （约 28 字/行，仍是可读行长的下限），**永远不超过容器**。
+   *   `100%` 兜底而不是靠 max-width 叠加，是因为 .stage 的父链有 padding，
+   *   两处各写一次早晚不同步；写在值里只有一处真相。
+   */
+  --mz-editor-measure-novel:   clamp(28em, 34em, 100%);
   --mz-editor-gap-novel:       1.0em;  /* paragraph gap */
   --mz-editor-indent-novel:    0em;    /* web-fiction style: no indent, one-sentence-per-para */
 
@@ -199,6 +210,25 @@
   --mz-space-6:  32px;
   --mz-space-7:  48px;
   --mz-space-8:  64px;
+
+  /* --------------------------------------------------------------------------
+   * 9b. LAYOUT  (第 33 条新增：外壳三栏的宽度与让位下限)
+   *
+   * 为什么要有这一节：这三个宽度此前是**魔法数**直接写在 App.module.css 里
+   * （56 / 260 / 360），而窗口下限是 window.ts 的 minWidth: 1280。两者从没对着
+   * 算过账 —— 1280 - 56 - 260 - 360 = 604px，而正文行长上限是 34em x 18px = 612px，
+   * **正文比容器宽 8px**，`margin-inline: auto` 在 max-width 不生效时退化成左贴边。
+   * 升格成令牌后，`layout-flex-wiring.test.ts` 才能把「三栏之和 + 正文上限 <= 窗口下限」
+   * 这条算术当场算出来，而不是靠人眼在某个窗口尺寸下偶然发现。
+   *
+   * ★ 命名里的 min/max 是**让位区间**，不是固定值：flex 基准取 max，窗口变窄时
+   *   收缩到 min。收缩顺序由断点决定（见 App.module.css 的 --mz-layout-* 用法）。
+   * ------------------------------------------------------------------------ */
+  --mz-layout-rail-w:      56px;  /* 左侧模式导航：图标 + 两字标签，不再收缩 */
+  --mz-layout-tree-min-w: 200px;  /* 章节树让位下限：容得下「第 123 章」+ 展开箭头 */
+  --mz-layout-tree-max-w: 260px;  /* 章节树基准宽 */
+  --mz-layout-rail-min-w: 300px;  /* AI 右栏让位下限：六个页签摊到 300px 每只 50px */
+  --mz-layout-rail-max-w: 360px;  /* AI 右栏基准宽 */
 
   /* --------------------------------------------------------------------------
    * 10. RADIUS  (restrained; instruments are not pill-shaped)

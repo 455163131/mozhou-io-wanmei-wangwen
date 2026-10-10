@@ -83,7 +83,15 @@
    *   放在这里两层自动同宽同位。居中是为了右侧不留一大块空白。
    */
   width: 100%;
-  max-width: var(--mz-editor-measure-novel);
+  /**
+   * ★ 第 33 条：`min(100%)` 不是冗余。`--mz-editor-measure-novel` 现在是
+   *   clamp(28em, 34em, 100%)，而 clamp 的**下限是硬下限**：容器窄于 28em 时
+   *   它返回 28em 而**不是**容器宽，正文照样溢出。28em x 18px = 504px，
+   *   正常情况下编辑器远宽于它（三栏让位后 >= 724px），但那是**另一处**的算术
+   *   （App.module.css 的三栏区间）。把 `min(100%)` 写在这里，等于让这条规则
+   *   自己站稳：无论外面怎么改栏宽，正文都不会比容器宽。
+   */
+  max-width: min(var(--mz-editor-measure-novel), 100%);
   margin-inline: auto;
 }
 

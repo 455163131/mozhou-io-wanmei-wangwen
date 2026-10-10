@@ -1,6 +1,16 @@
 /* ============================================================
  * 外壳布局 v2：竖排模式导航栏(56) + 精简顶栏(44) + 可折叠双栏
  * + 单一统计底栏(28)。颜色全部走 --mz 令牌（素笺·朱批 v2.0）。
+ *
+ * ★ 第 33 条（2026-10-10）：宽度账此前从没算过。三个栏宽是魔法数，
+ *   窗口下限在 window.ts（minWidth: 1280），两者互不知情 ——
+ *   1280 - 56 - 260 - 360 = 604px，而正文行长上限 34em x 18px = 612px，
+ *   **正文比容器宽 8px**：`max-width` 不生效，`margin-inline: auto` 两边余量
+ *   同时归零，正文被压到左贴边（§4 第 28 条修的是同一条规则在宽窗口下的另一面）。
+ *
+ *   现在三栏都有「基准宽 + 让位下限」，窄窗时先让 AI 右栏、再让章节树，
+ *   编辑器永远拿得到 >= 724px（1280 - 56 - 200 - 300），大于正文下限 504px。
+ *   这条算术由 tests/integration/layout-flex-wiring.test.ts 当场算，不靠人眼。
  * ============================================================ */
 
 .shell {
@@ -12,7 +22,7 @@
 
 /* ---- 左侧竖排模式导航 ---- */
 .rail {
-  width: 56px;
+  width: var(--mz-layout-rail-w);
   flex: none;
   display: flex;
   flex-direction: column;
@@ -254,8 +264,11 @@
   min-height: 0;
 }
 .left {
-  width: 260px;
-  flex: none;
+  /* ★ 第 33 条：不再是死宽 260。基准取 max，窗口变窄时可收缩到 min；
+   *   `flex-shrink: 1` 是让位的前提，此前 flex:none 意味着编辑器独自承担全部压力。 */
+  width: var(--mz-layout-tree-max-w);
+  min-width: var(--mz-layout-tree-min-w);
+  flex: 0 1 auto;
   background: var(--mz-bg-surface);
   border-right: 1px solid var(--mz-border-subtle);
   overflow-y: auto;
@@ -265,8 +278,11 @@
   min-width: 0;
 }
 .right {
-  width: 360px;
-  flex: none;
+  /* ★ 第 33 条：AI 右栏是**先让位**的那一栏——它最窄仍可用（六个页签各 50px），
+   *   而章节树的标题截断一多就认不出是哪一章了。 */
+  width: var(--mz-layout-rail-max-w);
+  min-width: var(--mz-layout-rail-min-w);
+  flex: 0 1 auto;
   display: flex;
   flex-direction: column;
   background: var(--mz-bg-surface);
@@ -383,5 +399,27 @@
 @media (prefers-reduced-motion: reduce) {
   .chipDotWarn {
     animation: none;
+  }
+}
+
+/* ============================================================
+ * ★ 第 33 条：紧凑档（< 1360px）
+ *
+ * 为什么断点取 1360 而不是 1280：窗口下限是 minWidth: 1280，断点若也设 1280，
+ * 那么**整个 1280~1359 这段区间**（也就是用户真能把窗口拖到的最窄范围）
+ * 恰好落在断点之外，紧凑档永不进入——这是「防御写了触发不了」的老毛病
+ * （第 33 条边界 (a) 记录了同类先例：两个模态的 max-width: calc(100vw - 48px)
+ * 在 1280 下限下反而永远用不上）。
+ *
+ * 1360 = 桌面默认宽 1440 往回留 80px，是「用户开始觉得挤」的经验位置，
+ * 不是算出来的临界值——真正的临界值由上面那条算术保证（>= 724px），
+ * 断点只决定**从多宽开始不再给满栏**。
+ * ============================================================ */
+@media (max-width: 1359px) {
+  .left {
+    width: var(--mz-layout-tree-min-w);
+  }
+  .right {
+    width: var(--mz-layout-rail-min-w);
   }
 }
