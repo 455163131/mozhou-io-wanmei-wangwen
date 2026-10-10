@@ -18,7 +18,7 @@ import type { ChapterAnalysis, HealthReport, IssueLocation, LocatedIssue, RuleIn
 import type { ChangeSet, ToolSpec } from './tool';
 import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, LedgerCounts } from './ledger';
 import type { Checkpoint, RollbackResult } from './checkpoint';
-import type { RunState, TerminationReason, RunStats, StepRecord } from './agent';
+import type { RunState, RunBudget, TerminationReason, RunStats, StepRecord } from './agent';
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
 
 // ───────────────────────── 请求/响应载荷 ─────────────────────────
@@ -533,6 +533,14 @@ export interface IpcPushMap {
   };
   'agent:plan': { runId: string; plan: RunState['plan'] };
   /**
+   * ★ 第 32 条：预算快照。渲染层的预算仪表靠它。
+   *
+   * 修复前这套数只有 `agent:state` 一条路能出来，而那是**拉通道**——
+   * 渲染层从头到尾一次都没调过（`rg '\.state\(' src/renderer` 零命中）。
+   * 用户能看到 `BUDGET_EXCEEDED`，却看不到自己离它还有多远。
+   */
+  'agent:budget': { runId: string; budget: RunBudget };
+  /**
    * ★ 第 25 条：run 的阶段变化。只在**进入 paused** 与**从 paused 放走**两个时刻发，
    *   不是每个阶段都刷——其余阶段本来就有各自的事件（plan / tool-call / step）。
    *   没有这条通道时渲染层无从得知「暂停中」：`setStatus` 在全仓零调用方，
@@ -561,6 +569,7 @@ export const IPC_PUSH_CHANNELS = [
   'agent:need-approval',
   'agent:plan',
   'agent:phase',
+  'agent:budget',
   'chapter:changed',
   'project:opened',
   'project:closed',

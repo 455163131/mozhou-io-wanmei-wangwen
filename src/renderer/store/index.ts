@@ -11,7 +11,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import type { ChapterMeta, Project, Volume } from '@shared/types/project';
-import type { StepRecord, TerminationReason, Plan, RunStats } from '@shared/types/agent';
+import type { StepRecord, TerminationReason, Plan, RunBudget, RunStats } from '@shared/types/agent';
 import type { LlmStatus } from '@shared/types/provider';
 import type { Checkpoint } from '@shared/types/checkpoint';
 import type { ChapterAnalysis, HealthReport } from '@shared/types/health';
@@ -188,6 +188,12 @@ interface AgentStoreState {
   steps: StepRecord[];
   termination: TerminationReason | null;
   stats: RunStats;
+  /**
+   * ★ 第 32 条：预算仪表的唯一数据源。null = 还没有活着的 run。
+   *   修复前渲染层只能靠 `settings-store` 里那份手抄的默认值猜上限，
+   *   而真正生效的上限是主进程 `agent.run` 传的 budget——两份数可以不一样。
+   */
+  budget: RunBudget | null;
   checkpoints: Checkpoint[];
   llmStatus: LlmStatus | null;
 
@@ -197,6 +203,7 @@ interface AgentStoreState {
   updateStep: (stepNo: number, patch: Partial<StepRecord>) => void;
   setStatus: (s: string) => void;
   setTermination: (t: TerminationReason, stats: RunStats, kept: number) => void;
+  setBudgetState: (b: RunBudget | null) => void;
   setCheckpoints: (c: Checkpoint[]) => void;
   setLlmStatus: (s: LlmStatus) => void;
   reset: () => void;
@@ -223,6 +230,7 @@ export const useAgentStore = create<AgentStoreState>()(
       steps: [],
       termination: null,
       stats: { ...EMPTY_STATS },
+      budget: null,
       checkpoints: [],
       llmStatus: null,
 
@@ -235,6 +243,9 @@ export const useAgentStore = create<AgentStoreState>()(
           s.plan = null;
           s.termination = null;
           s.stats = { ...EMPTY_STATS };
+          // ★ 第 32 条：新 run 开跑时清掉上一轮的预算快照——留着会让仪表
+          //   在新 run 的头几百毫秒里显示上一条 run 的剩余量。
+          s.budget = null;
           s.checkpoints = [];
         }),
       setPlan: (plan) =>
@@ -273,6 +284,15 @@ export const useAgentStore = create<AgentStoreState>()(
           s.status = 'terminated';
           void kept;
         }),
+      /**
+       * ★ 第 32 条：预算快照的唯一写入口。
+       *   **终止时不清空**——用户正是在看到 `BUDGET_EXCEEDED` 的那一刻最需要
+       *   知道"刚才撞的是哪一档、还剩多少"，把仪表擦干净等于把解释一起擦掉。
+       */
+      setBudgetState: (b) =>
+        set((s) => {
+          s.budget = b;
+        }),
       setCheckpoints: (c) =>
         set((s) => {
           s.checkpoints = c;
@@ -290,6 +310,7 @@ export const useAgentStore = create<AgentStoreState>()(
           s.steps = [];
           s.termination = null;
           s.stats = { ...EMPTY_STATS };
+          s.budget = null;
           s.checkpoints = [];
         }),
     })),

@@ -676,6 +676,10 @@ export class AgentHost {
       case 'phase':
         this.deps.emit('agent:phase', { runId, phase: e.phase });
         break;
+      // ★ 第 32 条：预算快照转推。渲染层的预算仪表只有这一条来源。
+      case 'budget':
+        this.deps.emit('agent:budget', { runId, budget: e.budget });
+        break;
       case 'tool-call':
         this.deps.emit('agent:tool-call', {
           runId,

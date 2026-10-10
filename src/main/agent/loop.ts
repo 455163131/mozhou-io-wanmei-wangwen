@@ -17,6 +17,7 @@ import type {
   Evaluation,
   Observation,
   Plan,
+  RunBudget,
   RunState,
   RunStats,
   StepRecord,
@@ -64,6 +65,9 @@ export type LoopEvent =
   // ★ 第 25 条：阶段变化只在这两个时刻发（其余阶段各有自己的事件，不需要额外刷屏）。
   //   渲染层的 status 全靠它，否则「暂停中」在界面上无处可来。
   | { type: 'phase'; runId: string; phase: 'paused' | 'planning' }
+  // ★ 第 32 条：预算快照。挂在这上面而不是新增一条 IPC 通道，
+  //   是因为 host 的事件转推已经有现成的分发点（`handleEvent`）。
+  | { type: 'budget'; runId: string; budget: RunBudget }
   | { type: 'terminated'; runId: string; reason: TerminationReason; stats: RunStats; keptChanges: number };
 
 export function newRunStats(): RunStats {
@@ -111,14 +115,37 @@ export class AgentLoop {
    */
   private readonly startedAtMs = Date.now();
 
-  /** 预算上限，供 UI 预算仪表展示 */
+  /**
+   * 预算上限，供 UI 预算仪表展示。
+   * ★ 第 32 条：以前它只活在主进程里——两处注释写着「供 UI 展示」，
+   *   而 UI 拿不到，因为它没进 `RunState`。现在由 `state` 一起带出去。
+   */
   get limits(): BudgetLimits {
     return this.budgetLimits;
   }
 
-  /** 剩余预算 */
+  /**
+   * 剩余预算。
+   * ★ 第 32 条：`costLeftCny` 在本地模型下是 `Infinity`，而 `Infinity`
+   *   过 IPC（structured clone）会变成 `null`。这里显式归一成 `null`，
+   *   免得渲染层拿到一个「看着像数字的空值」还要自己猜。
+   */
   remaining(): ReturnType<BudgetGuard['remaining']> {
     return this.guard.remaining(this.stats, this.deps.isLocal);
+  }
+
+  /** 预算快照：上限 + 剩余，一起给（仪表要显示「8 / 24」）。 */
+  private budgetSnapshot(): RunBudget {
+    const left = this.remaining();
+    return {
+      maxSteps: this.budgetLimits.maxSteps,
+      maxTokens: this.budgetLimits.maxTokens,
+      maxCostCny: this.budgetLimits.maxCostCny,
+      maxWallMs: this.budgetLimits.maxWallMs,
+      stepsLeft: left.stepsLeft,
+      tokensLeft: left.tokensLeft,
+      costLeftCny: Number.isFinite(left.costLeftCny) ? left.costLeftCny : null,
+    };
   }
 
   get state(): RunState {
@@ -130,6 +157,7 @@ export class AgentLoop {
       plan: this.plan,
       observations: this.observations,
       stats: this.stats,
+      budget: this.budgetSnapshot(),
       termination: this.termination,
       keptChanges: this.stats.edits,
       startedAt: this.startedAtMs,
@@ -369,6 +397,11 @@ export class AgentLoop {
     if (i >= 0) this.steps[i] = record;
     else this.steps.push(record);
     this.deps.emit({ type: 'step', runId: this.runId, step: record });
+    // ★ 第 32 条：步事件正是用量会变的时刻，顺手把预算快照一起推出去。
+    //   选这里而不是给 addUsage 加事件，是因为 addUsage 由 host 在每次 LLM
+    //   调用后调、一步能调好几次；挂在那儿会一步推多帧，而仪表只需要
+    //   在「这一步开始时」和「这一步跑完时」两个刻度上准。
+    this.deps.emit({ type: 'budget', runId: this.runId, budget: this.budgetSnapshot() });
   }
 
   private pushStep(

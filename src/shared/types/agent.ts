@@ -145,6 +145,36 @@ export interface RunStats {
   checkpoints: number;
 }
 
+/**
+ * §4 第 32 条：预算仪表要显示的是「还剩多少」，不是「已经用了多少」。
+ *
+ * 修复前这套数在 `BudgetGuard.remaining()` 与 `AgentLoop.remaining()` 里算得
+ * 整整齐齐，两处注释都写着「供 UI 预算仪表展示」——**而 UI 一次都没调过**，
+ * 因为它过不了 IPC：`agent:state` 的 res 是 `RunState`，而 `RunState` 里
+ * 压根没有预算字段。于是用户每次开跑都不知道 `maxSteps=24` 这种数存在，
+ * 直到 `BUDGET_EXCEEDED` 砸下来；引导文案写着「可继续」，却从没说还能继续多少。
+ *
+ * ★ 上限与剩余**一起**给，因为仪表要显示的是「8 / 24」这个形状——
+ *   只给剩余的话渲染层没法算分母（`DEFAULT_BUDGET` 可被 `agent.run` 的
+ *   budget 参数逐项覆盖，渲染层 store 里那份副本不可信）。
+ */
+export interface RunBudget {
+  /** 闸门① 步数上限 */
+  maxSteps: number;
+  /** 闸门② token 上限 */
+  maxTokens: number;
+  /** 闸门② 成本上限（元）。本地模型恒不触发 */
+  maxCostCny: number;
+  /** 本地模型专用：本机耗时上限（毫秒） */
+  maxWallMs: number;
+  /** 剩余步数（已触底为 0） */
+  stepsLeft: number;
+  /** 剩余 token（已触底为 0） */
+  tokensLeft: number;
+  /** 剩余成本（元）。本地模型为 `Infinity`，过 IPC 后变 `null` */
+  costLeftCny: number | null;
+}
+
 export interface RunState {
   runId: string;
   goal: string;
@@ -153,6 +183,8 @@ export interface RunState {
   plan: Plan | null;
   observations: Observation[];
   stats: RunStats;
+  /** §4 第 32 条：预算上限 + 剩余。没有活着的 loop 时为 null */
+  budget: RunBudget | null;
   /** 终止原因（仅status==='terminated' 时有值） */
   termination: TerminationReason | null;
   /** 终止时保留的改动数（闸门终止不回滚，架构 §1.4.1 关键决策） */

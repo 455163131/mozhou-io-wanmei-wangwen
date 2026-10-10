@@ -140,6 +140,8 @@
 /* ── 预算仪表 ── */
 .budget {
   display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
   gap: 10px;
   font-size: var(--mz-fs-xs);
   color: var(--mz-text-tertiary);
@@ -147,6 +149,36 @@
   background: var(--mz-bg-inset);
   border-radius: var(--mz-radius-xs);
   font-family: var(--mz-font-numeric);
+}
+/* 还没有活着的 run：只一行说明，不摆一副空刻度盘 */
+.budgetHint {
+  color: var(--mz-text-tertiary);
+  font-family: var(--mz-font-ui);
+}
+.budgetCell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.budgetLabel {
+  color: var(--mz-text-tertiary);
+  font-family: var(--mz-font-ui);
+}
+.budgetValue {
+  color: var(--mz-text-secondary);
+}
+/* ★ 第 32 条：逼近上限时才出现的提示，这才是修复前缺的那句话 */
+.budgetWarn {
+  margin-left: auto;
+  color: var(--mz-text-secondary);
+}
+.budget[data-tone='warn'] .budgetValue,
+.budget[data-tone='warn'] .budgetWarn {
+  color: var(--mz-sem-warn-fg);
+}
+.budget[data-tone='danger'] .budgetValue,
+.budget[data-tone='danger'] .budgetWarn {
+  color: var(--mz-sem-ai-fg);
 }
 
 /* ── 轨迹 ── */

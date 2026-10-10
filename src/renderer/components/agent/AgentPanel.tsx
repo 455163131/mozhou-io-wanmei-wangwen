@@ -282,16 +282,7 @@ export function AgentPanel(): JSX.Element {
       {plan && <PlanView plan={plan} />}
 
       {/* 预算仪表：实时可见 */}
-      <div className={styles.budget}>
-        <span>步数 {steps.length}</span>
-        <span>工具调用 {stats.toolCalls}</span>
-        <span>改动 {stats.edits} 处</span>
-        <span>
-          {llmStatus?.isLocal
-            ? `本机耗时 ${(stats.wallMs / 1000).toFixed(0)}s`
-            : `¥${stats.costCny.toFixed(4)}`}
-        </span>
-      </div>
+      <BudgetGauge />
 
       {/* 轨迹 */}
       <div className={styles.timeline}>
@@ -305,6 +296,96 @@ export function AgentPanel(): JSX.Element {
 
       {/* 终止徽标 */}
       {termination && <TerminationBadgeView reason={termination} keptChanges={stats.edits} />}
+    </div>
+  );
+}
+
+/**
+ * 预算仪表（第 32 条）。
+ *
+ * ★ 修复前这个位置写着「预算仪表：实时可见」，显示的是**四个"已用"**
+ *   （步数 / 工具调用 / 改动 / 耗时或花费），**一个"还剩"都没有**。
+ *   用户每次开跑都不知道 `maxSteps=24` 这种上限存在，直到 `BUDGET_EXCEEDED`
+ *   砸下来；而引导文案还写着「已做的改动保留，可继续」——**从没说还能继续多少**。
+ *
+ * 现在显示的是「已用 / 上限」这个形状，逼近上限时变色：
+ *   · `>= 80%`  → warn（琥珀），提示快到头了
+ *   · `>= 100%` → danger（朱砂），撞击已发生
+ *
+ * ★ 上限取自**主进程报回来的** `state.budget`，不是渲染层 store 里那份手抄默认值——
+ *   真正生效的上限是 `agent.run` 传的 budget，两者可以不一样。
+ */
+function BudgetGauge(): JSX.Element {
+  const budget = useAgentStore((s) => s.budget);
+  const stats = useAgentStore((s) => s.stats);
+  const llmStatus = useAgentStore((s) => s.llmStatus);
+
+  // 还没跑起来：给一行静态说明，而不是装作有个仪表
+  if (!budget) {
+    return (
+      <div className={styles.budget}>
+        <span className={styles.budgetHint}>预算仪表会在 Agent 开跑后出现</span>
+      </div>
+    );
+  }
+
+  const usedTokens = stats.tokensIn + stats.tokensOut;
+  // 本地模型：成本不计费，仪表换成「本机耗时 / 上限」
+  const isLocal = llmStatus?.isLocal ?? false;
+
+  const stepRatio = budget.maxSteps > 0 ? stats.steps / budget.maxSteps : 0;
+  const tokenRatio = budget.maxTokens > 0 ? usedTokens / budget.maxTokens : 0;
+  const costRatio = isLocal
+    ? budget.maxWallMs > 0
+      ? stats.wallMs / budget.maxWallMs
+      : 0
+    : budget.maxCostCny > 0
+      ? stats.costCny / budget.maxCostCny
+      : 0;
+
+  const worst = Math.max(stepRatio, tokenRatio, costRatio);
+  const tone = worst >= 1 ? 'danger' : worst >= 0.8 ? 'warn' : 'ok';
+
+  /** 千分位 + 万级缩写：200_000 → "200.0k"，免得仪表本身被数字撑爆 */
+  const compact = (n: number): string =>
+    n >= 10_000 ? `${(n / 1000).toFixed(1)}k` : n.toLocaleString();
+
+  return (
+    <div className={styles.budget} data-tone={tone}>
+      <span className={styles.budgetCell}>
+        <span className={styles.budgetLabel}>步数</span>
+        <span className={styles.budgetValue}>
+          {stats.steps} / {budget.maxSteps}
+        </span>
+      </span>
+      <span className={styles.budgetCell}>
+        <span className={styles.budgetLabel}>Token</span>
+        <span className={styles.budgetValue}>
+          {compact(usedTokens)} / {compact(budget.maxTokens)}
+        </span>
+      </span>
+      <span className={styles.budgetCell}>
+        <span className={styles.budgetLabel}>工具</span>
+        <span className={styles.budgetValue}>{stats.toolCalls}</span>
+      </span>
+      <span className={styles.budgetCell}>
+        <span className={styles.budgetLabel}>改动</span>
+        <span className={styles.budgetValue}>{stats.edits} 处</span>
+      </span>
+      <span className={styles.budgetCell}>
+        <span className={styles.budgetLabel}>{isLocal ? '本机耗时' : '花费'}</span>
+        <span className={styles.budgetValue}>
+          {isLocal
+            ? `${(stats.wallMs / 1000).toFixed(0)}s / ${(budget.maxWallMs / 60_000).toFixed(0)}min`
+            : `¥${stats.costCny.toFixed(4)} / ¥${budget.maxCostCny.toFixed(2)}`}
+        </span>
+      </span>
+      {/* ★ 逼近上限时明说距离——这才是修复前缺的那句话 */}
+      {tone !== 'ok' && (
+        <span className={styles.budgetWarn}>
+          {tone === 'danger' ? '已达上限，即将/已经停止' : '接近上限'}
+        </span>
+      )}
     </div>
   );
 }

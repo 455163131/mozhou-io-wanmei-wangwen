@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 import { bridge, errorText, onAgentEvent } from './use-mz-bridge';
 import { useAgentStore, useProjectStore, useEditorStore, useHealthStore } from '../store';
 import { refreshDash } from './use-dash';
-import type { StepRecord, Plan, TerminationReason, RunStats } from '@shared/types/agent';
+import type { StepRecord, Plan, RunBudget, TerminationReason, RunStats } from '@shared/types/agent';
 import type { LlmStatus } from '@shared/types/provider';
 
 export function useAgentStream(): void {
@@ -32,6 +32,13 @@ export function useAgentStream(): void {
 
     const offPlan = onAgentEvent('agent:plan', (p) => {
       agent().setPlan(p.plan as Plan);
+    });
+
+    // ★ 第 32 条：预算仪表的数据源。修复前渲染层拿不到预算——那套数只活在
+    //   主进程的 `BudgetGuard.remaining()` 里，两处注释都写着「供 UI 预算仪表展示」，
+    //   而唯一的出口 `agent:state` 是**拉通道**，渲染层从头到尾没调过。
+    const offBudget = onAgentEvent('agent:budget', (p) => {
+      agent().setBudgetState((p.budget as RunBudget | null) ?? null);
     });
 
     // ★ 第 25 条：run 的阶段。这是 setStatus 在全仓**唯一**的调用方——
@@ -86,6 +93,7 @@ export function useAgentStream(): void {
     return () => {
       offStep();
       offPlan();
+      offBudget();
       offPhase();
       offTerminated();
       offCheckpoint();
