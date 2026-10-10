@@ -15,6 +15,7 @@ import type { StepRecord, TerminationReason, Plan, RunStats } from '@shared/type
 import type { LlmStatus } from '@shared/types/provider';
 import type { Checkpoint } from '@shared/types/checkpoint';
 import type { ChapterAnalysis, HealthReport } from '@shared/types/health';
+import type { DashStats } from '@shared/types/ipc';
 import { DEFAULT_THEME, type Theme } from '../lib/theme';
 
 // ───────────────────────── project-store ─────────────────────────
@@ -293,6 +294,37 @@ export const useAgentStore = create<AgentStoreState>()(
         }),
     })),
   ),
+);
+
+// ───────────────────────── dash-store ─────────────────────────
+
+/**
+ * 全书统计（底栏 + 仪表盘 + 规划页共用的那一份事实）。
+ *
+ * ★ 第 30 条：修复前 `aiFlavor.dashStats()` 在渲染层有**四个取数点、散在三个组件**
+ *   （App 底栏、DashboardView、PlanView 两处），各自 useState、各自 catch。
+ *   同一个事实四个副本，就是"底栏显示 0 而侧栏显示 289"能活下来的原因——
+ *   没有一处是"权威"，也就没有一处会负责刷新。
+ *   现在取数只剩 `hooks/use-dash.ts` 一处，这里只放状态（不碰 bridge，
+ *   以便在 environment:'node' 下被真正测到）。
+ */
+interface DashState {
+  dash: DashStats | null;
+  /** 取数失败的原文；成功时要清成 null，否则上一次的错误会一直挂在仪表盘上 */
+  error: string | null;
+  setDash: (d: DashStats | null) => void;
+  setError: (e: string | null) => void;
+}
+
+export const useDashStore = create<DashState>()(
+  subscribeWithSelector((set) => ({
+    // 初值必须是 null 而不是零值对象：底栏据此显示「—」，
+    // 填 0 会把"还没取到数"演成"这本书一个字没有"。
+    dash: null,
+    error: null,
+    setDash: (d) => set({ dash: d }),
+    setError: (e) => set({ error: e }),
+  })),
 );
 
 // ───────────────────────── settings-store ─────────────────────────

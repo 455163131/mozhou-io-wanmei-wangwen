@@ -6,15 +6,17 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { bridge, errorText } from '../../hooks/use-mz-bridge';
+import { refreshDash } from '../../hooks/use-dash';
+import { useDashStore } from '../../store';
 import { useProjectStore } from '../../store';
-import type { DashStats } from '@shared/types/ipc';
 import type { Volume } from '@shared/types/project';
 import styles from './PlanView.module.css';
 
 export function PlanView(): JSX.Element {
   const volumes = useProjectStore((s) => s.volumes);
   const setVolumes = useProjectStore((s) => s.setVolumes);
-  const [stats, setStats] = useState<DashStats | null>(null);
+  /** ★ 第 30 条：进度聚合读全局那一份，不再自己取数自己存（以前这里 + 底栏 + 仪表盘三份副本）*/
+  const stats = useDashStore((s) => s.dash);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
@@ -28,9 +30,8 @@ export function PlanView(): JSX.Element {
     try {
       const api = bridge();
       if (!api) throw new Error('未连接到主进程');
-      const [v, s] = await Promise.all([api.project.volumes(), api.aiFlavor.dashStats()]);
-      setVolumes(v);
-      setStats(s);
+      setVolumes(await api.project.volumes());
+      await refreshDash();
     } catch (e) {
       setErr(errorText(e));
     } finally {
@@ -54,8 +55,7 @@ export function PlanView(): JSX.Element {
       setVolumes([...volumes, created]);
       setDraftTitle('');
       // 进度聚合（每卷章数/字数）只有主进程算得出来，建完刷一次
-      const s = await api.aiFlavor.dashStats();
-      setStats(s);
+      await refreshDash();
     } catch (e) {
       setErr(errorText(e));
     } finally {

@@ -5,10 +5,11 @@
  * 写作专注态编辑器全宽。配色走「素笺·朱批」令牌（styles/tokens.css）。
  * 现有面板（专家团 / 主编对谈 / 审查 / 体检 / 历史）全部挂进「写作」模式右栏。
  */
-import { useCallback, useEffect, useState } from 'react';
-import { useProjectStore } from './store';
+import { useEffect, useState } from 'react';
+import { useProjectStore, useDashStore } from './store';
 import { useAgentStream, useDebouncedAutosave } from './hooks/use-agent-stream';
 import { bridge, errorText, hasBridge } from './hooks/use-mz-bridge';
+import { refreshDash } from './hooks/use-dash';
 import { ChapterTree } from './components/chapter-tree/ChapterTree';
 import { Editor } from './components/editor/Editor';
 import { AgentPanel } from './components/agent/AgentPanel';
@@ -22,7 +23,6 @@ import { LoreView } from './components/views/LoreView';
 import { ReviewView } from './components/views/ReviewView';
 import { DashboardView } from './components/views/DashboardView';
 import type { LlmStatus } from '@shared/types/provider';
-import type { DashStats } from '@shared/types/ipc';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
 import styles from './App.module.css';
 
@@ -82,18 +82,23 @@ export function App(): JSX.Element {
   const [showSettings, setShowSettings] = useState(false);
   const [showTree, setShowTree] = useState(true);
   const [showRail, setShowRail] = useState(true);
-  const [dash, setDash] = useState<DashStats | null>(null);
+  /** ★ 第 30 条：统计不再是本组件的私有 state——它同时是底栏、仪表盘、规划页的事实 */
+  const dash = useDashStore((s) => s.dash);
 
   useAgentStream();
   useDebouncedAutosave();
 
-  const loadDash = useCallback(async (): Promise<void> => {
-    try {
-      setDash(await bridge()?.aiFlavor.dashStats());
-    } catch {
-      /* 未打开项目时无统计，不报错 */
-    }
-  }, []);
+  /**
+   * ★ 第 30 条：底栏那行数字以前只在启动与 openProject 时取一次，
+   *   于是建完一章、改完正文，侧栏已经变了而底栏还停在旧数（真机截图抓到）。
+   *   重算挂在 `chapters` 上——建章 / 删章 / 改名 / 改状态 / 保存正文（rev 变）
+   *   这五条路径最后都会落到 `setChapters` / `upsertChapterMeta`，
+   *   收敛成**一个**触发点，比在五个地方各补一句"记得刷新"可靠得多。
+   *   Agent 改稿走的是推送，不经过这里，由 `use-agent-stream` 负责触发。
+   */
+  useEffect(() => {
+    void refreshDash();
+  }, [chapters]);
 
   useEffect(() => {
     /**
@@ -122,7 +127,7 @@ export function App(): JSX.Element {
           useProjectStore.getState().setVolumes(await bridge().project.volumes());
         }
         setLlmStatus(await bridge().llm.status());
-        await loadDash();
+        await refreshDash();
         useProjectStore.getState().setLoading(false);
       } catch (e) {
         setError(errorText(e));
@@ -130,8 +135,11 @@ export function App(): JSX.Element {
     }
 
     void bootstrap();
-    // loadDash 是 useCallback([])、setError 是 zustand action，两者引用恒定
-  }, [loadDash, setError]);
+    /**
+     * 依赖数组里没有 `refreshDash`：它是模块级函数（不是组件内重建的），引用恒定，
+     * 放进依赖里是"外层值不是有效依赖"——`exhaustive-deps` 会直接报 unnecessary dependency。
+     */
+  }, [setError]);
 
   async function openProject(): Promise<void> {
     try {
@@ -143,7 +151,7 @@ export function App(): JSX.Element {
       useProjectStore.getState().setProject(p);
       useProjectStore.getState().setChapters(await bridge().chapter.list());
       useProjectStore.getState().setVolumes(await bridge().project.volumes());
-      await loadDash();
+      await refreshDash();
     } catch (e) {
       setError(errorText(e));
     }

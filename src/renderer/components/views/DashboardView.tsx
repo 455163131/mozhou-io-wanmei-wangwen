@@ -7,9 +7,10 @@
  * 只有「追读率」仍然如实标注未接入：那是读者行为数据，本地算不出来，
  * 不拿"章均字数"之类的代理指标冒充它。
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bridge, errorText } from '../../hooks/use-mz-bridge';
-import type { DashStats } from '@shared/types/ipc';
+import { refreshDash } from '../../hooks/use-dash';
+import { useDashStore } from '../../store';
 import styles from './DashboardView.module.css';
 
 const wan = (n: number): string =>
@@ -19,29 +20,30 @@ const wan = (n: number): string =>
 const signed = (n: number): string => `${n > 0 ? '+' : n < 0 ? '−' : ''}${wan(n)}`;
 
 export function DashboardView(): JSX.Element {
-  const [stats, setStats] = useState<DashStats | null>(null);
+  /**
+   * ★ 第 30 条：以前这里自己 `useState<DashStats|null>` + 自己取数，
+   *   与底栏是两份独立副本——底栏停在 0 而这里显示新数（或反过来）就是这么来的。
+   *   现在读同一个 store，取数只有 `hooks/use-dash.ts` 一处。
+   */
+  const stats = useDashStore((s) => s.dash);
+  const err = useDashStore((s) => s.error);
+  const setErr = useDashStore((s) => s.setError);
   const [busy, setBusy] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
   const [price, setPrice] = useState('');
   const [savingPrice, setSavingPrice] = useState(false);
 
-  const load = useCallback(async () => {
-    setBusy(true);
-    setErr(null);
-    try {
-      const api = bridge();
-      if (!api) throw new Error('未连接到主进程');
-      setStats(await api.aiFlavor.dashStats());
-    } catch (e) {
-      setErr(errorText(e));
-    } finally {
-      setBusy(false);
-    }
-  }, []);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    // 函数定义在 effect 内部：它只用一次，提到组件体里就会进依赖数组、每轮重跑
+    let alive = true;
+    void (async () => {
+      setBusy(true);
+      await refreshDash();
+      if (alive) setBusy(false);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const savePrice = async (): Promise<void> => {
     const api = bridge();
@@ -56,7 +58,7 @@ export function DashboardView(): JSX.Element {
     setErr(null);
     try {
       await api.project.setPrice(n);
-      await load();
+      await refreshDash();
     } catch (e) {
       setErr(errorText(e));
     } finally {

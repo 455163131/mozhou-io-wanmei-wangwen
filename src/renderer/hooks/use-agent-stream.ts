@@ -7,6 +7,7 @@
 import { useEffect } from 'react';
 import { bridge, errorText, onAgentEvent } from './use-mz-bridge';
 import { useAgentStore, useProjectStore, useEditorStore, useHealthStore } from '../store';
+import { refreshDash } from './use-dash';
 import type { StepRecord, Plan, TerminationReason, RunStats } from '@shared/types/agent';
 import type { LlmStatus } from '@shared/types/provider';
 
@@ -61,6 +62,9 @@ export function useAgentStream(): void {
       // 只在 source==='agent' 时刷新当前章正文（用户自己改的不重载，避免打断输入）
       if (p.source === 'agent') {
         void reloadCurrentChapter(p.chapterId);
+        // ★ 第 30 条：Agent 改稿不走渲染层的保存路径，chapters 可能根本不变，
+        //   所以底栏那行字数**只能在这里**触发重算，否则它一直停在改稿前的数。
+        void refreshDash();
       }
     });
 
