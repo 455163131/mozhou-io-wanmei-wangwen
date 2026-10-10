@@ -1,8 +1,8 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: var(--mz-space-2h);
+  padding: var(--mz-space-3);
   background: var(--mz-bg-editor);
   border-left: 1px solid var(--mz-border-subtle);
   overflow-y: auto;
@@ -19,10 +19,10 @@
 }
 .refresh {
   font-size: var(--mz-fs-xs);
-  padding: 3px 10px;
+  padding: var(--mz-space-1) var(--mz-space-2h);
 }
 .baselineNote {
-  padding: 5px 7px;
+  padding: var(--mz-space-half) var(--mz-space-2);
   font-size: var(--mz-fs-xs);
   color: var(--mz-sem-con-fg);
   background: var(--mz-sem-con-bg);
@@ -35,7 +35,7 @@
 .scoreRow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--mz-space-3);
 }
 .score {
   font-family: var(--mz-font-numeric);
@@ -43,7 +43,7 @@
   font-weight: var(--mz-fw-semibold);
   min-width: 56px;
   text-align: center;
-  padding: 4px 8px;
+  padding: var(--mz-space-1) var(--mz-space-2);
   border-radius: var(--mz-radius-md);
 }
 .score.ok {
@@ -68,7 +68,7 @@
 }
 
 .insufficient {
-  padding: 6px 8px;
+  padding: var(--mz-space-half) var(--mz-space-2);
   font-size: var(--mz-fs-xs);
   color: var(--mz-sem-ai-fg);
   background: var(--mz-sem-ai-bg);
@@ -79,26 +79,26 @@
 .section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--mz-space-1);
 }
 .sectionTitle {
   font-size: var(--mz-fs-xs);
   color: var(--mz-text-tertiary);
   letter-spacing: var(--mz-tracking-wide);
   text-transform: uppercase;
-  margin-bottom: 2px;
+  margin-bottom: var(--mz-space-1);
 }
 
 .metricGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 3px;
+  gap: var(--mz-space-1);
 }
 .metric {
   display: flex;
   justify-content: space-between;
-  gap: 6px;
-  padding: 3px 6px;
+  gap: var(--mz-space-half);
+  padding: var(--mz-space-1) var(--mz-space-half);
   background: var(--mz-bg-elevated);
   border-radius: var(--mz-radius-xs);
   font-size: var(--mz-fs-xs);
@@ -122,7 +122,7 @@
 }
 
 .issue {
-  padding: 5px 7px;
+  padding: var(--mz-space-half) var(--mz-space-2);
   border-radius: var(--mz-radius-xs);
   border-left: 2px solid transparent;
 }
@@ -153,7 +153,7 @@
 }
 
 .allOk {
-  padding: 8px;
+  padding: var(--mz-space-2);
   text-align: center;
   color: var(--mz-sem-pass-fg);
   font-size: var(--mz-fs-xs);
@@ -166,7 +166,7 @@
   justify-content: space-between;
   font-size: var(--mz-fs-xs);
   color: var(--mz-text-secondary);
-  padding: 2px 4px;
+  padding: var(--mz-space-1) var(--mz-space-1);
 }
 .commonCount {
   font-family: var(--mz-font-numeric);
@@ -174,7 +174,7 @@
 }
 
 .empty {
-  padding: 20px 8px;
+  padding: var(--mz-space-5) var(--mz-space-2);
   text-align: center;
   color: var(--mz-text-tertiary);
   font-size: var(--mz-fs-sm);

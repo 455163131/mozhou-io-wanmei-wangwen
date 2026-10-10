@@ -27,8 +27,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 10px 0;
+  gap: var(--mz-space-half);
+  padding: var(--mz-space-2h) 0;
   background: var(--mz-bg-surface);
   border-right: 1px solid var(--mz-border-subtle);
 }
@@ -41,8 +41,8 @@
   color: var(--mz-text-inverse);
   display: grid;
   place-items: center;
-  padding: 6px;
-  margin-bottom: 4px;
+  padding: var(--mz-space-half);
+  margin-bottom: var(--mz-space-1);
 }
 .markSvg {
   width: 100%;
@@ -52,13 +52,13 @@
 .railModes {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--mz-space-1);
   flex: 1;
 }
 
 .railBtn {
   width: 46px;
-  padding: 7px 0 6px;
+  padding: var(--mz-space-2) 0 var(--mz-space-half);
   border: 0;
   background: transparent;
   border-radius: var(--mz-radius-sm);
@@ -66,9 +66,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: var(--mz-space-1);
   cursor: pointer;
-  font-size: 10.5px;
+  font-size: var(--mz-fs-2xs);
   letter-spacing: var(--mz-tracking-cjk);
 }
 .railBtn:hover {
@@ -108,7 +108,7 @@
   background: var(--mz-bg-selected);
   display: grid;
   place-items: center;
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-accent-hover);
   border: 1px solid var(--mz-border-default);
   transition: border-color var(--mz-dur-base) var(--mz-ease-standard);
@@ -128,8 +128,8 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 14px;
+  gap: var(--mz-space-3);
+  padding: 0 var(--mz-space-3);
   background: var(--mz-bg-editor);
   border-bottom: 1px solid var(--mz-border-subtle);
 }
@@ -144,7 +144,7 @@
 .crumb {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--mz-space-2);
   min-width: 0;
   font-size: var(--mz-fs-sm);
   color: var(--mz-text-secondary);
@@ -163,7 +163,7 @@
 .topRight {
   margin-left: auto;
   display: flex;
-  gap: 4px;
+  gap: var(--mz-space-1);
   flex: none;
 }
 
@@ -199,8 +199,8 @@
 .book {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 4px 12px 4px 6px;
+  gap: var(--mz-space-2h);
+  padding: var(--mz-space-1) var(--mz-space-3) var(--mz-space-1) var(--mz-space-half);
   border: 1px solid var(--mz-border-subtle);
   border-radius: var(--mz-radius-md);
   background: var(--mz-bg-elevated);
@@ -216,14 +216,14 @@
 .cov {
   width: 24px;
   height: 32px;
-  border-radius: 3px;
+  border-radius: var(--mz-radius-xs);
   background: var(--mz-text-primary); /* 线装书封：浓墨实底 + 朱砂书脊 */
   border: 1px solid var(--mz-border-strong);
   box-shadow: inset 3px 0 0 var(--mz-sem-ai-strong);
   display: grid;
   place-items: center;
   font-family: var(--mz-font-serif);
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
   color: var(--mz-text-inverse);
   flex: none;
 }
@@ -231,21 +231,21 @@
 .bt {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
 }
 .bt b {
-  font-size: 12.5px;
+  font-size: var(--mz-fs-sm);
   color: var(--mz-text-primary);
   line-height: 1.3;
 }
 .bt span {
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-text-tertiary);
 }
 
 /* ---- 错误条 ---- */
 .errorBar {
-  padding: 6px 14px;
+  padding: var(--mz-space-half) var(--mz-space-3);
   background: var(--mz-sem-warn-bg);
   border-bottom: 1px solid var(--mz-sem-warn-border);
   color: var(--mz-text-primary);
@@ -254,7 +254,7 @@
 }
 .dismiss {
   color: var(--mz-text-tertiary);
-  margin-left: 8px;
+  margin-left: var(--mz-space-2);
 }
 
 /* ---- 工作区 ---- */
@@ -299,7 +299,7 @@
   border: none;
   border-radius: 0;
   background: transparent;
-  padding: 9px 4px;
+  padding: var(--mz-space-2h) var(--mz-space-1);
   font-size: var(--mz-fs-xs);
   color: var(--mz-text-tertiary);
   border-bottom: 2px solid transparent;
@@ -337,8 +337,8 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 0 14px;
+  gap: var(--mz-space-3);
+  padding: 0 var(--mz-space-3);
   font-size: var(--mz-fs-xs);
   color: var(--mz-text-tertiary);
   background: var(--mz-bg-surface);
@@ -366,7 +366,7 @@
 .modelFoot {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mz-space-half);
   cursor: pointer;
 }
 .modelFoot:hover {

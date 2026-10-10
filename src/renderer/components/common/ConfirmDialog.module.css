@@ -13,7 +13,7 @@
 .dialog {
   width: 420px;
   max-width: calc(100vw - 48px);
-  padding: 16px;
+  padding: var(--mz-space-4);
   background: var(--mz-bg-overlay);
   border: 1px solid var(--mz-border-strong);
   border-radius: var(--mz-radius-md);
@@ -22,7 +22,7 @@
 .dialogTitle {
   font-size: var(--mz-fs-h3);
   color: var(--mz-text-primary);
-  margin-bottom: 8px;
+  margin-bottom: var(--mz-space-2);
 }
 .dialogBody {
   font-size: var(--mz-fs-sm);
@@ -36,8 +36,8 @@
   color: var(--mz-text-primary);
 }
 .warnLine {
-  margin-top: 6px;
-  padding: 6px 8px;
+  margin-top: var(--mz-space-half);
+  padding: var(--mz-space-half) var(--mz-space-2);
   background: var(--mz-sem-warn-bg);
   border: 1px solid var(--mz-sem-warn-border);
   border-radius: var(--mz-radius-xs);
@@ -47,8 +47,8 @@
 .dialogActions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 14px;
+  gap: var(--mz-space-2);
+  margin-top: var(--mz-space-3);
 }
 .dangerBtn {
   background: var(--mz-sem-warn-strong);

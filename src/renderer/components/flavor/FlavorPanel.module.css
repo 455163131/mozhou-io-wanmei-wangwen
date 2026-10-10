@@ -3,9 +3,9 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  font-size: 13px;
+  gap: var(--mz-space-3);
+  padding: var(--mz-space-3);
+  font-size: var(--mz-fs-sm);
   color: var(--mz-text-primary);
   overflow-y: auto;
 }
@@ -14,12 +14,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--mz-space-2);
 }
 
 .title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--mz-fs-sm);
 }
 
 .btn,
@@ -27,10 +27,10 @@
   border: 1px solid var(--mz-border-subtle);
   background: var(--mz-bg-surface);
   color: var(--mz-text-primary);
-  border-radius: 6px;
-  padding: 5px 10px;
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-2h);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
 }
 
 .btn:hover:not(:disabled) {
@@ -54,15 +54,15 @@
 .scoreBox {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px;
-  border-radius: 8px;
+  gap: var(--mz-space-3);
+  padding: var(--mz-space-3);
+  border-radius: var(--mz-radius-md);
   border: 1px solid var(--mz-border-subtle);
   background: var(--mz-bg-surface);
 }
 
 .scoreNum {
-  font-size: 34px;
+  font-size: var(--mz-fs-metric-xl);
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -71,12 +71,12 @@
 .scoreMeta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--mz-space-1);
 }
 
 .dim {
   color: var(--mz-text-secondary);
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
 }
 
 /* 等级配色：clean→severe 递增警示 */
@@ -99,11 +99,11 @@
 .warn,
 .err {
   margin: 0;
-  padding: 8px 10px;
-  border-radius: 6px;
+  padding: var(--mz-space-2) var(--mz-space-2h);
+  border-radius: var(--mz-radius-sm);
   background: var(--mz-sem-warn-bg);
   border: 1px solid var(--mz-sem-warn-border);
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
   line-height: 1.6;
 }
 
@@ -115,17 +115,17 @@
 .note {
   margin: 0;
   color: var(--mz-text-secondary);
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
   line-height: 1.7;
 }
 
 .disclaimer {
-  margin: 4px 0 0;
-  padding: 8px 10px;
-  border-radius: 6px;
+  margin: var(--mz-space-1) 0 0;
+  padding: var(--mz-space-2) var(--mz-space-2h);
+  border-radius: var(--mz-radius-sm);
   background: var(--mz-bg-subtle);
   color: var(--mz-text-secondary);
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   line-height: 1.7;
 }
 
@@ -133,14 +133,14 @@
 .section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 8px;
+  gap: var(--mz-space-2);
+  padding-top: var(--mz-space-2);
   border-top: 1px solid var(--mz-border-subtle);
 }
 
 .sectionTitle {
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
   color: var(--mz-text-secondary);
   letter-spacing: 0.02em;
 }
@@ -150,11 +150,11 @@
   display: grid;
   grid-template-columns: 92px 1fr 28px;
   align-items: center;
-  gap: 6px;
+  gap: var(--mz-space-half);
 }
 
 .dimName {
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
   color: var(--mz-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -163,7 +163,7 @@
 
 .barWrap {
   height: 7px;
-  border-radius: 4px;
+  border-radius: var(--mz-radius-xs);
   background: var(--mz-bg-subtle);
   overflow: hidden;
 }
@@ -171,7 +171,7 @@
 .bar {
   display: block;
   height: 100%;
-  border-radius: 4px;
+  border-radius: var(--mz-radius-xs);
   background: currentColor;
   transition: width 0.2s ease;
 }
@@ -179,32 +179,32 @@
 .dimScore {
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
   color: var(--mz-text-secondary);
 }
 
 .dimNote {
   grid-column: 1 / -1;
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-text-secondary);
   line-height: 1.6;
-  padding-left: 2px;
+  padding-left: var(--mz-space-1);
 }
 
 /* ── 段落 chips ── */
 .paraList {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: var(--mz-space-half);
 }
 
 .paraChip {
   border: 1px solid var(--mz-border-subtle);
   background: var(--mz-bg-surface);
   color: var(--mz-text-secondary);
-  border-radius: 12px;
-  padding: 3px 9px;
-  font-size: 11px;
+  border-radius: var(--mz-radius-lg);
+  padding: var(--mz-space-1) var(--mz-space-2h);
+  font-size: var(--mz-fs-2xs);
   cursor: pointer;
 }
 
@@ -223,64 +223,64 @@
   background: none;
   color: var(--mz-text-link);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
   text-decoration: underline;
-  padding: 0 4px;
+  padding: 0 var(--mz-space-1);
 }
 
 /* ── 命中清单 ── */
 .hitList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--mz-space-2);
   max-height: 380px;
   overflow-y: auto;
 }
 
 .hit {
   border: 1px solid var(--mz-border-subtle);
-  border-radius: 6px;
-  padding: 7px 9px;
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-2) var(--mz-space-2h);
   background: var(--mz-bg-surface);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--mz-space-1);
 }
 
 .hitHead {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mz-space-half);
 }
 
 .tag {
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   font-weight: 600;
 }
 
 .hitPara {
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-text-secondary);
 }
 
 .excerpt {
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
   line-height: 1.6;
   color: var(--mz-text-primary);
   background: var(--mz-bg-subtle);
-  border-radius: 4px;
-  padding: 4px 6px;
+  border-radius: var(--mz-radius-xs);
+  padding: var(--mz-space-1) var(--mz-space-half);
   word-break: break-all;
 }
 
 .reason {
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-text-secondary);
   line-height: 1.6;
 }
 
 .advice {
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-sem-con-fg);
   line-height: 1.6;
 }
@@ -288,21 +288,21 @@
 /* ── 操作与对比 ── */
 .actions {
   display: flex;
-  gap: 8px;
+  gap: var(--mz-space-2);
   flex-wrap: wrap;
 }
 
 .compare {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  font-size: 22px;
+  gap: var(--mz-space-2);
+  font-size: var(--mz-fs-metric-md);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .arrow {
-  font-size: 14px;
+  font-size: var(--mz-fs-sm);
   color: var(--mz-text-secondary);
 }
 
@@ -315,7 +315,7 @@
 }
 
 .delta {
-  font-size: 13px;
+  font-size: var(--mz-fs-sm);
   color: var(--mz-text-secondary);
   font-weight: 400;
 }
@@ -324,9 +324,9 @@
 .baselineBar {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 8px 10px;
-  border-radius: 6px;
+  gap: var(--mz-space-half);
+  padding: var(--mz-space-2) var(--mz-space-2h);
+  border-radius: var(--mz-radius-sm);
   border: 1px solid var(--mz-border-subtle);
   background: var(--mz-bg-surface);
 }
@@ -345,42 +345,42 @@
 .baselineRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--mz-space-2);
   flex-wrap: wrap;
 }
 
 .baselineTag {
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   font-weight: 600;
   border: 1px solid var(--mz-border-subtle);
-  border-radius: 4px;
-  padding: 1px 6px;
+  border-radius: var(--mz-radius-xs);
+  padding: 0 var(--mz-space-half);
   color: var(--mz-text-secondary);
 }
 
 .baselineText {
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
   color: var(--mz-text-secondary);
   flex: 1;
 }
 
 .baselineWarn {
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   line-height: 1.6;
   color: var(--mz-sem-warn-fg);
 }
 
 .rebResult {
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
   line-height: 1.7;
   color: var(--mz-text-primary);
   border-top: 1px dashed var(--mz-border-subtle);
-  padding-top: 5px;
+  padding-top: var(--mz-space-half);
 }
 
 .rebWarn {
   color: var(--mz-sem-warn-fg);
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
 }
 
 /* ── 正常带轨道（单维度「实测 vs 你的正常范围」可视化）── */
@@ -388,7 +388,7 @@
   position: relative;
   display: block;
   height: 9px;
-  border-radius: 5px;
+  border-radius: var(--mz-radius-sm);
   background: var(--mz-bg-subtle);
   overflow: hidden;
 }
@@ -400,7 +400,7 @@
   bottom: 0;
   background: var(--mz-sem-pass-fg);
   opacity: 0.28;
-  border-radius: 3px;
+  border-radius: var(--mz-radius-xs);
 }
 
 /* measured 竖线标记：本次实测值的位置 */
@@ -409,17 +409,17 @@
   top: -1px;
   bottom: -1px;
   width: 3px;
-  border-radius: 2px;
+  border-radius: var(--mz-radius-xs);
   background: currentColor;
 }
 
 /* 未校准徽标 */
 .uncal {
-  margin-left: 5px;
-  font-size: 10px;
+  margin-left: var(--mz-space-half);
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-sem-warn-fg);
   border: 1px dashed var(--mz-sem-warn-fg);
-  border-radius: 3px;
-  padding: 0 4px;
+  border-radius: var(--mz-radius-xs);
+  padding: 0 var(--mz-space-1);
   font-weight: 400;
 }

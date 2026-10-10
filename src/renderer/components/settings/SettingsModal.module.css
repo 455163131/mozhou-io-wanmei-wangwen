@@ -18,10 +18,10 @@
   background: var(--mz-bg-overlay);
   border: 1px solid var(--mz-border-default);
   border-radius: var(--mz-radius-lg);
-  padding: 16px;
+  padding: var(--mz-space-4);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--mz-space-2h);
   box-shadow: var(--mz-shadow-xl);
 }
 
@@ -41,9 +41,9 @@
   border: none;
   background: none;
   color: var(--mz-text-secondary);
-  font-size: 14px;
+  font-size: var(--mz-fs-sm);
   cursor: pointer;
-  padding: 2px 6px;
+  padding: var(--mz-space-1) var(--mz-space-half);
   border-radius: var(--mz-radius-xs);
 }
 
@@ -53,7 +53,7 @@
 
 /* 提示条：四周 1px 描边 + 淡染底（不用侧竖条） */
 .warn {
-  padding: 8px 10px;
+  padding: var(--mz-space-2) var(--mz-space-2h);
   border-radius: var(--mz-radius-sm);
   background: var(--mz-sem-warn-bg);
   border: 1px solid var(--mz-sem-warn-border);
@@ -65,7 +65,7 @@
 .statusRow {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--mz-space-2);
   flex-wrap: wrap;
   font-size: var(--mz-fs-xs);
   color: var(--mz-text-secondary);
@@ -94,7 +94,7 @@
 .label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--mz-space-1);
   font-size: var(--mz-fs-xs);
   color: var(--mz-text-secondary);
 }
@@ -103,7 +103,7 @@
   background: var(--mz-bg-elevated);
   border: 1px solid var(--mz-border-default);
   border-radius: var(--mz-radius-sm);
-  padding: 7px 10px;
+  padding: var(--mz-space-2) var(--mz-space-2h);
   font-size: var(--mz-fs-sm);
   color: var(--mz-text-primary);
   outline: none;
@@ -116,7 +116,7 @@
 
 .keyRow {
   display: flex;
-  gap: 6px;
+  gap: var(--mz-space-half);
 }
 
 .keyRow .input {
@@ -128,7 +128,7 @@
   background: var(--mz-bg-elevated);
   color: var(--mz-text-secondary);
   border-radius: var(--mz-radius-sm);
-  padding: 0 10px;
+  padding: 0 var(--mz-space-2h);
   font-size: var(--mz-fs-xs);
   cursor: pointer;
   flex: none;
@@ -147,7 +147,7 @@
 }
 
 .ok {
-  padding: 7px 10px;
+  padding: var(--mz-space-2) var(--mz-space-2h);
   border-radius: var(--mz-radius-sm);
   background: var(--mz-sem-pass-bg);
   border: 1px solid var(--mz-sem-pass-border);
@@ -157,7 +157,7 @@
 }
 
 .err {
-  padding: 7px 10px;
+  padding: var(--mz-space-2) var(--mz-space-2h);
   border-radius: var(--mz-radius-sm);
   background: var(--mz-sem-ai-bg);
   border: 1px solid var(--mz-sem-ai-border);
@@ -168,9 +168,9 @@
 
 .actions {
   display: flex;
-  gap: 8px;
+  gap: var(--mz-space-2);
   justify-content: flex-end;
-  padding-top: 4px;
+  padding-top: var(--mz-space-1);
 }
 
 .btn {
@@ -178,7 +178,7 @@
   background: var(--mz-bg-elevated);
   color: var(--mz-text-primary);
   border-radius: var(--mz-radius-sm);
-  padding: 6px 12px;
+  padding: var(--mz-space-half) var(--mz-space-3);
   font-size: var(--mz-fs-xs);
   cursor: pointer;
 }
@@ -209,9 +209,9 @@
 .themeRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 0 12px;
-  margin-bottom: 12px;
+  gap: var(--mz-space-2h);
+  padding: 0 0 var(--mz-space-3);
+  margin-bottom: var(--mz-space-3);
   border-bottom: 1px solid var(--mz-border-subtle);
 }
 
@@ -226,8 +226,8 @@
 
 .themeSeg {
   display: flex;
-  gap: 2px;
-  padding: 2px;
+  gap: var(--mz-space-1);
+  padding: var(--mz-space-1);
   background: var(--mz-bg-inset);
   border: 1px solid var(--mz-border-default);
   border-radius: var(--mz-radius-sm);
@@ -241,7 +241,7 @@
   font-family: inherit;
   font-size: var(--mz-fs-sm);
   line-height: var(--mz-lh-sm);
-  padding: 4px 12px;
+  padding: var(--mz-space-1) var(--mz-space-3);
   border-radius: var(--mz-radius-xs);
   cursor: pointer;
   white-space: nowrap;

@@ -2,23 +2,23 @@
 .wrap {
   flex: 1;
   overflow: auto;
-  padding: 20px 24px 32px;
+  padding: var(--mz-space-5) var(--mz-space-5) var(--mz-space-6);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--mz-space-3);
 }
 
 .statRow {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: var(--mz-space-3);
 }
 
 .stat {
   border: 1px solid var(--mz-border-subtle);
   background: var(--mz-bg-elevated);
-  border-radius: 11px;
-  padding: 14px 16px;
+  border-radius: var(--mz-radius-lg);
+  padding: var(--mz-space-3) var(--mz-space-4);
   transition: border-color var(--mz-dur-base) var(--mz-ease-standard),
     transform var(--mz-dur-base) var(--mz-ease-standard);
 }
@@ -29,58 +29,58 @@
 }
 
 .sk {
-  font-size: 10.5px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-text-tertiary);
   letter-spacing: 0.04em;
 }
 
 .sv {
-  font-size: 23px;
+  font-size: var(--mz-fs-metric-md);
   font-weight: 650;
-  margin-top: 6px;
+  margin-top: var(--mz-space-half);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.2px;
   color: var(--mz-text-primary);
 }
 
 .sv small {
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-text-tertiary);
   font-weight: 400;
 }
 
 .sd {
-  font-size: 10.5px;
-  margin-top: 5px;
+  font-size: var(--mz-fs-2xs);
+  margin-top: var(--mz-space-half);
   color: var(--mz-text-tertiary);
 }
 
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: var(--mz-space-3);
 }
 
 .panel {
   border: 1px solid var(--mz-border-subtle);
   background: var(--mz-bg-elevated);
-  border-radius: 11px;
-  padding: 14px 16px;
+  border-radius: var(--mz-radius-lg);
+  padding: var(--mz-space-3) var(--mz-space-4);
 }
 
 .ph {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: var(--mz-space-2);
+  font-size: var(--mz-fs-xs);
   color: var(--mz-text-secondary);
-  margin-bottom: 12px;
+  margin-bottom: var(--mz-space-3);
   font-weight: 600;
 }
 
 .phSp {
   margin-left: auto;
-  font-size: 10.5px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-text-tertiary);
   font-weight: 400;
 }
@@ -88,13 +88,13 @@
 .hbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 9px;
+  gap: var(--mz-space-2h);
+  margin-bottom: var(--mz-space-2h);
 }
 
 .hn {
   width: 90px;
-  font-size: 11.5px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-text-secondary);
   flex: none;
   overflow: hidden;
@@ -105,7 +105,7 @@
 .hb {
   flex: 1;
   height: 8px;
-  border-radius: 5px;
+  border-radius: var(--mz-radius-sm);
   background: var(--mz-bg-inset);
   overflow: hidden;
 }
@@ -114,7 +114,7 @@
 .fill {
   display: block;
   height: 100%;
-  border-radius: 5px;
+  border-radius: var(--mz-radius-sm);
   background: linear-gradient(90deg, var(--mz-accent-active), var(--mz-accent));
   transition: width var(--mz-dur-slow) var(--mz-ease-out);
 }
@@ -122,7 +122,7 @@
 .hv {
   width: 60px;
   text-align: right;
-  font-size: 10.5px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-text-tertiary);
   font-variant-numeric: tabular-nums;
   flex: none;
@@ -130,9 +130,9 @@
 
 .usage {
   display: flex;
-  gap: 18px;
+  gap: var(--mz-space-4);
   flex-wrap: wrap;
-  font-size: 11.5px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -144,32 +144,32 @@
 
 .note {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--mz-fs-2xs);
   color: var(--mz-text-tertiary);
   line-height: 1.7;
 }
 
 .err {
-  padding: 8px 12px;
-  border-radius: 6px;
+  padding: var(--mz-space-2) var(--mz-space-3);
+  border-radius: var(--mz-radius-sm);
   background: var(--mz-sem-warn-bg);
   border: 1px solid var(--mz-sem-warn-border);
   color: var(--mz-sem-warn-fg);
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
 }
 
 /* ── 日增量一排（§4 第 3 条）：三张卡比四张更耐看，且它是主角，放最上面 ── */
 .deltaRow {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: var(--mz-space-3);
 }
 
 .priceRow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: var(--mz-space-2);
+  margin-bottom: var(--mz-space-2h);
 }
 
 .input {
@@ -178,8 +178,8 @@
   background: var(--mz-bg-elevated);
   border: 1px solid var(--mz-border-default);
   border-radius: var(--mz-radius-sm);
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: var(--mz-space-half) var(--mz-space-2h);
+  font-size: var(--mz-fs-xs);
   color: var(--mz-text-primary);
   outline: none;
   font-family: inherit;
@@ -194,10 +194,10 @@
   border: 1px solid var(--mz-border-subtle);
   background: var(--mz-bg-surface);
   color: var(--mz-text-primary);
-  border-radius: 6px;
-  padding: 6px 12px;
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--mz-fs-xs);
 }
 
 .btn:hover:not(:disabled) {

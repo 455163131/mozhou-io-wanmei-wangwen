@@ -83,7 +83,7 @@ select {
   background: var(--mz-bg-inset);
   border: 1px solid var(--mz-border-default);
   border-radius: var(--mz-radius-sm);
-  padding: 6px 10px;
+  padding: var(--mz-space-half) var(--mz-space-2h);
 }
 input:hover:not(:disabled),
 textarea:hover:not(:disabled),
@@ -109,7 +109,7 @@ button {
   background: var(--mz-bg-elevated);
   border: 1px solid var(--mz-border-default);
   border-radius: var(--mz-radius-sm);
-  padding: 6px 14px;
+  padding: var(--mz-space-half) var(--mz-space-3);
   cursor: pointer;
   transition: background var(--mz-dur-fast) var(--mz-ease-standard);
 }
