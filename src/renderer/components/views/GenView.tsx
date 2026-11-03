@@ -3,8 +3,11 @@
  *
  * 让用户在 UI 里跑通「空库 → 第一章草稿 → 采纳」的最短路径，四区块：
  *
- *  ① 立项卡：genre/platform/chapterWords 经 `project:set-gen` 写 v12 真列
- *     （数值口径在 ProjectRepo.setPipelineParams：拒非整数/负数）。
+ *  ① 立项卡：genre/platform/chapterWords/language 经 `project:set-gen` 写 v12/v14
+ *     真列（数值口径在 ProjectRepo.setPipelineParams：拒非整数/负数；language
+ *     只收 'zh'|'en'）。P1-B T4：platform 从自由文本换成 PLATFORM_RULES 分组
+ *     select（国内/海外两个 optgroup，选项即规则包 name——buildPipelineCtx 按
+ *     name/id 匹配平台规则包）；language 单选 zh/en（缺省 zh，与库列缺省一致）。
  *     targetWords/premise **只读展示**——前者建项目时定（services.pipelineCtx
  *     缺省兜 30 万），后者由已采纳构思的 logline 回填，两者都没有写通道，
  *     这里不给假入口（画一个存不进去的输入框比不画更糟）。
@@ -28,6 +31,7 @@ import { bridge, errorText, hasBridge } from '../../hooks/use-mz-bridge';
 import { useProjectStore } from '../../store';
 import { usePipelineStore } from '../../store/pipeline';
 import type { CanonEntry, Draft } from '@shared/types/pipeline';
+import { PLATFORM_RULES } from '@shared/constants/platforms';
 import styles from './GenView.module.css';
 
 const KIND_LABEL: Record<string, string> = { concept: '构思', outline: '大纲', chapter: '正文' };
@@ -73,6 +77,8 @@ export function GenView(): JSX.Element {
   const [genre, setGenre] = useState('');
   const [platform, setPlatform] = useState('');
   const [chapterWords, setChapterWords] = useState('');
+  // language 单选 zh/en（P1-B T4）：缺省 zh，与 v14 库列 DEFAULT 'zh' 一致
+  const [language, setLanguage] = useState<'zh' | 'en'>('zh');
   // 写第 N 章的入参（chapterNo 从 1 起算；planItem 两项都是契约必填）
   const [chapterNo, setChapterNo] = useState('1');
   const [chTitle, setChTitle] = useState('');
@@ -177,7 +183,7 @@ export function GenView(): JSX.Element {
       if (p.state === 'done') void refreshDrafts();
     });
     return off;
-  }, [refreshCanon, refreshDrafts, setProgress]);
+  }, [pid, refreshCanon, refreshDrafts, setProgress]);
 
   /** 三执行按钮与参数保存共用的包装：busy 上锁 → 状态行 → 失败红字 → 成功刷草稿 */
   const run = useCallback(
@@ -209,11 +215,12 @@ export function GenView(): JSX.Element {
       'params',
       '保存立项参数',
       async () => {
-        const r = await bridge().project.setGen(pid, genre.trim(), platform.trim(), words);
+        const r = await bridge().project.setGen(pid, genre.trim(), platform.trim(), words, language);
         // 用库内真值对齐表单：用户看到的就是下一次生成实际吃到的参数
         setGenre(r.genre);
         setPlatform(r.platform);
         setChapterWords(r.chapterWords > 0 ? String(r.chapterWords) : '');
+        setLanguage(r.language);
       },
       '立项参数已保存',
     );
@@ -325,15 +332,26 @@ export function GenView(): JSX.Element {
           </label>
           <label className={styles.field}>
             <span className={styles.label}>平台</span>
-            <input
+            <select
               className={styles.input}
               value={platform}
-              maxLength={40}
               disabled={busy.params}
-              placeholder="如「番茄」，留空 = 未设定"
               aria-label="平台"
               onChange={(e) => setPlatform(e.target.value)}
-            />
+            >
+              {/* 空值 = 未设定（buildPipelineCtx 匹配不到规则包 → 不注入平台段） */}
+              <option value="">未设定</option>
+              <optgroup label="国内">
+                {PLATFORM_RULES.filter((p) => p.market === 'cn').map((p) => (
+                  <option key={p.id} value={p.name}>{p.name}</option>
+                ))}
+              </optgroup>
+              <optgroup label="海外">
+                {PLATFORM_RULES.filter((p) => p.market === 'overseas').map((p) => (
+                  <option key={p.id} value={p.name}>{p.name}</option>
+                ))}
+              </optgroup>
+            </select>
           </label>
           <label className={styles.field}>
             <span className={styles.label}>单章字数</span>
@@ -348,6 +366,34 @@ export function GenView(): JSX.Element {
             />
           </label>
         </div>
+        {/* language 单选 zh/en（P1-B T4）：进立项卡，随 set-gen 落库 v14 language 列。
+            fieldset 只做语义分组（不带 disabled——两个 radio 各自带 disabled 已足够，
+            避免多出一个 fieldset 禁用宿主）。 */}
+        <fieldset className={styles.langSet}>
+          <legend className={styles.label}>语言</legend>
+          <label className={styles.langOpt}>
+            <input
+              type="radio"
+              name="gen-language"
+              value="zh"
+              checked={language === 'zh'}
+              disabled={busy.params}
+              onChange={() => setLanguage('zh')}
+            />
+            <span>中文（zh）</span>
+          </label>
+          <label className={styles.langOpt}>
+            <input
+              type="radio"
+              name="gen-language"
+              value="en"
+              checked={language === 'en'}
+              disabled={busy.params}
+              onChange={() => setLanguage('en')}
+            />
+            <span>English（en）</span>
+          </label>
+        </fieldset>
         <div className={styles.readonly}>
           <span>全书目标字数：{project.targetWords > 0 ? `${project.targetWords.toLocaleString()} 字` : '未设定（生成时兜 30 万）'}</span>
           <span>作者前提（premise）：由已采纳构思的卖点回填，无独立入口</span>

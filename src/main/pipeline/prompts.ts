@@ -100,8 +100,11 @@ function canonBlock(canon: string[]): string {
  * 金手指代价 + 套路回避 + JSON 硬约束（titles=3 / hooks=5 / 全非空）。
  */
 export function composeConceptPrompt(ctx: PipelineCtx): string {
+  // minor-3（P1-B T4）：单章体量单位按语言取——zh 用「字」（原文逐字不变），
+  // en 用 words（海外口径 chapterWords 即目标英文词数，见 platforms.ts R26 注释）。
+  const unit = ctx.language === 'en' ? 'words' : '字';
   return [
-    `你是构思环节的「对谈整理器」：把作者与主编对谈中已经点头确认的设定，收敛成一份结构化构思。你不是灵感发生器——对谈材料里没有的东西，一个字也不许替作者发明。本作定位：${ctx.genre}题材，发布于${ctx.platform}，目标总字数 ${ctx.targetWords}，单章约 ${ctx.chapterWords} 字。`,
+    `你是构思环节的「对谈整理器」：把作者与主编对谈中已经点头确认的设定，收敛成一份结构化构思。你不是灵感发生器——对谈材料里没有的东西，一个字也不许替作者发明。本作定位：${ctx.genre}题材，发布于${ctx.platform}，目标总字数 ${ctx.targetWords}，单章约 ${ctx.chapterWords} ${unit}。`,
     baseBlock(ctx.language),
     '',
     ctx.language === 'en'
@@ -147,10 +150,19 @@ export function composeArchitectPrompt(ctx: PipelineCtx): string {
   const totalChapters = Math.max(1, Math.round(ctx.targetWords / Math.max(1, ctx.chapterWords)));
   // 压力节拍：单章体量每满 1000 字约一拍，至少 2 拍——保证短章也有起伏。
   const beats = Math.max(2, Math.round(ctx.chapterWords / 1000));
+  // R27（P1-B T4）：en 书架构输出英文——字数单位改 words、压力密度括注换英文口径，
+  // 并追加【English 产出】块（volumes/goal/chapterPlan title/hook 一律英文）。
+  // zh 路径三处全部走原字面量，输出逐字节不变。
+  const isEn = ctx.language === 'en';
+  const unit = isEn ? 'words' : '字';
+  const beatNote = isEn ? '（大体每 1000 words 一拍）' : '（大体每千字一拍）';
   return [
-    `你是全书架构师，为${ctx.genre}题材、发布于${ctx.platform}的作品搭建卷纲与章纲。目标总字数 ${ctx.targetWords}，单章体量 ${ctx.chapterWords} 字，全书约 ${totalChapters} 章。`,
+    `你是全书架构师，为${ctx.genre}题材、发布于${ctx.platform}的作品搭建卷纲与章纲。目标总字数 ${ctx.targetWords}，单章体量 ${ctx.chapterWords} ${unit}，全书约 ${totalChapters} 章。`,
     baseBlock(ctx.language),
     '',
+    isEn
+      ? '【English 产出】本作面向海外平台：volumes 每项的 title / goal 与 chapterPlan 每项的 title / hook 一律用英文撰写（write in English，直接以英文定稿，不交中译英的转译稿）；JSON 字段名保持不变。'
+      : '',
     ctx.premise ? `【原始脑洞】${ctx.premise}` : '',
     ctx.concept
       ? [
@@ -169,7 +181,7 @@ export function composeArchitectPrompt(ctx: PipelineCtx): string {
     '【章纲质量线】',
     '· hook 必须落到可指认的具体悬念：谁、出了什么事、押上了什么代价。「迎来新的危机」「挑战升级」这类抽象套话一律不收；',
     '· 每一章的章纲都要能回答三问：这章的冲突是什么、谁因此得势或吃亏、章末悬着什么没有解决；',
-    `· 压力密度按平台与体量推算：${ctx.platform}的读者耐心有限，单章 ${ctx.chapterWords} 字内应布置约 ${beats} 次压力事件（大体每千字一拍），章纲要把这些节拍的落点排进对应章；`,
+    `· 压力密度按平台与体量推算：${ctx.platform}的读者耐心有限，单章 ${ctx.chapterWords} ${unit}内应布置约 ${beats} 次压力事件${beatNote}，章纲要把这些节拍的落点排进对应章；`,
     '· 相邻三章的钩子不得同型：悬念、危机、反转要轮换使用；',
     '· 金手指每上一台阶都要付出匹配的代价——白拿的好处堆不出读者的期待感。',
     '',

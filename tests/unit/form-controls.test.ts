@@ -202,8 +202,14 @@ describe('F. 禁用态：能被禁用的标签，必须有长得不一样的禁�
    * 于是这里要的不是"字段没有禁用态所以不管"，而是：
    *   ① 集合必须逐字相等——多一个标签就红（提醒补样式），少一个也红（提醒删条目）；
    *   ② 台账里每个非 button 的标签，global.css 必须真有一条覆盖它的 `:disabled` 规则。
+   *
+   * ★ P1-B T4：GenView 立项卡的「平台」从自由文本 input 换成 PLATFORM_RULES 分组
+   *   select（国内/海外 optgroup），select 同样带 `disabled={busy.params}`——于是
+   *   宿主集合多了 `select`。样式侧 global.css:95-97 的 `select:disabled`
+   *   （color+background+cursor）早已就位（B 组要求 select 有基础态时一并写的），
+   *   这里把台账补齐即可满足 ①②，非"加标签不补样式"的欠账。
    */
-  const DISABLED_HOSTS = ['button', 'input'];
+  const DISABLED_HOSTS = ['button', 'input', 'select'];
 
   const hostsFound = (): string[] => {
     const found = new Set<string>();

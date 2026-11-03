@@ -93,6 +93,35 @@
   border-color: var(--mz-accent);
 }
 
+/* P1-B T4：language 单选（zh/en）——fieldset 收掉浏览器默认描边，只留
+ * 与 .fields 同语言的小标签 + 两个横排单选项。只用 tokens.css 既有变量。 */
+.langSet {
+  border: none;
+  margin: 0 0 var(--mz-space-3);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-3);
+}
+
+.langSet .label {
+  padding: 0;
+}
+
+.langOpt {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mz-space-1);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-primary);
+  cursor: pointer;
+}
+
+.langOpt input {
+  accent-color: var(--mz-accent);
+  cursor: inherit;
+}
+
 /* 只读事实行：targetWords / premise 没有写通道，如实展示不给假入口 */
 .readonly {
   display: flex;

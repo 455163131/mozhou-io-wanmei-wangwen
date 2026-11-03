@@ -10,6 +10,7 @@ import { ChapterRepo, ProjectRepo } from '@main/db/repos/chapter-repo';
 import { DraftRepo } from '@main/db/repos/draft-repo';
 import { ToolRegistry } from '@main/tools/registry';
 import { registerPipelineTools, pipelineHandlers, type PipelineDeps } from '@main/pipeline/tools';
+import type { PipelineCtx } from '@shared/types/pipeline';
 
 const CONCEPT_JSON = JSON.stringify({ titles: ['雾隐山海', '玉佩三千年', '山海崩'], logline: '时间秘境换回一座城', synopsis: '梗概'.repeat(20), goldenFinger: '玉佩秘境 3000:3，代价是被遗忘', hooks: ['h1', 'h2', 'h3', 'h4', 'h5'] });
 const OUTLINE_JSON = JSON.stringify({ volumes: [{ title: '第一卷', goal: '出山+灭世伏笔', targetChapters: 30 }], chapterPlan: [{ title: '雾中拾玉', hook: '玉佩里传出心跳声' }] });
@@ -31,18 +32,26 @@ function harness(fixed: string) {
 /**
  * P1-B T2：harness 的队列版——llm.chat 按调用次序逐条消费 queue，
  * 用于「首稿 → 续写」多轮对话的降级续写测试（chapterWords=8000 → 阈值 4000 字）。
+ * P1-B T4（minor-4）：增可选 ctxOverride（换 language/chapterWords 造 en 场景）
+ * 与 messages()（回看每次 chat 收到的完整 messages，钉死续写指令原文）。
  */
-function harnessQueue(queue: string[]) {
+function harnessQueue(queue: string[], ctxOverride: Partial<PipelineCtx> = {}) {
   const db = new Database(':memory:'); migrate(db);
   const pid = new ProjectRepo(db).create('测试书', '/tmp/t', 300000).id;
   const q = [...queue];
+  let lastMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
   const deps: PipelineDeps = {
     db,
-    llm: { chat: async () => ({ content: q.shift() ?? '', usage: { input: 10, output: 10 } }) },
-    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh' }),
+    llm: {
+      chat: async (req) => {
+        lastMessages = req.messages;
+        return { content: q.shift() ?? '', usage: { input: 10, output: 10 } };
+      },
+    },
+    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh', ...ctxOverride }),
     chapters: new ChapterRepo(db),
   };
-  return { db, pid, drafts: new DraftRepo(db), handlers: pipelineHandlers(deps) };
+  return { db, pid, drafts: new DraftRepo(db), handlers: pipelineHandlers(deps), messages: () => lastMessages };
 }
 
 /**
@@ -134,5 +143,28 @@ describe('生成工具', () => {
     const { handlers } = harnessQueue(['x'.repeat(9000)]);
     const res = await handlers.writeDraft({ chapterNo: 1, planItem: { title: 't', hook: 'h' } }, {} as any);
     expect(res.data.retries).toBe(0);
+  });
+
+  // P1-B T4 minor-4：续写指令按语言取——en 用英文等价指令，zh 保持原文逐字。
+  it('minor-4：en 书续写指令用英文等价指令（逐字）', async () => {
+    // en 口径按词数：chapterWords=1000 → 阈值 500 词；首稿 6 词必触发续写
+    const { handlers, messages } = harnessQueue(
+      ['The fog rolled in over the river.', 'It kept rolling until dawn.'],
+      { language: 'en', chapterWords: 1000 },
+    );
+    const res = await handlers.writeDraft({ chapterNo: 1, planItem: { title: 't', hook: 'h' } }, {} as any);
+    expect(res.ok).toBe(true);
+    expect(res.data.retries).toBe(1);
+    // 续写轮的 messages：system/user/assistant(首稿)/user(续写指令)
+    const msgs = messages();
+    expect(msgs[2].role).toBe('assistant');
+    expect(msgs[3].role).toBe('user');
+    expect(msgs[3].content).toBe('Under half the target length: continue from where it stops, no repetition.');
+  });
+  it('minor-4：zh 书续写指令保持原文逐字', async () => {
+    const { handlers, messages } = harnessQueue(['短稿。', '续写部分补足本章。']);
+    const res = await handlers.writeDraft({ chapterNo: 1, planItem: { title: 't', hook: 'h' } }, {} as any);
+    expect(res.data.retries).toBe(1);
+    expect(messages()[3].content).toBe('字数不足目标一半，从中断处继续写完本章，不重复已写内容');
   });
 });

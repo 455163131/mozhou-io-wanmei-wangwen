@@ -337,12 +337,18 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
     const sizeOf = (s: string): number =>
       ctxW.language === 'en' ? s.trim().split(/\s+/).length : s.length;
     if (sizeOf(content) < minSize) {
+      // ★ minor-4（P1-B T4）：续写指令按语言取——zh 保持原文逐字，
+      //   en 用英文等价指令（英文书收到中文指令会诱发中英混杂的续写稿）。
+      const contInstruction =
+        ctxW.language === 'en'
+          ? 'Under half the target length: continue from where it stops, no repetition.'
+          : '字数不足目标一半，从中断处继续写完本章，不重复已写内容';
       const cont = await deps.llm.chat({
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: user },
           { role: 'assistant', content },
-          { role: 'user', content: '字数不足目标一半，从中断处继续写完本章，不重复已写内容' },
+          { role: 'user', content: contInstruction },
         ],
         temperature: TEMPERATURE.writer,
         maxTokens: ctxW.chapterWords * 2,

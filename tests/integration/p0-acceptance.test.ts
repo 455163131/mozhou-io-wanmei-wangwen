@@ -125,4 +125,42 @@ describe('P0 验收：空库到第一章草稿全流程', () => {
     expect(w2.ok).toBe(true);
     expect(captured().user).toContain('林渡提着灯在雾里走了半晌。');
   });
+
+  // P1-B T4 验收扩展（既有用例不动，本用例独立起库）：
+  // en+Webnovel 书走真库 set-gen 参数路径（setPipelineParams 写 language/platform，
+  // buildPipelineCtx 真读并按平台名匹配 PLATFORM_RULES），writeDraft 的 captured
+  // system 必须同时含英文工艺块（EN_CRAFT）与平台注记（Webnovel contentNotes）。
+  it('en+Webnovel：writeDraft captured system 含英文工艺块与平台注记', async () => {
+    const db = new Database(':memory:'); migrate(db);
+    const projects = new ProjectRepo(db); const chapters = new ChapterRepo(db);
+    const pid = projects.create('Jade of Time', '/tmp/moshu-en', 400000).id;
+    projects.setPipelineParams(pid, { genre: '古风玄幻', platform: 'Webnovel', chapterWords: 2000, language: 'en' });
+
+    // en 口径按词数（R26）：阈值 = 2000*0.5 = 1000 词；首稿 7 词×300 = 2100 词 → 达标不续写
+    const draftEn = 'The fog rolled in over the river. '.repeat(300);
+    let lastMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
+    const deps: PipelineDeps = {
+      db,
+      llm: {
+        chat: async (req) => {
+          lastMessages = req.messages;
+          return { content: draftEn, usage: { input: 1, output: 1 } };
+        },
+      },
+      getCtx: async (projectId) => buildPipelineCtx(db, projectId),
+      chapters,
+    };
+    const h = pipelineHandlers(deps);
+
+    const w = await h.writeDraft({ chapterNo: 1, planItem: { title: 'Fog at the Ferry', hook: 'A heartbeat inside the jade' } }, {} as any);
+    expect(w.ok).toBe(true);
+    expect(w.data.retries).toBe(0);
+    const system = lastMessages[0]?.content ?? '';
+    // 英文工艺块（EN_CRAFT）在 system
+    expect(system).toContain('【英文工艺】');
+    expect(system).toContain('translationese');
+    // 平台注记（Webnovel contentNotes）在 system 平台段
+    expect(system).toContain('【平台工艺注记 · Webnovel】');
+    expect(system).toContain('1.5k-2.5k');
+  });
 });
