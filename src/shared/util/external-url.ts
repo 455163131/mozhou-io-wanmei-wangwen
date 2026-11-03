@@ -6,7 +6,7 @@
  *   `ms-officecmd:` 等），一旦被拉起就可能落地远程代码。渲染层若被 XSS 攻破，
  *   「无白名单直送 openExternal」等于把这条路径直接交出去。
  *
- *   修复前 `security.ts` 与 `window.ts` 各注册了一个 `will-navigate`，
+ *   修复前 `security.ts` 与主进程窗口模块各注册了一个 `will-navigate`，
  *   后者更宽松（放行任意 `file://`，其余一律 openExternal 且不校验协议），
  *   两个都会触发 —— 严格的那个因此形同虚设。
  *
