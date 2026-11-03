@@ -20,7 +20,12 @@ import { LedgerRepo } from './db/repos/ledger-repo';
 import { DailyWriteRepo } from './db/repos/daily-write-repo';
 import { RunRepo, type UnclosedRun } from './db/repos/run-repo';
 import { ToolRegistry, type ToolDeps } from './tools/registry';
-import { registerPipelineTools, type PipelineDeps } from './pipeline/tools';
+import {
+  pipelineHandlers as buildPipelineHandlers,
+  registerPipelineTools,
+  type PipelineDeps,
+  type PipelineHandlers,
+} from './pipeline/tools';
 import { DraftRepo } from './db/repos/draft-repo';
 import type { ConceptOut, OutlineOut, PipelineCtx } from '@shared/types/pipeline';
 import { ConceptSchema, OutlineSchema } from '@shared/types/pipeline';
@@ -88,6 +93,8 @@ export class AppServices {
   private replayerInstance: Replayer | null = null;
   private agentHostInstance: AgentHost | null = null;
   private llmInstance: LlmClient | null = null;
+  /** T5：IPC 层直调的三个生成 handler（与 registry 里注册的是同一份 deps 装配） */
+  private pipelineHandlersInstance: PipelineHandlers | null = null;
 
   private currentProject: Project | null = null;
   /** registry 的依赖装配（构造时填充，供 registryDeps() 返回） */
@@ -365,17 +372,34 @@ export class AppServices {
         chat: (req) => this.llm.chat({ ...req, stream: false }),
       },
       getCtx: async (projectId) => this.pipelineCtx(projectId),
+      // R11：写手装配窗口取当前 provider 的有效上下文（探测值优先，
+      // 未探测用 provider 常量表的 maxContextTokens）——替换 tools.ts 的硬编码
+      budget: () => this.effectiveContextTokens,
     };
   }
 
   /**
+   * T5：IPC 六通道直调的三个生成 handler。
+   * 缓存一次即可——deps 里的 projectId/llm/getCtx/budget 全是活闭包，
+   * 换项目、重配 provider 都自动跟上，不存在陈旧快照。
+   */
+  pipelineHandlers(): PipelineHandlers {
+    if (!this.pipelineHandlersInstance) {
+      this.pipelineHandlersInstance = buildPipelineHandlers(this.pipelineDeps());
+    }
+    return this.pipelineHandlersInstance;
+  }
+
+  /**
    * 从库里解析某项目的流水线上下文。
-   * ★ genre/platform/chapterWords/premise/canon 目前没有独立存储（projects 表
-   *   只有 targetWords），P0 用诚实的缺省值占位，T5 的 IPC 会补真正的入口；
+   * ★ R10（T5）：genre/platform/chapterWords 读 v12 补的 projects 真列。
+   *   空串/0 = 未设定，回退占位——message 不撒谎：占位时 genre 传「未设定」
+   *   是如实陈述，T6 的参数面板写入真值后这里读到的就是作者填的内容；
    *   concept/outline 来自最新 adopted 草稿，坏 JSON 视同不存在（不炸装配）。
    */
   private pipelineCtx(projectId: string): PipelineCtx {
     const proj = this.projectRepo.get(projectId);
+    const params = this.projectRepo.pipelineParams(projectId);
     const drafts = new DraftRepo(this.db);
     const adopted = drafts.list(projectId, 'adopted'); // 新稿在前，find 即最新
 
@@ -402,9 +426,9 @@ export class AppServices {
     }
 
     return {
-      genre: '未设定',
-      platform: '未设定',
-      chapterWords: 2000,
+      genre: params.genre || '未设定',
+      platform: params.platform || '未设定',
+      chapterWords: params.chapterWords > 0 ? params.chapterWords : 2000,
       // 目标字数没填时给 0 会让架构师算出「全书约 1 章」——用 30 万缺省兜住
       targetWords: proj && proj.targetWords > 0 ? proj.targetWords : 300_000,
       // premise 尚无独立入口：已采纳构思的卖点是最接近的既有事实

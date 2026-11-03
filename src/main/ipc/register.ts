@@ -34,6 +34,8 @@ import { detectFlavor, FLAVOR_ENGINE_VERSION } from '@shared/ai-flavor/engine';
 import { isBaselineStale, type FlavorBaseline } from '@shared/ai-flavor/baseline';
 import { FLAVOR_DISCLAIMER } from '@shared/types/ai-flavor';
 import { applyLocalRewrites, diffReports, needsAgent } from '../flavor/rewrite';
+// ── P0 生成流水线（T5）：业务语义全在 pipeline/ipc.ts，这里只登记通道 ──
+import * as pipelineIpc from '../pipeline/ipc';
 
 type Handler<K extends IpcChannel> = (
   payload: IpcInvokeMap[K]['req'],
@@ -600,6 +602,16 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
 
   registerExpertIpc(services);
   registerFlavorIpc(services);
+
+  // ── P0 生成流水线（T5）──
+  // AppServices 结构化满足 pipelineIpc.PipelineIpcServices（db/chapterRepo/push/
+  // backup/currentProjectId/pipelineHandlers），handler 直调，不在此复制业务口径。
+  handle('pipeline:run-concept', async (p, s) => pipelineIpc.runConcept(s, p.projectId), services);
+  handle('pipeline:run-outline', async (p, s) => pipelineIpc.runOutline(s, p), services);
+  handle('pipeline:write-draft', async (p, s) => pipelineIpc.writeDraft(s, p), services);
+  handle('pipeline:list-drafts', (p, s) => pipelineIpc.listDrafts(s, p), services);
+  handle('pipeline:adopt-draft', async (p, s) => pipelineIpc.adoptDraft(s, p.draftId), services);
+  handle('pipeline:discard-draft', async (p, s) => pipelineIpc.discardDraft(s, p.draftId), services);
 }
 
 // ══════════════════════════════════════════════════════════════════════

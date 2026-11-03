@@ -13,6 +13,7 @@
  */
 import type { IpcInvokeMap, IpcPushMap, IpcChannel, IpcPushChannel } from '@shared/types/ipc';
 import type { LedgerEntries, LedgerQuery } from '@shared/types/ledger';
+import type { DraftStatus } from '@shared/types/pipeline';
 
 /** 白名单 API 的形状。由 MzBridge 暴露到 window.mz。 */
 export interface MzBridge {
@@ -147,6 +148,24 @@ export interface MzBridge {
     /** 用当前项目语料重建用户基线（样本不足则不保存） */
     rebuildBaseline(chapterIds?: string[]): Promise<IpcInvokeMap['aiFlavor:rebuildBaseline']['res']>;
   };
+
+  // ── P0 生成流水线（T5）：产物只进草稿隔离区，采纳才入正稿 ──
+  pipeline: {
+    runConcept(projectId: string): Promise<IpcInvokeMap['pipeline:run-concept']['res']>;
+    /** 不传 volumeIndex = 全书规划；传了 = 续写该卷章纲（需已有采纳的卷纲） */
+    runOutline(projectId: string, volumeIndex?: number): Promise<IpcInvokeMap['pipeline:run-outline']['res']>;
+    writeDraft(
+      projectId: string,
+      chapterNo: number,
+      planItem: { title: string; hook: string },
+    ): Promise<IpcInvokeMap['pipeline:write-draft']['res']>;
+    listDrafts(projectId: string, status?: DraftStatus): Promise<IpcInvokeMap['pipeline:list-drafts']['res']>;
+    /** 采纳：kind=chapter 时正文经 updateBody 入正稿并返回 chapterId；concept/outline 仅标记 adopted */
+    adoptDraft(draftId: string): Promise<IpcInvokeMap['pipeline:adopt-draft']['res']>;
+    discardDraft(draftId: string): Promise<IpcInvokeMap['pipeline:discard-draft']['res']>;
+    /** 订阅生成进度推送（pipeline:progress）；返回取消订阅函数 */
+    onProgress(handler: (payload: IpcPushMap['pipeline:progress']) => void): () => void;
+  };
 }
 
 /** 全部 invoke 通道（与 shared/types/ipc.ts 同源，禁止手写字符串） */
@@ -214,6 +233,13 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'aiFlavor:about',
   'aiFlavor:baseline',
   'aiFlavor:rebuildBaseline',
+  // P0 生成流水线（T5）
+  'pipeline:run-concept',
+  'pipeline:run-outline',
+  'pipeline:write-draft',
+  'pipeline:list-drafts',
+  'pipeline:adopt-draft',
+  'pipeline:discard-draft',
 ];
 
 /** 全部订阅通道 */
@@ -234,4 +260,6 @@ export const SUBSCRIBE_CHANNELS: IpcPushChannel[] = [
   'project:closed',
   'llm:status',
   'checkpoint:rolled-back',
+  // P0 生成流水线（T5）
+  'pipeline:progress',
 ];

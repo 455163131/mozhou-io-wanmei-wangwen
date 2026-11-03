@@ -480,6 +480,24 @@ export const MIGRATIONS: Migration[] = [
       );`);
     },
   },
+  {
+    version: 12,
+    name: 'add_project_pipeline_params',
+    /**
+     * ★ T5（R10）：生成流水线的项目参数真列。**只增不改**——三条 ALTER 补列，
+     *   旧列与既有迁移一根手指都不碰。
+     *   空串 / 0 = 「未设定」：读侧回退口径在 services.pipelineCtx
+     *   （占位回退但 message 不撒谎，genre 未设定就传「未设定」），
+     *   写侧入口是 ProjectRepo.setPipelineParams（T6 的参数面板接它）。
+     */
+    up(db) {
+      db.exec(`
+        ALTER TABLE projects ADD COLUMN genre TEXT NOT NULL DEFAULT '';
+        ALTER TABLE projects ADD COLUMN platform TEXT NOT NULL DEFAULT '';
+        ALTER TABLE projects ADD COLUMN chapter_words INTEGER NOT NULL DEFAULT 0;
+      `);
+    },
+  },
 ];
 
 export function migrate(db: Database): void {

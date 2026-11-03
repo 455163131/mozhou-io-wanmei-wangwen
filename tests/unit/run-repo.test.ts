@@ -203,8 +203,16 @@ describe('D. 迁移 v10 必须是加列，不动老数据', () => {
 
   it('老库（v10 之前建的行）升级后 unclosed_reported_at 为 null ⇒ 仍会被提示一次', () => {
     const db = new Database(':memory:');
-    // 手工造一个 v10 之前的 runs 表 + 一行未闭合数据
+    // 手工造一个 v10 之前的 runs 表 + 一行未闭合数据。
+    // ★ projects 也要造：真实的 v9 库必有它（v1 就建了），而 v12 起迁移会
+    //   ALTER projects 补生成参数列——fixture 缺表会让"老库升级"这条路失真。
     db.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, root_dir TEXT NOT NULL,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        target_words INTEGER NOT NULL DEFAULT 0,
+        price_per_k INTEGER NOT NULL DEFAULT 0
+      );
       CREATE TABLE runs (
         id TEXT PRIMARY KEY, project_id TEXT NOT NULL, goal TEXT NOT NULL,
         status TEXT NOT NULL, termination TEXT, stats_json TEXT,

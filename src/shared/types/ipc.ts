@@ -20,6 +20,7 @@ import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, Ledg
 import type { Checkpoint, RollbackResult } from './checkpoint';
 import type { RunState, RunBudget, TerminationReason, RunStats, StepRecord } from './agent';
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
+import type { Draft, DraftStatus } from './pipeline';
 
 // ───────────────────────── 请求/响应载荷 ─────────────────────────
 
@@ -267,6 +268,32 @@ export interface IpcInvokeMap {
   'aiFlavor:baseline': { req: void; res: FlavorBaselineInfo };
   /** 用当前项目语料**重建**用户基线并保存（样本不足则不保存，继续用默认） */
   'aiFlavor:rebuildBaseline': { req: { chapterIds?: string[] }; res: FlavorRebuildResult };
+
+  // ── P0 生成流水线（T5：六通道 + pipeline:progress 推送）─────────────
+  /**
+   * 构思生成。产出**只进草稿隔离区**（定稿主权），采纳走 pipeline:adopt-draft。
+   * 进度经 pipeline:progress 推送（step=concept），failed 的 detail 带真因。
+   */
+  'pipeline:run-concept': { req: { projectId: string }; res: { draftId: string } };
+  /** 大纲生成：不传 volumeIndex = 任务①全书规划；传了 = 任务②续写该卷章纲（需已有采纳的卷纲，否则 E_PIPELINE_STATE） */
+  'pipeline:run-outline': {
+    req: { projectId: string; volumeIndex?: number };
+    res: { draftId: string };
+  };
+  /** 正文起草：chapterNo 必须是正整数（从 1 起算）；产出只进草稿区 */
+  'pipeline:write-draft': {
+    req: { projectId: string; chapterNo: number; planItem: { title: string; hook: string } };
+    res: { draftId: string };
+  };
+  'pipeline:list-drafts': { req: { projectId: string; status?: DraftStatus }; res: Draft[] };
+  /**
+   * 采纳草稿（正文入正稿的**唯一入口**）：
+   * kind=chapter → 无 chapterId 则建章，再经 updateBody 写入正文，返回 chapterId；
+   * kind=concept/outline → 仅标记 adopted（作为后续步骤的输入源），chapterId 为 null。
+   */
+  'pipeline:adopt-draft': { req: { draftId: string }; res: { chapterId: string | null } };
+  /** 弃稿：pending → discarded，单向终局，不可改判 */
+  'pipeline:discard-draft': { req: { draftId: string }; res: { ok: true } };
 }
 
 /** 当前生效的 AI 味基线摘要（渲染层展示用；不含完整分位数） */
@@ -463,6 +490,13 @@ export const IPC_CHANNELS = [
   'aiFlavor:about',
   'aiFlavor:baseline',
   'aiFlavor:rebuildBaseline',
+  // P0 生成流水线（T5）
+  'pipeline:run-concept',
+  'pipeline:run-outline',
+  'pipeline:write-draft',
+  'pipeline:list-drafts',
+  'pipeline:adopt-draft',
+  'pipeline:discard-draft',
 ] as const;
 
 export type IpcChannel = keyof IpcInvokeMap;
@@ -556,6 +590,17 @@ export interface IpcPushMap {
     undone: number;
     lostManualEdits: number;
   };
+  /**
+   * 生成流水线进度（T5）。六通道里三个生成动作 + adopt 各推 running/done/failed；
+   * failed 的 detail 带真因（error.code + message），不拟人化、不含糊。
+   * 只读通道（list）与 discard 不推进度。
+   */
+  'pipeline:progress': {
+    projectId: string;
+    step: 'concept' | 'outline' | 'draft' | 'adopt';
+    state: 'running' | 'done' | 'failed';
+    detail?: string;
+  };
 }
 
 export const IPC_PUSH_CHANNELS = [
@@ -575,6 +620,8 @@ export const IPC_PUSH_CHANNELS = [
   'project:closed',
   'llm:status',
   'checkpoint:rolled-back',
+  // P0 生成流水线（T5）
+  'pipeline:progress',
 ] as const;
 
 export type IpcPushChannel = keyof IpcPushMap;

@@ -47,6 +47,23 @@ export interface PipelineCtx {
   prevEnding?: string;
 }
 
+/* ── 草稿隔离区记录（T5 上移到 shared：IPC 契约 pipeline:list-drafts 的 res） ── */
+
+/** 草稿状态：pending → adopted | discarded 单向流转（终局决定，不可改判） */
+export type DraftStatus = 'pending' | 'adopted' | 'discarded';
+
+/** role ∈ 'concept'|'architect'|'writer'；kind ∈ 'concept'|'outline'|'chapter' */
+export interface Draft {
+  id: string;
+  projectId: string;
+  chapterId: string | null;
+  role: string;
+  kind: string;
+  content: string;
+  status: DraftStatus;
+  createdAt: number;
+}
+
 /* ── 构思产出 ──────────────────────────────────────────────────── */
 
 export interface ConceptOut {

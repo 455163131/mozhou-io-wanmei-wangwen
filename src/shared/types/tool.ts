@@ -104,6 +104,8 @@ export type ToolErrorCode =
   | 'E_SIDE_EFFECT_REJECTED'
   /** 生成流水线：模型输出未通过 JSON 提取或 zod 契约校验（可重试） */
   | 'E_PIPELINE_PARSE'
+  /** 生成流水线：前置状态不满足（如续写章纲却没有已采纳的卷纲），不可重试 */
+  | 'E_PIPELINE_STATE'
   | 'E_INTERNAL';
 
 /** 工具调用请求：模型选中工具 + 参数 */

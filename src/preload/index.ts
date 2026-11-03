@@ -163,6 +163,18 @@ const bridge: MzBridge = {
     rebuildBaseline: (chapterIds) => invoke('aiFlavor:rebuildBaseline', { chapterIds }),
     dashStats: () => invoke('dash:stats'),
   },
+
+  // ── P0 生成流水线（T5）──
+  pipeline: {
+    runConcept: (projectId) => invoke('pipeline:run-concept', { projectId }),
+    runOutline: (projectId, volumeIndex) => invoke('pipeline:run-outline', { projectId, volumeIndex }),
+    writeDraft: (projectId, chapterNo, planItem) =>
+      invoke('pipeline:write-draft', { projectId, chapterNo, planItem }),
+    listDrafts: (projectId, status) => invoke('pipeline:list-drafts', { projectId, status }),
+    adoptDraft: (draftId) => invoke('pipeline:adopt-draft', { draftId }),
+    discardDraft: (draftId) => invoke('pipeline:discard-draft', { draftId }),
+    onProgress: (handler) => subscribe('pipeline:progress', handler),
+  },
 };
 
 contextBridge.exposeInMainWorld('mz', bridge);

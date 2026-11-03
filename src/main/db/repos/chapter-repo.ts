@@ -527,6 +527,42 @@ export class ProjectRepo {
     return p;
   }
 
+  /**
+   * 生成流水线的项目参数（T5/R10：v12 迁移补的真列）。
+   * ★ 空串 / 0 = 「未设定」，repo 只如实读出——回退占位的口径留在读侧
+   *   （services.pipelineCtx），写侧入口是 setPipelineParams，两边都不猜。
+   */
+  pipelineParams(projectId: string): { genre: string; platform: string; chapterWords: number } {
+    const r = this.db
+      .prepare('SELECT genre, platform, chapter_words FROM projects WHERE id = ?')
+      .get(projectId) as { genre: string; platform: string; chapter_words: number } | undefined;
+    return { genre: r?.genre ?? '', platform: r?.platform ?? '', chapterWords: r?.chapter_words ?? 0 };
+  }
+
+  /**
+   * 写生成参数（T6 参数面板的落库入口）。省略的字段保持原值；
+   * chapterWords 拒非整数与负数——半章字数与负字数会一路安静地污染装配预算。
+   */
+  setPipelineParams(
+    projectId: string,
+    p: { genre?: string; platform?: string; chapterWords?: number },
+  ): void {
+    if (!this.get(projectId)) throw new Error(`项目不存在：${projectId}`);
+    const cur = this.pipelineParams(projectId);
+    const genre = p.genre ?? cur.genre;
+    const platform = p.platform ?? cur.platform;
+    const chapterWords = p.chapterWords ?? cur.chapterWords;
+    if (typeof genre !== 'string' || typeof platform !== 'string') {
+      throw new Error('genre / platform 必须是字符串');
+    }
+    if (!Number.isInteger(chapterWords) || chapterWords < 0) {
+      throw new Error(`chapterWords 必须是非负整数，收到 ${chapterWords}`);
+    }
+    this.db
+      .prepare('UPDATE projects SET genre = ?, platform = ?, chapter_words = ?, updated_at = ? WHERE id = ?')
+      .run(genre, platform, chapterWords, Date.now(), projectId);
+  }
+
   touch(projectId: string): void {
     this.db.prepare('UPDATE projects SET updated_at = ? WHERE id = ?').run(Date.now(), projectId);
   }

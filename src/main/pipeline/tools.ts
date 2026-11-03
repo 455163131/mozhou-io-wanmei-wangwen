@@ -48,6 +48,12 @@ export interface PipelineDeps {
    * 仅测试用的单项目内存库会走到这条回退。
    */
   projectId?: () => string | null;
+  /**
+   * 写手装配预算的上下文窗口（tokens，R11）。生产装配由 services 注入
+   * 当前 provider 的 effectiveContextTokens；未注入时回退 DEFAULT_WRITER_WINDOW。
+   * 做成函数而非定值：provider 可在运行期被重新配置/探测，窗口要跟着活。
+   */
+  budget?: () => number;
 }
 
 export interface PipelineHandlers {
@@ -62,10 +68,10 @@ export interface PipelineHandlers {
 const TEMPERATURE = { concept: 1.05, architect: 0.7, writer: 0.9 } as const;
 
 /**
- * 写手装配预算的窗口值（tokens）。P0 取固定值；
- * T5 接 IPC 时可按 provider 的 effectiveContextTokens 注入覆盖。
+ * 写手装配预算窗口的回退值（tokens）。R11：窗口优先取 deps.budget()
+ * （services 注入当前 provider 的 effectiveContextTokens），未注入才用这个缺省。
  */
-const WRITER_WINDOW = 128_000;
+const DEFAULT_WRITER_WINDOW = 128_000;
 
 /* ── 小工具 ────────────────────────────────────────────────────── */
 
@@ -169,6 +175,20 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
     const isContinuation = a.continue === true || typeof a.volumeIndex === 'number';
 
     const ctx0 = await deps.getCtx(projectId);
+    // ★ Carry-1：续写章纲以「已采纳的全书卷纲」为前置——没有它，
+    //   合并出来的 OutlineOut.volumes 是空数组，等于让模型在没有卷纲的
+    //   情况下续写。硬拦（不可重试）：重试不会凭空长出卷纲，先跑任务①。
+    if (isContinuation && !ctx0.outline) {
+      return {
+        ok: false,
+        durationMs: Date.now() - started,
+        error: {
+          code: 'E_PIPELINE_STATE',
+          message: '续写章纲需要已采纳的全书卷纲：先执行生成卷纲章纲',
+          retryable: false,
+        },
+      };
+    }
     const system = composeArchitectPrompt(ctx0);
     const taskLine = isContinuation
       ? `本次任务：执行任务②——续写${typeof a.volumeIndex === 'number' ? `第 ${a.volumeIndex + 1} 卷` : '下一卷'}的章纲，只输出 {"chapterPlan":[…]}，不要重吐 volumes。`
@@ -228,11 +248,14 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
     const a = (args ?? {}) as { chapterNo?: unknown; planItem?: unknown };
     const chapterNo = a.chapterNo;
     const planItem = a.planItem as { title?: unknown; hook?: unknown } | undefined;
-    if (typeof chapterNo !== 'number' || !Number.isFinite(chapterNo)) {
+    // ★ Carry-2：chapterNo 必须是正整数（Number.isInteger && >=1）。
+    //   0 章、负章、2.5 章在书里不存在；这是调用方的缺陷而非模型可自纠的
+    //   输入形状，故 retryable:false——回喂模型重试也变不出合法的章号。
+    if (typeof chapterNo !== 'number' || !Number.isInteger(chapterNo) || chapterNo < 1) {
       return {
         ok: false,
         durationMs: Date.now() - started,
-        error: { code: 'E_INVALID_ARGS', message: 'chapterNo 必须是数字（从 1 起算的章节序号）', retryable: true },
+        error: { code: 'E_INVALID_ARGS', message: 'chapterNo 必须是正整数（从 1 起算的章节序号）', retryable: false },
       };
     }
     if (!planItem || typeof planItem.title !== 'string' || typeof planItem.hook !== 'string' || !planItem.title.trim() || !planItem.hook.trim()) {
@@ -251,7 +274,8 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
     let trace: TrimTrace[];
     try {
       const assembled = assembleWriterContext(ctxW, {
-        window: WRITER_WINDOW,
+        // R11：窗口来自注入的 provider 配置，未注入才回退缺省——不再硬编码
+        window: deps.budget?.() ?? DEFAULT_WRITER_WINDOW,
         // 输出预留与 maxTokens 同口径（tokens）：装配器据此收敛 user 预算
         outputReserve: ctxW.chapterWords * 2,
       });

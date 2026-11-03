@@ -7,18 +7,11 @@
  */
 import type { Database } from 'better-sqlite3';
 import { MzError } from '@shared/types/ipc';
+// ★ T5：Draft 形状上移到 shared/types/pipeline（IPC 契约 pipeline:list-drafts 的 res），
+//   这里只 re-export——单一事实来源，主进程与渲染层永不各持一份手抄。
+import type { Draft, DraftStatus } from '@shared/types/pipeline';
 
-/** role ∈ 'concept'|'architect'|'writer'；kind ∈ 'concept'|'outline'|'chapter' */
-export type Draft = {
-  id: string;
-  projectId: string;
-  chapterId: string | null;
-  role: string;
-  kind: string;
-  content: string;
-  status: 'pending' | 'adopted' | 'discarded';
-  createdAt: number;
-};
+export type { Draft };
 
 interface DraftRow {
   id: string;
@@ -91,7 +84,7 @@ export class DraftRepo {
    * 采纳/弃稿都是人的终局决定，回退或改判会让「哪些稿子进过正稿」变得不可审计；
    * 其余转移（含 adopted→discarded、discarded→adopted、对已终态稿重复设置）一律抛 E_DRAFT_STATE。
    */
-  setStatus(id: string, status: 'pending' | 'adopted' | 'discarded'): Draft {
+  setStatus(id: string, status: DraftStatus): Draft {
     const cur = this.get(id);
     if (!cur) throw new MzError('E_DRAFT_STATE', `草稿不存在：${id}`);
     if (cur.status !== 'pending' || status === 'pending') {
