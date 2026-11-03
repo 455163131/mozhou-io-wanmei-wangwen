@@ -222,7 +222,7 @@ describe('B. IPC 六通道行为（真库）', () => {
     const e = await adoptDraft(services, d.id).catch((x) => x);
     expect(e).toBeInstanceOf(MzError);
     expect(e.code).toBe('E_PIPELINE_STATE');
-    expect(e.message).toBe('不能跳章：本书现有 1 章，第 3 章尚不存在，请先写第 2 章');
+    expect(e.message).toBe('不能跳章：本书现有章号到 1，第 3 章尚不存在，请先写第 2 章');
     expect((e.detail as { retryable: boolean }).retryable).toBe(false);
     expect(chapterRepo.count(pid)).toBe(1);                 // 正稿未被写
     expect(drafts.get(d.id)!.status).toBe('pending');       // 草稿保持 pending，可修正后再采纳
@@ -304,6 +304,95 @@ describe('C. Carry-1 与 R11（handler 层）', () => {
     const { handlers } = makeEnv({ llmContent: '雾从江面上漫过来。' });
     const res = await handlers.writeDraft({ chapterNo: 1, planItem: PLAN_ITEM }, toolCtx());
     expect(res.ok).toBe(true);
+  });
+});
+
+describe('E. R15/R16 空洞库（删章/导入书导致章号非连续，count 口径失真）', () => {
+  /** 直接用 ChapterRepo.insert 造 {id:'1'},{id:'3'} 空洞库（nextNo=4） */
+  function makeHoleEnv() {
+    const env = makeEnv();
+    for (const [id, order] of [['1', 0], ['3', 1]] as const) {
+      env.chapterRepo.insert({
+        id,
+        projectId: env.pid,
+        title: `第${id}章`,
+        volumeId: null,
+        order,
+        status: 'draft',
+        body: '',
+      });
+    }
+    return env;
+  }
+
+  it('采纳 chapterId "2"（<nextNo 且指向章不存在）→ E_PIPELINE_STATE 空洞号直报，正稿草稿都不动（R16）', async () => {
+    const { services, pid, drafts, chapterRepo, progress } = makeHoleEnv();
+    const d = drafts.insert({ projectId: pid, role: 'writer', kind: 'chapter', content: '第二章正文。', chapterId: '2' });
+    const e = await adoptDraft(services, d.id).catch((x) => x);
+    expect(e).toBeInstanceOf(MzError);
+    expect(e.code).toBe('E_PIPELINE_STATE');
+    expect(e.message).toBe('第 2 章是空洞号（已被删除或从未存在）：下一个可写章号是 4');
+    expect(e.message).toContain('空洞号');
+    expect((e.detail as { retryable: boolean }).retryable).toBe(false);
+    expect(chapterRepo.listMeta(pid).map((m) => m.id)).toEqual(['1', '3']); // 正稿未被动
+    expect(drafts.get(d.id)!.status).toBe('pending');                        // 草稿保持 pending
+    expect(progress().find((p) => p.state === 'failed')!.detail).toContain('空洞号');
+  });
+
+  it('采纳 chapterId "4"（==nextNo）→ 回退建章 id "4" 且正文写入（R15 基准=最大可解析号+1）', async () => {
+    const { services, pid, drafts, chapterRepo, editCount, sent } = makeHoleEnv();
+    const d = drafts.insert({ projectId: pid, role: 'writer', kind: 'chapter', content: '第四章正文。', chapterId: '4' });
+    const r = await adoptDraft(services, d.id);
+    expect(r.chapterId).toBe('4');
+    expect(chapterRepo.getBody(pid, '4')).toBe('第四章正文。');
+    expect(chapterRepo.listMeta(pid).map((m) => m.id)).toEqual(['1', '3', '4']);
+    expect(drafts.get(d.id)!.status).toBe('adopted');
+    expect(editCount()).toBe(1);
+    expect(sent.some((x) => x.ch === 'chapter:changed')).toBe(true);
+  });
+
+  it('采纳 chapterId "6"（>nextNo）→ 防跳章硬拦，文案用 nextNo 口径（R15）', async () => {
+    const { services, pid, drafts, chapterRepo } = makeHoleEnv();
+    const d = drafts.insert({ projectId: pid, role: 'writer', kind: 'chapter', content: '第六章正文。', chapterId: '6' });
+    const e = await adoptDraft(services, d.id).catch((x) => x);
+    expect(e).toBeInstanceOf(MzError);
+    expect(e.code).toBe('E_PIPELINE_STATE');
+    expect(e.message).toBe('不能跳章：本书现有章号到 3，第 6 章尚不存在，请先写第 4 章');
+    expect((e.detail as { retryable: boolean }).retryable).toBe(false);
+    expect(chapterRepo.listMeta(pid).map((m) => m.id)).toEqual(['1', '3']); // 正稿未被动
+    expect(drafts.get(d.id)!.status).toBe('pending');
+  });
+
+  it('createChapter 返回不对齐 id → E_PIPELINE_STATE 建章对齐失败，updateBody 不被调（R15 断言在写入前）', async () => {
+    const env = makeEnv();
+    const { services, pid, drafts } = env;
+    let updateBodyCalled = false;
+    const repo = services.chapterRepo;
+    // 假 createChapter：库侧建成 id '99'（与期望的第 1 章不对齐）
+    repo.createChapter = () => ({
+      id: '99',
+      projectId: pid,
+      title: '',
+      volumeId: null,
+      order: 0,
+      status: 'draft',
+      charCount: 0,
+      rev: 1,
+      updatedAt: Date.now(),
+    });
+    const origUpdateBody = repo.updateBody.bind(repo);
+    repo.updateBody = (...args: Parameters<typeof origUpdateBody>) => {
+      updateBodyCalled = true;
+      return origUpdateBody(...args);
+    };
+    const d = drafts.insert({ projectId: pid, role: 'writer', kind: 'chapter', content: '第一章正文。', chapterId: '1' });
+    const e = await adoptDraft(services, d.id).catch((x) => x);
+    expect(e).toBeInstanceOf(MzError);
+    expect(e.code).toBe('E_PIPELINE_STATE');
+    expect(e.message).toBe('建章对齐失败：期望第 1 章，库侧建成第 99 章');
+    expect((e.detail as { retryable: boolean }).retryable).toBe(false);
+    expect(updateBodyCalled).toBe(false);                    // 断言在 updateBody 之前，不留半程正文
+    expect(drafts.get(d.id)!.status).toBe('pending');        // 草稿未终态化
   });
 });
 

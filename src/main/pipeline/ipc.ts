@@ -9,9 +9,11 @@
  *
  * ★ 定稿主权（架构红线）：正文入正稿的**唯一入口**是 adoptDraft——
  *   kind=chapter 且无 chapterId 时 ChapterRepo.createChapter 建章；
- *   带 chapterId 而指向章尚不存在时按 R14（终评 C1）：恰为「现有章数+1」
- *   则回退建章后写入（流水线草稿 chapterId=章号字符串，空库首章必经此路），
- *   跳章则 E_PIPELINE_STATE 硬拦（防章号空洞）。
+ *   带 chapterId 而指向章尚不存在时按 R14/R15（终评 C1 + 控制器裁决）：
+ *   基准 nextNo = 现有章 id 最大可解析号 + 1（无章则 1，不用 count——删章/
+ *   导入书会让章号非连续）。恰为 nextNo 则回退建章（带对齐断言）后写入
+ *   （流水线草稿 chapterId=章号字符串，空库首章必经此路）；跳章（>nextNo）
+ *   E_PIPELINE_STATE 硬拦；空洞号（<nextNo 且不存在，R16）同样硬拦直报。
  *   随后一律经 updateBody(pid, id, content, rev) 写入（乐观锁 + 日增量记账
  *   都长在 updateBody 里，绕开它就是绕开账本）。生成环节只写 drafts 隔离区。
  *
@@ -208,34 +210,69 @@ function writeCanon(s: PipelineIpcServices, d: Draft): string {
     const updated = s.chapterRepo.updateBody(pid, d.chapterId, d.content, ch.meta.rev);
     return afterCanonWrite(s, updated.id, updated.rev);
   }
-  // ★ R14（终评 C1）：指向章不存在。流水线草稿的 chapterId = 章号字符串
-  //   （tools.ts writeDraft 落草稿时恒设 String(chapterNo)），空库上采纳第 1 章
-  //   必然走到这里——不能一律拒。分两支：
-  //   · 恰为下一章（chapterNo == 现有章数 + 1）→ createChapter 后 updateBody。
-  //     章号由库侧「最大可解析号 + 1」算（chapter-repo.ts），id 自然对齐，
-  //     绝不让调用方传主键的纪律不破。
-  //   · 跳章（chapterNo > 现有章数 + 1）→ 硬拦，防章号空洞。
+  // ★ R14（终评 C1）→ R15/R16（控制器裁决）：指向章不存在。流水线草稿的
+  //   chapterId = 章号字符串（tools.ts writeDraft 落草稿时恒设 String(chapterNo)），
+  //   空库上采纳第 1 章必然走到这里——不能一律拒。基准**不用 count**：删章或
+  //   导入书会让章号非连续（如现有 {1,5}，count=2），"恰为下一章"会算错。
+  //   nextNo = 现有章 id 中最大可解析号 + 1（无章则 1），用 listMeta 取 id 计算，
+  //   与 ChapterRepo.createChapter 的建号口径一致（chapter-repo.ts）。分四支：
+  //   · chapterNo === nextNo → createChapter + 对齐断言 + updateBody。
+  //     章号仍由库侧算，绝不让调用方传主键的纪律不破；
+  //   · chapterNo > nextNo → 防跳章硬拦；
+  //   · chapterNo < nextNo → 空洞号（已被删除或从未存在）直报 E_PIPELINE_STATE（R16）；
+  //   · 非章号形状 → E_INVALID_ARGS 直报章节不存在。
   const chapterNo = Number(d.chapterId);
-  const existing = s.chapterRepo.count(pid);
+  const nextNo = nextChapterNo(s.chapterRepo.listMeta(pid));
   if (Number.isInteger(chapterNo) && chapterNo >= 1) {
-    if (chapterNo === existing + 1) {
+    if (chapterNo === nextNo) {
       const created = s.chapterRepo.createChapter(pid, { title: '' });
+      // ★ R15 对齐断言（必须在 updateBody 之前）：库侧建出的号与期望不符时
+      //   宁可失败，也不能让正文静默落进错误章（修复前 {1,5} 库上指向 "3" 的
+      //   草稿会被建成第 6 章并写入正文）。
+      if (created.id !== String(chapterNo)) {
+        throw new MzError(
+          'E_PIPELINE_STATE',
+          `建章对齐失败：期望第 ${chapterNo} 章，库侧建成第 ${created.id} 章`,
+          { retryable: false },
+        );
+      }
       const updated = s.chapterRepo.updateBody(pid, created.id, d.content, created.rev);
       return afterCanonWrite(s, updated.id, updated.rev);
     }
-    if (chapterNo > existing + 1) {
+    if (chapterNo > nextNo) {
       throw new MzError(
         'E_PIPELINE_STATE',
-        `不能跳章：本书现有 ${existing} 章，第 ${chapterNo} 章尚不存在，请先写第 ${existing + 1} 章`,
+        `不能跳章：本书现有章号到 ${nextNo - 1}，第 ${chapterNo} 章尚不存在，请先写第 ${nextNo} 章`,
         { retryable: false },
       );
     }
+    // chapterNo < nextNo 且指向章不存在（存在分支已在上方 get 处排除）→ 空洞号（R16）
+    throw new MzError(
+      'E_PIPELINE_STATE',
+      `第 ${chapterNo} 章是空洞号（已被删除或从未存在）：下一个可写章号是 ${nextNo}`,
+      { retryable: false },
+    );
   }
-  // 非章号形状的 chapterId（或删章留下的旧号）：维持原判——直报章节不存在
+  // 非章号形状的 chapterId：维持原判——直报章节不存在
   throw new MzError(
     'E_INVALID_ARGS',
     `章节不存在：${d.chapterId}（草稿指向的章号尚未建章；先建章，或改用不带章号的草稿）`,
   );
+}
+
+/**
+ * R15 建章/防跳章基准：现有章 id 中最大可解析号 + 1（无章则 1）。
+ * 与 ChapterRepo.createChapter 的算号口径逐字一致（Number.isFinite 过滤
+ * 非数字 id，楔子/番外这类占位不参与算号），保证「恰为下一章」判断与
+ * 库侧实际建出的号永远对齐。
+ */
+function nextChapterNo(metas: ReadonlyArray<{ id: string }>): number {
+  let maxNo = 0;
+  for (const m of metas) {
+    const n = Number(m.id);
+    if (Number.isFinite(n) && n > maxNo) maxNo = n;
+  }
+  return maxNo + 1;
 }
 
 function afterCanonWrite(s: PipelineIpcServices, chapterId: string, rev: number): string {
