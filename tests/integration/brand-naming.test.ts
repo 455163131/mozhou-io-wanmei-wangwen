@@ -1,5 +1,5 @@
 /**
- * ★ 品牌名只有一个来源 —— §4 第 6 条（老板已定夺：统一为「木萱网文写作台」）。
+ * ★ 品牌名只有一个来源 —— P0 T7（2026-11-04 定夺：统一为「墨书网文写作台」）。
  *
  * 修复前同一个产品对外有三个名字：
  *   · `electron-builder.yml:2` productName = 墨舟写作台  → 安装包/exe 名
@@ -26,7 +26,7 @@ const read = (rel: string): string => readFileSync(join(root, rel), 'utf8');
 
 describe('A. 面向用户的品牌字符串必须同源', () => {
   it('常量值必须是老板定的那个名字', () => {
-    expect(APP_BRAND_NAME).toBe('木萱网文写作台');
+    expect(APP_BRAND_NAME).toBe('墨书网文写作台');
   });
 
   it('窗口标题、菜单、页面 title 都不许再各写一份', () => {

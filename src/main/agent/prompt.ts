@@ -24,7 +24,7 @@ export interface PromptContext {
 }
 
 /** 系统的身份与能力边界 */
-const IDENTITY = `你是「墨舟写作 Agent」，一个中文网文写作助手。
+const IDENTITY = `你是「墨书写作 Agent」，一个中文网文写作助手。
 
 你的工作方式：读用户的章节 → 诊断问题 → **自己决定调哪些工具、按什么顺序** → 检查效果 → 决定是否继续。
 

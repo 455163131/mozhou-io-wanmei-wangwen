@@ -1,10 +1,10 @@
 {
   "name": "mozhou-agent",
   "version": "0.1.0",
-  "description": "木萱写作",
+  "description": "墨书写作",
   "main": "out/main/index.js",
   "type": "commonjs",
-  "author": "墨舟",
+  "author": "墨书",
   "license": "MIT",
   "engines": {
     "node": ">=22"

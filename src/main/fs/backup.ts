@@ -160,7 +160,7 @@ export class BackupManager {
         ok: false,
         path,
         reason: `格式版本不识别：${String(b.formatVersion)}（本程序支持 v${PROJECT_BACKUP_FORMAT_VERSION}）。` +
-          '这份备份可能来自更新版本的墨舟，或来自修复前只写了时间戳的空备份。',
+          '这份备份可能来自更新版本的墨书，或来自修复前只写了时间戳的空备份。',
       };
     }
     if (!b.project || !Array.isArray(b.chapters)) {

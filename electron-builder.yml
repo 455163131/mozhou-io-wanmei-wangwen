@@ -1,6 +1,6 @@
 appId: com.mozhou.writer
-productName: 木萱网文写作台
-copyright: Copyright © 2026 墨舟
+productName: 墨书网文写作台
+copyright: Copyright © 2026 墨书
 
 directories:
   output: release

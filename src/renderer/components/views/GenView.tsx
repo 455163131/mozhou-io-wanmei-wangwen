@@ -79,6 +79,8 @@ export function GenView(): JSX.Element {
     void refreshDrafts();
     if (!hasBridge()) return;
     const off = bridge().pipeline.onProgress((p) => {
+      // R13 守卫：切换项目后，前一本书的 progress 推送不许串写当前状态行
+      if (p.projectId !== pid) return;
       const step = STEP_LABEL[p.step] ?? p.step;
       if (p.state === 'failed') {
         // failed 的 detail 由主进程拼成「code: message」真因，原样红字直报
