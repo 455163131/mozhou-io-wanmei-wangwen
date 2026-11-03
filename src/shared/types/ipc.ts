@@ -106,6 +106,15 @@ export interface IpcInvokeMap {
    * 非负有限数由主进程校验，渲染层不做校验逻辑。
    */
   'project:set-price': { req: { pricePerK: number }; res: Project };
+  /**
+   * 生成流水线的立项参数（T6/R3）：写 v12 补的 genre/platform/chapter_words 真列。
+   * 数值口径在 ProjectRepo.setPipelineParams（拒非整数/负数），IPC 边界只做形状守卫。
+   * res 回写库后的真值——渲染层没有独立的读通道，保存成功后以这份回读对齐表单。
+   */
+  'project:set-gen': {
+    req: { projectId: string; genre: string; platform: string; chapterWords: number };
+    res: { genre: string; platform: string; chapterWords: number };
+  };
   /** 拖拽重排卷册：ids 必须是当前全部卷的一个排列 */
   'project:reorder-volumes': { req: { ids: string[] }; res: Volume[] };
 
@@ -437,6 +446,7 @@ export const IPC_CHANNELS = [
   'project:volumes',
   'project:create-volume',
   'project:set-price',
+  'project:set-gen',
   'project:reorder-volumes',
   'chapter:list',
   'chapter:get',

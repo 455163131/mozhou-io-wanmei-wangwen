@@ -39,11 +39,12 @@ import { PlanView } from './components/views/PlanView';
 import { LoreView } from './components/views/LoreView';
 import { ReviewView } from './components/views/ReviewView';
 import { DashboardView } from './components/views/DashboardView';
+import { GenView } from './components/views/GenView';
 import type { LlmStatus } from '@shared/types/provider';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
 import styles from './App.module.css';
 
-type Mode = 'write' | 'plan' | 'lore' | 'review' | 'dash';
+type Mode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen';
 type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
 
 /** 模式导航（icon path 与品牌定稿的 SVG sprite 同源） */
@@ -53,6 +54,8 @@ const MODES: { id: Mode; label: string; d: string }[] = [
   { id: 'lore', label: '设定', d: 'M4 19.5A2.5 2.5 0 016.5 17H20V4H6.5A2.5 2.5 0 004 6.5v13z' },
   { id: 'review', label: '审稿', d: 'M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z' },
   { id: 'dash', label: '仪表盘', d: 'M4 14a8 8 0 0116 0' },
+  // ★ T6：生成模式（P0 生成流水线的 UI 入口）。图标 = 简易闪电。
+  { id: 'gen', label: '生成', d: 'M13 2L5 13.5h5.5L9.5 22 19 10.5h-5.5L13 2z' },
 ];
 
 const RAIL_TABS: { id: RailTab; label: string }[] = [
@@ -449,6 +452,7 @@ export function App(): JSX.Element {
               {mode === 'lore' && <LoreView />}
               {mode === 'review' && <ReviewView />}
               {mode === 'dash' && <DashboardView />}
+              {mode === 'gen' && <GenView />}
             </main>
           )}
         </div>
@@ -488,7 +492,7 @@ export function App(): JSX.Element {
           onRun={(id) => {
             switch (id) {
               case 'mode:write': case 'mode:plan': case 'mode:lore':
-              case 'mode:review': case 'mode:dash':
+              case 'mode:review': case 'mode:dash': case 'mode:gen':
                 setMode(id.slice(5) as Mode);
                 break;
               case 'panel:tree':

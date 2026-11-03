@@ -1,0 +1,212 @@
+/* 生成模式（P0 T6）。只用 tokens.css 既有变量，不引新样式体系。
+ * 卡片形状对齐 PlanView 的「无边卡片 + 底色分层」（§UI ·R2 口径）。 */
+.wrap {
+  flex: 1;
+  overflow: auto;
+  padding: var(--mz-space-5) var(--mz-space-5) var(--mz-space-6);
+}
+
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+  margin-bottom: var(--mz-space-4);
+}
+
+.crumb b {
+  color: var(--mz-text-primary);
+  font-size: var(--mz-fs-sm);
+}
+
+.sep {
+  color: var(--mz-text-tertiary);
+}
+
+/* 状态行：普通 = 次要色；失败 = 红字直报真因（含 error code），不加装饰 */
+.progress {
+  margin: 0 0 var(--mz-space-3);
+  padding: var(--mz-space-2) var(--mz-space-3);
+  border-radius: var(--mz-radius-sm);
+  background: var(--mz-bg-elevated);
+  color: var(--mz-text-secondary);
+  font-size: var(--mz-fs-xs);
+  line-height: 1.7;
+}
+
+.progressFail {
+  margin: 0 0 var(--mz-space-3);
+  padding: var(--mz-space-2) var(--mz-space-3);
+  border-radius: var(--mz-radius-sm);
+  background: var(--mz-sem-ai-bg);
+  border: 1px solid var(--mz-sem-ai-border);
+  color: var(--mz-sem-ai-fg);
+  font-size: var(--mz-fs-xs);
+  line-height: 1.7;
+}
+
+.card {
+  background: var(--mz-bg-elevated);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-4);
+  margin-bottom: var(--mz-space-4);
+}
+
+.cardHead {
+  font-size: var(--mz-chrome-type-title);
+  color: var(--mz-text-primary);
+  font-weight: 600;
+  margin: 0 0 var(--mz-space-3);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--mz-space-3);
+  margin-bottom: var(--mz-space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-half);
+}
+
+.label {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+}
+
+.input {
+  background: var(--mz-bg-surface);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-2h);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-primary);
+  outline: none;
+  font-family: inherit;
+}
+
+.input:focus {
+  border-color: var(--mz-accent);
+}
+
+/* 只读事实行：targetWords / premise 没有写通道，如实展示不给假入口 */
+.readonly {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-half);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+  margin-bottom: var(--mz-space-3);
+  line-height: 1.7;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-primary);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  border: 1px solid var(--mz-accent);
+  background: var(--mz-accent);
+  color: var(--mz-accent-ink);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+  border-color: var(--mz-accent-hover);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.drafts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-3);
+}
+
+.draft {
+  background: var(--mz-bg-surface);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-3);
+}
+
+.draftTop {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  margin-bottom: var(--mz-space-half);
+}
+
+.kind {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-accent);
+  background: var(--mz-accent-soft);
+  border-radius: var(--mz-radius-sm);
+  padding: 0 var(--mz-space-1);
+}
+
+.role {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-secondary);
+}
+
+.time {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+  margin-left: auto;
+}
+
+.preview {
+  margin: 0 0 var(--mz-space-2);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-primary);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  gap: var(--mz-space-2);
+}
+
+.empty {
+  margin: 0;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+  line-height: 1.7;
+}

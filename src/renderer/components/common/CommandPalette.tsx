@@ -61,6 +61,7 @@ const COMMANDS: Command[] = [
   { id: 'mode:lore', label: '切换到 设定', group: '模式', alias: 'lore sheding' },
   { id: 'mode:review', label: '切换到 审稿', group: '模式', alias: 'review shengao' },
   { id: 'mode:dash', label: '切换到 仪表盘', group: '模式', alias: 'dashboard yibiaopan' },
+  { id: 'mode:gen', label: '切换到 生成', group: '模式', alias: 'gen shengcheng' },
 
   { id: 'panel:tree', label: '显示 / 隐藏 章节树', group: '面板', keys: '⌘1', alias: 'tree chapter zhangjieshu' },
   { id: 'panel:rail', label: '显示 / 隐藏 AI 面板', group: '面板', keys: '⌘2', alias: 'rail ai panel' },

@@ -196,6 +196,33 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     }
   }, services);
 
+  // ── 生成流水线的立项参数（T6/R3：写 v12 的 genre/platform/chapter_words 真列）──
+  // 数值口径在 repo（setPipelineParams 自己拒非整数/负数/未知项目），这里只补
+  // IPC 边界的形状守卫与 projectId 一致性——与 pipeline 六通道同款：
+  // 渲染层拿着别的书的 id 过来，直接拒，不静默改写另一本书的参数。
+  handle('project:set-gen', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    if (p.projectId !== s.project.id) {
+      throw new MzError('E_INVALID_ARGS', `projectId 与当前打开项目不一致：${p.projectId}`);
+    }
+    if (typeof p.genre !== 'string' || typeof p.platform !== 'string') {
+      throw new MzError('E_INVALID_ARGS', 'genre / platform 必须是字符串');
+    }
+    if (typeof p.chapterWords !== 'number') {
+      throw new MzError('E_INVALID_ARGS', 'chapterWords 必须是数字');
+    }
+    try {
+      s.projectRepo.setPipelineParams(p.projectId, {
+        genre: p.genre,
+        platform: p.platform,
+        chapterWords: p.chapterWords,
+      });
+      return s.projectRepo.pipelineParams(p.projectId);
+    } catch (e) {
+      throw new MzError('E_INVALID_ARGS', e instanceof Error ? e.message : String(e));
+    }
+  }, services);
+
   // ── chapter ──
   handle('chapter:list', () => {
     if (!services.project) return [];
