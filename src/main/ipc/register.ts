@@ -213,11 +213,17 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     if (typeof p.chapterWords !== 'number') {
       throw new MzError('E_INVALID_ARGS', 'chapterWords 必须是数字');
     }
+    // P1-B T3：language 可选——缺省不改原值；给了就必须是枚举内值
+    // （repo 也会拦，这里在边界先拦是为了错误消息不必穿过写库路径）
+    if (p.language !== undefined && p.language !== 'zh' && p.language !== 'en') {
+      throw new MzError('E_INVALID_ARGS', `language 只支持 'zh' | 'en'，收到 ${String(p.language)}`);
+    }
     try {
       s.projectRepo.setPipelineParams(p.projectId, {
         genre: p.genre,
         platform: p.platform,
         chapterWords: p.chapterWords,
+        language: p.language,
       });
       return s.projectRepo.pipelineParams(p.projectId);
     } catch (e) {

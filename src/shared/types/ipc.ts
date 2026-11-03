@@ -110,10 +110,12 @@ export interface IpcInvokeMap {
    * 生成流水线的立项参数（T6/R3）：写 v12 补的 genre/platform/chapter_words 真列。
    * 数值口径在 ProjectRepo.setPipelineParams（拒非整数/负数），IPC 边界只做形状守卫。
    * res 回写库后的真值——渲染层没有独立的读通道，保存成功后以这份回读对齐表单。
+   * P1-B T3：req 增可选 language（'zh'|'en'，写 v14 列）——缺省不改原值；
+   * 枚举校验在 repo（setPipelineParams），边界只拦非枚举的透传值。
    */
   'project:set-gen': {
-    req: { projectId: string; genre: string; platform: string; chapterWords: number };
-    res: { genre: string; platform: string; chapterWords: number };
+    req: { projectId: string; genre: string; platform: string; chapterWords: number; language?: 'zh' | 'en' };
+    res: { genre: string; platform: string; chapterWords: number; language: 'zh' | 'en' };
   };
   /** 拖拽重排卷册：ids 必须是当前全部卷的一个排列 */
   'project:reorder-volumes': { req: { ids: string[] }; res: Volume[] };

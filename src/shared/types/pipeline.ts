@@ -10,6 +10,7 @@
  *   schema，坏数据在门口就被拦下，而不是渗进正文生成环节。
  */
 import { z } from 'zod';
+import type { PlatformRule } from '../constants/platforms';
 
 /* ── 流水线上下文 ──────────────────────────────────────────────── */
 
@@ -17,8 +18,9 @@ import { z } from 'zod';
  * 一次生成流水线的全部共享上下文。
  *
  * 字段分两层：
- * - 书籍级（genre/platform/chapterWords/targetWords/premise/canon/concept/outline）：
- *   同一本书内恒定——写手 system 只吃这一层，因此同书逐字节稳定，命中 prompt cache；
+ * - 书籍级（genre/platform/chapterWords/targetWords/premise/canon/concept/outline/
+ *   language/platformRule）：同一本书内恒定——写手 system 只吃这一层，
+ *   因此同书逐字节稳定，命中 prompt cache；
  * - 章节级（chapterNo/planItem/prevEnding）：逐章变化——**只进 user 消息**
  *   （由 Task 3 的装配器注入），绝不进 system。
  */
@@ -27,7 +29,7 @@ export interface PipelineCtx {
   genre: string;
   /** 发布平台，如「番茄」 */
   platform: string;
-  /** 单章目标字数 */
+  /** 单章目标字数（language='en' 且海外平台时语义为英文词数，见 R26） */
   chapterWords: number;
   /** 全书目标总字数 */
   targetWords: number;
@@ -35,6 +37,10 @@ export interface PipelineCtx {
   premise: string;
   /** 正史设定清单（既定事实，任何环节不得与之相抵） */
   canon: string[];
+  /** 作品语言（P1-B T3）：'zh' 中文（缺省口径）/ 'en' 英文（海外平台） */
+  language: 'zh' | 'en';
+  /** 匹配到的平台规则包（按 platform 名/id 匹配 PLATFORM_RULES；匹配不到缺省） */
+  platformRule?: PlatformRule;
   /** 构思环节产出（构思完成后回填） */
   concept?: ConceptOut;
   /** 架构环节产出（大纲完成后回填） */

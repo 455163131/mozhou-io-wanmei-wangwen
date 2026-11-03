@@ -329,9 +329,14 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
     //   首稿不足单章目标的一半 = 半章草稿，静默入库会污染草稿区。R24 裁决：
     //   续写**最多 1 次**——把首稿以 assistant 回灌、追加续写指令再 chat 一次，
     //   拼接后仍不足则不再死循环，ok 保持 true 且 data.shortfall=true，交作者判断。
+    // ★ R26（P1-B T3）：不足阈值按 language 分口径——zh 数字符（现状），
+    //   en 数词数（content.trim().split(/\s+/).length）；海外平台 chapterWords
+    //   语义即「单章目标词数」，用字符数会把英文稿误判为达标。
     let retries = 0;
-    const minChars = ctxW.chapterWords * 0.5;
-    if (content.length < minChars) {
+    const minSize = ctxW.chapterWords * 0.5;
+    const sizeOf = (s: string): number =>
+      ctxW.language === 'en' ? s.trim().split(/\s+/).length : s.length;
+    if (sizeOf(content) < minSize) {
       const cont = await deps.llm.chat({
         messages: [
           { role: 'system', content: system },
@@ -346,7 +351,7 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
       if (extra) content = `${content}\n${extra}`;
       retries = 1;
     }
-    const shortfall = content.length < minChars;
+    const shortfall = sizeOf(content) < minSize;
 
     const draft = drafts.insert({
       projectId,

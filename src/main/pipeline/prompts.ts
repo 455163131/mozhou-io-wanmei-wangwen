@@ -20,7 +20,7 @@ import type { PipelineCtx } from '@shared/types/pipeline';
 
 /* ── 公共底座：任何角色都不得突破的底线 ────────────────────────── */
 
-const BASE = [
+const BASE_LINES = [
   '以下底线适用于你的每一次产出，任何情况下不得突破：',
   '1. 已录入的正史（canon）是既成事实。你的产出只能与之保持一致，不得相抵，更不得擅自改写或"优化"任何一条；',
   '2. 角色的认知是硬边界：一个人物只知道自己 knows 范围内的事，其言行、心理描写中绝不能流露 notKnows 的内容——偷跑信息等同于写崩；',
@@ -29,7 +29,53 @@ const BASE = [
   '5. 全程用地道中文行文，杜绝翻译腔：少用"被"字句、不堆欧化长定语、代词能省则省；',
   '6. 为新人物起名时，姓氏从真实大姓里取（王、李、张、刘、陈、杨、黄、赵、吴、周、徐、孙、马等）；' +
     '被言情套路用滥的偏置姓与生僻文艺姓一律不用；名字气质须贴合人物的年龄与所处年代。',
+];
+
+/**
+ * 底座按语言取（P1-B T3）：zh 逐字保留既有口径；en 只把第 5 条
+ * 「用地道中文行文」换成英文母语的对应纪律——其余底线与语言无关，
+ * 两条路径共用同一份，不各写一套。
+ */
+function baseBlock(language: 'zh' | 'en'): string {
+  if (language !== 'en') return BASE_LINES.join('\n');
+  const lines = [...BASE_LINES];
+  lines[4] = '5. 全书以英文直接写作：用英文思维措辞，行文须读起来像英文母语写就，而非中译英的产物；';
+  return lines.join('\n');
+}
+
+/* ── 英文工艺块（P1-B T3，EN_CRAFT）────────────────────────────── */
+
+/**
+ * 英文写作工艺指令（原创措辞）：language==='en' 时追加进写手 system。
+ * 与 BASE 第 5 条（en 版）互为表里：那条管"用什么语言想"，这块管
+ * "英文行文的具体工艺"——反翻译腔搭配、动词优先、对白标签纪律。
+ * 属书籍级稳定内容，同书逐字节不变。
+ */
+const EN_CRAFT = [
+  '【英文工艺】本书正文以英文交付，行文遵守以下工艺纪律：',
+  '· write prose in English：全程用英文直接构思落笔，禁止先在脑内组中文再逐句转译；',
+  '· ban translationese calques：直译腔搭配一律禁用——诸如 "eyes flashed with a trace of" 这类中式英文痕迹，' +
+    '出现即重写为英文母语惯用的表达；',
+  '· prefer concrete verbs over adverb stacks：一个具体准确的动词，胜过一个含糊动词外加副词堆叠；' +
+    '删掉撑场面的 -ly 副词，把动作写实；',
+  '· dialogue tags plain "said" 为主：对白标签优先用 said / asked，动作拍（action beat）可替代标签；' +
+    '花哨的说话动词（exclaimed / retorted 连篇）不要堆。',
 ].join('\n');
+
+/* ── 平台工艺注记段（P1-B T3）──────────────────────────────────── */
+
+/**
+ * 平台规则包的 contentNotes 注入块：书籍级稳定（同一本书平台不变），
+ * 进写手 system 的平台段。未匹配到规则包（platformRule 缺省）时返回空串，
+ * zh 既有路径的 system 逐字节不变。
+ */
+function platformBlock(ctx: PipelineCtx): string {
+  if (!ctx.platformRule) return '';
+  return [
+    `【平台工艺注记 · ${ctx.platformRule.name}】以下是该平台公开惯例的编辑口径，行文时照此拿捏：`,
+    ...ctx.platformRule.contentNotes.map((n) => `· ${n}`),
+  ].join('\n');
+}
 
 /* ── 小工具 ────────────────────────────────────────────────────── */
 
@@ -56,8 +102,11 @@ function canonBlock(canon: string[]): string {
 export function composeConceptPrompt(ctx: PipelineCtx): string {
   return [
     `你是构思环节的「对谈整理器」：把作者与主编对谈中已经点头确认的设定，收敛成一份结构化构思。你不是灵感发生器——对谈材料里没有的东西，一个字也不许替作者发明。本作定位：${ctx.genre}题材，发布于${ctx.platform}，目标总字数 ${ctx.targetWords}，单章约 ${ctx.chapterWords} 字。`,
-    BASE,
+    baseBlock(ctx.language),
     '',
+    ctx.language === 'en'
+      ? '【English 产出】本作面向海外平台：titles / logline / synopsis / hooks 四项一律用英文撰写（write in English，直接以英文定稿，不交中译英的转译稿）；JSON 字段名保持不变。'
+      : '',
     ctx.premise
       ? `【作者的原始脑洞】${ctx.premise}\n它只是整理的起点：可以顺着它归纳，不得越过它替作者扩张设定。`
       : '',
@@ -100,7 +149,7 @@ export function composeArchitectPrompt(ctx: PipelineCtx): string {
   const beats = Math.max(2, Math.round(ctx.chapterWords / 1000));
   return [
     `你是全书架构师，为${ctx.genre}题材、发布于${ctx.platform}的作品搭建卷纲与章纲。目标总字数 ${ctx.targetWords}，单章体量 ${ctx.chapterWords} 字，全书约 ${totalChapters} 章。`,
-    BASE,
+    baseBlock(ctx.language),
     '',
     ctx.premise ? `【原始脑洞】${ctx.premise}` : '',
     ctx.concept
@@ -147,9 +196,10 @@ export function composeArchitectPrompt(ctx: PipelineCtx): string {
  * 「收束时必须交出的一笔状态变化」——账面上什么都没变的场景即废戏。
  */
 export function composeWriterPrompt(ctx: PipelineCtx): string {
+  const unit = ctx.language === 'en' ? '词' : '字';
   return [
-    `你是正文写手，为${ctx.genre}题材、发布于${ctx.platform}的作品执笔，单章体量 ${ctx.chapterWords} 字。文字要有网文的鲜活气口：节奏快、画面实、对白像人说的话，拒绝一切机器腔。`,
-    BASE,
+    `你是正文写手，为${ctx.genre}题材、发布于${ctx.platform}的作品执笔，单章体量 ${ctx.chapterWords} ${unit}。文字要有网文的鲜活气口：节奏快、画面实、对白像人说的话，拒绝一切机器腔。`,
+    baseBlock(ctx.language),
     '',
     ctx.premise ? `【本书 premise】${ctx.premise}` : '',
     ctx.concept
@@ -160,6 +210,9 @@ export function composeWriterPrompt(ctx: PipelineCtx): string {
         ].join('\n')
       : '',
     canonBlock(ctx.canon),
+    // P1-B T3：平台注记与英文工艺块都是书籍级稳定内容（同书逐字节不变）
+    platformBlock(ctx),
+    ctx.language === 'en' ? EN_CRAFT : '',
     '',
     '【场景归类与路由】动笔之前，先把本章的每个节拍归入下面六类之一。每一类场景收束时，都必须交出一笔与该类型匹配的状态变化——账面上什么都没变的场景就是废戏，推翻重写：',
     '· 动作戏：一场打斗或追逐落幕时，胜负归属、人物伤势或资源持有，至少有一项与开场时不同；',

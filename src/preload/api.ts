@@ -34,12 +34,14 @@ export interface MzBridge {
     reorderVolumes(ids: string[]): Promise<IpcInvokeMap['project:reorder-volumes']['res']>;
     /** 千字单价（元），0 = 清空；稿费预估的唯一输入 */
     setPrice(pricePerK: number): Promise<IpcInvokeMap['project:set-price']['res']>;
-    /** 生成流水线的立项参数（T6/R3）；返回写库后的真值（渲染层无独立读通道，以此对齐表单） */
+    /** 生成流水线的立项参数（T6/R3）；返回写库后的真值（渲染层无独立读通道，以此对齐表单）。
+     *  P1-B T3：language 可选（'zh'|'en'），缺省不改原值。 */
     setGen(
       projectId: string,
       genre: string,
       platform: string,
       chapterWords: number,
+      language?: 'zh' | 'en',
     ): Promise<IpcInvokeMap['project:set-gen']['res']>;
   };
 

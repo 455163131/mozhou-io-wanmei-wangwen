@@ -513,6 +513,19 @@ export const MIGRATIONS: Migration[] = [
       db.exec(`CREATE TABLE project_canon (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL, FOREIGN KEY(project_id) REFERENCES projects(id));`);
     },
   },
+  {
+    version: 14,
+    name: 'add_project_language',
+    /**
+     * ★ P1-B T3：作品语言列。'zh' = 中文（现状口径，缺省），'en' = 英文
+     *   （海外平台）。枚举校验在写侧 ProjectRepo.setPipelineParams，
+     *   读侧 buildPipelineCtx 对未知值一律回退 'zh'——库列本身不加
+     *   CHECK 约束：迁移只增不改，收紧口径留给应用层，坏值不炸装配。
+     */
+    up(db) {
+      db.exec(`ALTER TABLE projects ADD COLUMN language TEXT NOT NULL DEFAULT 'zh';`);
+    },
+  },
 ];
 
 export function migrate(db: Database): void {

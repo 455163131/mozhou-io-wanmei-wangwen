@@ -21,7 +21,7 @@ function harness(fixed: string) {
   const deps: PipelineDeps = {
     db,
     llm: { chat: async () => ({ content: fixed, usage: { input: 10, output: 10 } }) },
-    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [] }),
+    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh' }),
     chapters: new ChapterRepo(db),
   };
   const ok = registerPipelineTools(registry, deps);
@@ -39,7 +39,7 @@ function harnessQueue(queue: string[]) {
   const deps: PipelineDeps = {
     db,
     llm: { chat: async () => ({ content: q.shift() ?? '', usage: { input: 10, output: 10 } }) },
-    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [] }),
+    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh' }),
     chapters: new ChapterRepo(db),
   };
   return { db, pid, drafts: new DraftRepo(db), handlers: pipelineHandlers(deps) };
@@ -63,7 +63,7 @@ function harnessWithCapture(fixed: string) {
         return { content: fixed, usage: { input: 10, output: 10 } };
       },
     },
-    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [] }),
+    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh' }),
     chapters,
   };
   const ok = registerPipelineTools(registry, deps);

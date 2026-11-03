@@ -20,6 +20,7 @@ import { DraftRepo } from '../db/repos/draft-repo';
 import { CanonRepo } from '../db/repos/canon-repo';
 import type { ConceptOut, OutlineOut, PipelineCtx } from '@shared/types/pipeline';
 import { ConceptSchema, OutlineSchema } from '@shared/types/pipeline';
+import { PLATFORM_RULES } from '@shared/constants/platforms';
 
 /** 从库里解析某项目的流水线上下文（纯函数：只读 db，不依赖 AppServices） */
 export function buildPipelineCtx(db: Database, projectId: string): PipelineCtx {
@@ -61,6 +62,10 @@ export function buildPipelineCtx(db: Database, projectId: string): PipelineCtx {
     premise: concept?.logline ?? '',
     // P1-A：铁律真读（录入序），无条目时空数组而非 undefined
     canon: new CanonRepo(db).list(projectId).map((e) => e.text),
+    // P1-B T3：language 真读（repo 已把枚举外的值收敛为 'zh'）；platformRule
+    // 按平台名或 id 匹配规则包，匹配不到就缺省（prompt 不注入平台段）
+    language: params.language,
+    platformRule: PLATFORM_RULES.find((r) => r.name === params.platform || r.id === params.platform),
     concept,
     outline,
   };

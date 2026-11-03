@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { assembleWriterContext, estimateTokens, fitCraftSkillEntries } from '@main/pipeline/assemble';
 import type { PipelineCtx } from '@shared/types/pipeline';
 
-const base: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: 'p', canon: ['铁律一'] , planItem: { title: '雾中拾玉', hook: '玉佩里传出心跳声' } };
+const base: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: 'p', canon: ['铁律一'] , planItem: { title: '雾中拾玉', hook: '玉佩里传出心跳声' }, language: 'zh' };
 const budget = { window: 128000, outputReserve: 4000 };
 
 describe('装配器', () => {

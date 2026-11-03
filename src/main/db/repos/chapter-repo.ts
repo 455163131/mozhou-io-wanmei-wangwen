@@ -528,39 +528,51 @@ export class ProjectRepo {
   }
 
   /**
-   * 生成流水线的项目参数（T5/R10：v12 迁移补的真列）。
+   * 生成流水线的项目参数（T5/R10：v12 迁移补的真列；P1-B T3 增 v14 language 列）。
    * ★ 空串 / 0 = 「未设定」，repo 只如实读出——回退占位的口径留在读侧
    *   （services.pipelineCtx），写侧入口是 setPipelineParams，两边都不猜。
    */
-  pipelineParams(projectId: string): { genre: string; platform: string; chapterWords: number } {
+  pipelineParams(projectId: string): { genre: string; platform: string; chapterWords: number; language: 'zh' | 'en' } {
     const r = this.db
-      .prepare('SELECT genre, platform, chapter_words FROM projects WHERE id = ?')
-      .get(projectId) as { genre: string; platform: string; chapter_words: number } | undefined;
-    return { genre: r?.genre ?? '', platform: r?.platform ?? '', chapterWords: r?.chapter_words ?? 0 };
+      .prepare('SELECT genre, platform, chapter_words, language FROM projects WHERE id = ?')
+      .get(projectId) as { genre: string; platform: string; chapter_words: number; language: string } | undefined;
+    return {
+      genre: r?.genre ?? '',
+      platform: r?.platform ?? '',
+      chapterWords: r?.chapter_words ?? 0,
+      // 枚举外的值（手工改库）一律读成缺省 'zh'：读侧不炸，写侧才校验
+      language: r?.language === 'en' ? 'en' : 'zh',
+    };
   }
 
   /**
    * 写生成参数（T6 参数面板的落库入口）。省略的字段保持原值；
-   * chapterWords 拒非整数与负数——半章字数与负字数会一路安静地污染装配预算。
+   * chapterWords 拒非整数与负数——半章字数与负字数会一路安静地污染装配预算；
+   * language 只收 'zh' | 'en'（P1-B T3）——枚举外的语言没有对应的 prompt
+   * 工艺块与阈值口径，写进去等于让装配层拿假语言干活，故宁抛不宽容。
    */
   setPipelineParams(
     projectId: string,
-    p: { genre?: string; platform?: string; chapterWords?: number },
+    p: { genre?: string; platform?: string; chapterWords?: number; language?: 'zh' | 'en' },
   ): void {
     if (!this.get(projectId)) throw new Error(`项目不存在：${projectId}`);
     const cur = this.pipelineParams(projectId);
     const genre = p.genre ?? cur.genre;
     const platform = p.platform ?? cur.platform;
     const chapterWords = p.chapterWords ?? cur.chapterWords;
+    const language = p.language ?? cur.language;
     if (typeof genre !== 'string' || typeof platform !== 'string') {
       throw new Error('genre / platform 必须是字符串');
     }
     if (!Number.isInteger(chapterWords) || chapterWords < 0) {
       throw new Error(`chapterWords 必须是非负整数，收到 ${chapterWords}`);
     }
+    if (language !== 'zh' && language !== 'en') {
+      throw new Error(`language 只支持 'zh' | 'en'，收到 ${String(language)}`);
+    }
     this.db
-      .prepare('UPDATE projects SET genre = ?, platform = ?, chapter_words = ?, updated_at = ? WHERE id = ?')
-      .run(genre, platform, chapterWords, Date.now(), projectId);
+      .prepare('UPDATE projects SET genre = ?, platform = ?, chapter_words = ?, language = ?, updated_at = ? WHERE id = ?')
+      .run(genre, platform, chapterWords, language, Date.now(), projectId);
   }
 
   touch(projectId: string): void {

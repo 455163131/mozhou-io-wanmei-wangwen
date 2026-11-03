@@ -82,7 +82,7 @@ function makeEnv(opts: EnvOpts = {}) {
   const pid = projects.create('测试书', '/tmp/t5', 300000).id;
   const chapterRepo = new ChapterRepo(db, new DailyWriteRepo(db));
   const drafts = new DraftRepo(db);
-  const baseCtx: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 2000, targetWords: 300000, premise: 'p', canon: [] };
+  const baseCtx: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 2000, targetWords: 300000, premise: 'p', canon: [], language: 'zh' };
   const deps: PipelineDeps = {
     db,
     projectId: () => pid,
@@ -413,12 +413,12 @@ describe('D. R10 数据契约补真（v12 迁移 + projects 参数真列）', ()
     migrate(db);
     const projects = new ProjectRepo(db);
     const pid = projects.create('测试书', '/tmp/d').id;
-    expect(projects.pipelineParams(pid)).toEqual({ genre: '', platform: '', chapterWords: 0 });
+    expect(projects.pipelineParams(pid)).toEqual({ genre: '', platform: '', chapterWords: 0, language: 'zh' });
     projects.setPipelineParams(pid, { genre: '古风玄幻', platform: '番茄', chapterWords: 8000 });
-    expect(projects.pipelineParams(pid)).toEqual({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000 });
+    expect(projects.pipelineParams(pid)).toEqual({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, language: 'zh' });
     // 部分更新：未传字段保持原值
     projects.setPipelineParams(pid, { chapterWords: 6000 });
-    expect(projects.pipelineParams(pid)).toEqual({ genre: '古风玄幻', platform: '番茄', chapterWords: 6000 });
+    expect(projects.pipelineParams(pid)).toEqual({ genre: '古风玄幻', platform: '番茄', chapterWords: 6000, language: 'zh' });
     // 非法值被拒
     expect(() => projects.setPipelineParams(pid, { chapterWords: -1 })).toThrow();
     expect(() => projects.setPipelineParams(pid, { chapterWords: 1.5 })).toThrow();
