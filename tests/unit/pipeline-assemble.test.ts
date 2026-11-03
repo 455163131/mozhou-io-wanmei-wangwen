@@ -25,4 +25,11 @@ describe('装配器', () => {
     expect(t!.reason.length).toBeGreaterThan(0);
     expect(estimateTokens(user)).toBeLessThanOrEqual(9000 - 4000);
   });
+  it('craftSkills 槽：命中触发词时正文进 user，紧预算时按 rank 裁剪留 trace', () => {
+    const ctx = { ...base, planItem: { title: '开篇', hook: '章末钩子：心跳声' } };
+    const { user } = assembleWriterContext(ctx, { window: 128000, outputReserve: 4000 });
+    expect(user).toContain('章末钩子三件套');
+    const tight = assembleWriterContext({ ...ctx, prevEnding: 'x'.repeat(20000) }, { window: 9000, outputReserve: 4000 });
+    expect(tight.trace.some(t => t.slot === 'craftSkills' || t.slot === 'prevEnding')).toBe(true);
+  });
 });

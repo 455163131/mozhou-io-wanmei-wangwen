@@ -18,12 +18,13 @@
  */
 import type { PipelineCtx } from '@shared/types/pipeline';
 import { MzError } from '@shared/types/ipc';
+import { matchSkills } from '@main/pipeline/craft-skills';
 
 /* ── 对外类型 ──────────────────────────────────────────────────── */
 
 /** 一次裁剪动作的留痕：装配透明原则的载体，逐条可回查。 */
 export type TrimTrace = {
-  /** 栏位名（prevEnding / synopsis / hooks） */
+  /** 栏位名（prevEnding / synopsis / hooks / craftSkills） */
   slot: string;
   /** kept=全文保留；compressed=被截断；dropped=被整条丢弃 */
   action: 'kept' | 'compressed' | 'dropped';
@@ -68,6 +69,12 @@ export const PROTECTED_QUOTA = 8000;
  */
 export const PREV_ENDING_CAP_CHARS = 260;
 
+/**
+ * 写作工艺槽（craftSkills）的硬顶（tokens）。
+ * 命中条目的正文合计超过硬顶时截尾保留靠前的命中条目，并留一条 trace。
+ */
+export const CRAFT_SKILLS_CAP_TOKENS = 1200;
+
 /* ── token 估算 ────────────────────────────────────────────────── */
 
 /**
@@ -83,7 +90,7 @@ export function estimateTokens(text: string): number {
 
 interface CompSlot {
   /** 栏位名，同时是 trace 里的 slot 字段 */
-  slot: 'prevEnding' | 'synopsis' | 'hooks';
+  slot: 'prevEnding' | 'synopsis' | 'hooks' | 'craftSkills';
   /** 栏位级牺牲顺序：小者先被牺牲（hooks 最先，prevEnding 最后） */
   sacrificeRank: number;
   /** 块标题行 */
@@ -114,7 +121,7 @@ function slotTokens(s: CompSlot): number {
  *
  * 装填顺序（保护块固定四段，随后是可压缩栏位）：
  *   项目参数行 → canon 逐条 → 本章章纲 → 章末钩子铁律提醒
- *   → 上章结尾 → 剧情梗概 → 脑洞分支
+ *   → 上章结尾 → 剧情梗概 → 脑洞分支 → 写作工艺（craftSkills）
  *
  * 预算纪律：user 全文（含标题行与分隔符）不超过 window − outputReserve；
  * 保护层超配额直接抛错；可压缩栏位超额按牺牲顺序截断并逐次留痕。
@@ -175,7 +182,7 @@ export function assembleWriterContext(ctx: PipelineCtx, budget: WriterBudget): A
     }
     slots.push({
       slot: 'prevEnding',
-      sacrificeRank: 3,
+      sacrificeRank: 4,
       header: '【上章结尾】',
       items: [{ text: body, rank: 0 }],
       originalTokens: before,
@@ -186,7 +193,7 @@ export function assembleWriterContext(ctx: PipelineCtx, budget: WriterBudget): A
   if (ctx.concept?.synopsis) {
     slots.push({
       slot: 'synopsis',
-      sacrificeRank: 2,
+      sacrificeRank: 3,
       header: '【剧情梗概（构思产出，供衔接参考）】',
       items: [{ text: ctx.concept.synopsis, rank: 0 }],
       originalTokens: estimateTokens(ctx.concept.synopsis),
@@ -205,6 +212,39 @@ export function assembleWriterContext(ctx: PipelineCtx, budget: WriterBudget): A
       originalTokens: estimateTokens(hooks.join('\n')),
       touched: false,
     });
+  }
+
+  // craftSkills：按「本章章纲标题 + 章末钩子 + 题材」做触发词匹配，仅注入写手
+  // （roles 含 'writer' 的命中条目）。硬顶 CRAFT_SKILLS_CAP_TOKENS，超出截尾留痕。
+  {
+    const craftMatchText = `${ctx.planItem?.title ?? ''}${ctx.planItem?.hook ?? ''}${ctx.genre}`;
+    const matched = matchSkills(craftMatchText, 'writer');
+    if (matched.length) {
+      let text = matched.map((s) => `◆ ${s.title}\n${s.body}`).join('\n\n');
+      const before = estimateTokens(text);
+      let touched = false;
+      const capChars = Math.floor(CRAFT_SKILLS_CAP_TOKENS / 0.6);
+      if (text.length > capChars) {
+        // 截尾保头：注册序靠前的命中条目优先保留，与牺牲顺序的直觉一致。
+        text = text.slice(0, capChars);
+        touched = true;
+        trace.push({
+          slot: 'craftSkills',
+          action: 'compressed',
+          before,
+          after: estimateTokens(text),
+          reason: `超出 ${CRAFT_SKILLS_CAP_TOKENS} tokens 硬顶，截尾保留靠前的命中条目`,
+        });
+      }
+      slots.push({
+        slot: 'craftSkills',
+        sacrificeRank: 2,
+        header: '【写作工艺·本章命中的可执行指令】',
+        items: [{ text, rank: 0 }],
+        originalTokens: before,
+        touched,
+      });
+    }
   }
 
   /* ── 第三步：总预算收敛（超额按牺牲顺序裁剪，逐次留痕） ── */
