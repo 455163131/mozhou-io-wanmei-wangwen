@@ -106,6 +106,8 @@ export type ToolErrorCode =
   | 'E_PIPELINE_PARSE'
   /** 生成流水线：前置状态不满足（如续写章纲却没有已采纳的卷纲），不可重试 */
   | 'E_PIPELINE_STATE'
+  /** 生成流水线装配：保护层（canon/章纲/参数）超预算配额，宁可报错绝不静默丢 canon（I1：真码直报，不压平成 E_INTERNAL） */
+  | 'E_PROTECTED_OVERBUDGET'
   | 'E_INTERNAL';
 
 /** 工具调用请求：模型选中工具 + 参数 */

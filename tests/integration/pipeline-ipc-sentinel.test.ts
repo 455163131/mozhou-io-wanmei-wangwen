@@ -193,6 +193,42 @@ describe('B. IPC 六通道行为（真库）', () => {
     expect(chapterRepo.listMeta(pid)).toHaveLength(1);
   });
 
+  it('adopt-draft：空库 + chapterId="1"（流水线草稿形状）→ R14 回退建章，id 自然对齐（终评 C1）', async () => {
+    const { services, pid, drafts, chapterRepo, editCount, sent } = makeEnv();
+    const d = drafts.insert({ projectId: pid, role: 'writer', kind: 'chapter', content: '第一章正文。', chapterId: '1' });
+    const r = await adoptDraft(services, d.id);
+    expect(r.chapterId).toBe('1');
+    expect(chapterRepo.getBody(pid, '1')).toBe('第一章正文。');
+    expect(chapterRepo.count(pid)).toBe(1);
+    expect(drafts.get(d.id)!.status).toBe('adopted');
+    expect(editCount()).toBe(1);
+    expect(sent.some((x) => x.ch === 'chapter:changed')).toBe(true);
+  });
+
+  it('adopt-draft：chapterId 恰为现有章数+1 → R14 回退建章后写入（终评 C1）', async () => {
+    const { services, pid, drafts, chapterRepo } = makeEnv();
+    chapterRepo.createChapter(pid, { title: '第一章' });
+    const d = drafts.insert({ projectId: pid, role: 'writer', kind: 'chapter', content: '第二章正文。', chapterId: '2' });
+    const r = await adoptDraft(services, d.id);
+    expect(r.chapterId).toBe('2');
+    expect(chapterRepo.getBody(pid, '2')).toBe('第二章正文。');
+    expect(chapterRepo.count(pid)).toBe(2);
+  });
+
+  it('adopt-draft：跳章草稿 → E_PIPELINE_STATE 直报不能跳章，正稿与草稿都不动（R14 防跳章）', async () => {
+    const { services, pid, drafts, chapterRepo, progress } = makeEnv();
+    chapterRepo.createChapter(pid, { title: '第一章' });
+    const d = drafts.insert({ projectId: pid, role: 'writer', kind: 'chapter', content: '第三章正文。', chapterId: '3' });
+    const e = await adoptDraft(services, d.id).catch((x) => x);
+    expect(e).toBeInstanceOf(MzError);
+    expect(e.code).toBe('E_PIPELINE_STATE');
+    expect(e.message).toBe('不能跳章：本书现有 1 章，第 3 章尚不存在，请先写第 2 章');
+    expect((e.detail as { retryable: boolean }).retryable).toBe(false);
+    expect(chapterRepo.count(pid)).toBe(1);                 // 正稿未被写
+    expect(drafts.get(d.id)!.status).toBe('pending');       // 草稿保持 pending，可修正后再采纳
+    expect(progress().find((p) => p.state === 'failed')!.detail).toContain('不能跳章');
+  });
+
   it('adopt-draft：kind=concept/outline 仅标记 adopted，不碰正稿', async () => {
     const { services, pid, drafts, chapterRepo } = makeEnv();
     const d = drafts.insert({ projectId: pid, role: 'concept', kind: 'concept', content: CONCEPT_JSON });
@@ -256,11 +292,11 @@ describe('C. Carry-1 与 R11（handler 层）', () => {
     }
   });
 
-  it('R11：budget 注入生效——窗口过小触发保护层硬失败（真因透传）', async () => {
+  it('R11：budget 注入生效——窗口过小触发保护层硬失败（真因透传，I1：真码不压平）', async () => {
     const { handlers } = makeEnv({ budget: () => 10, llmContent: '正文' });
     const res = await handlers.writeDraft({ chapterNo: 1, planItem: PLAN_ITEM }, toolCtx());
     expect(res.ok).toBe(false);
-    expect(res.error?.code).toBe('E_INTERNAL');
+    expect(res.error?.code).toBe('E_PROTECTED_OVERBUDGET');
     expect(res.error?.message).toContain('超保护配额');
   });
 

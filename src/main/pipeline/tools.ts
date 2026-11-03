@@ -18,8 +18,9 @@
  *   注册进 registry 的也是同一份 handler，两处永不漂移。
  */
 import type { Database } from 'better-sqlite3';
-import type { ToolHandler, ToolResult, ToolSpec } from '@shared/types/tool';
+import type { ToolErrorCode, ToolHandler, ToolResult, ToolSpec } from '@shared/types/tool';
 import { ToolDanger } from '@shared/types/tool';
+import { MzError } from '@shared/types/ipc';
 import type { ConceptOut, OutlineOut, PipelineCtx } from '@shared/types/pipeline';
 import { ChapterPlanSchema, ConceptSchema, OutlineSchema } from '@shared/types/pipeline';
 import { DraftRepo } from '../db/repos/draft-repo';
@@ -282,11 +283,14 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
       user = assembled.user;
       trace = assembled.trace;
     } catch (e) {
-      // 保护层超配额等装配失败：如实转述真因，不吞不猜
+      // 装配失败如实转述真因，不吞不猜。★ I1（终评）：MzError 带真码
+      //   （如 E_PROTECTED_OVERBUDGET）就透传真码——统一压平成 E_INTERNAL
+      //   违反「错误码直报真因」全局约束；非 MzError 才回退 E_INTERNAL。
+      const code: ToolErrorCode = e instanceof MzError ? (e.code as ToolErrorCode) : 'E_INTERNAL';
       return {
         ok: false,
         durationMs: Date.now() - started,
-        error: { code: 'E_INTERNAL', message: e instanceof Error ? e.message : String(e), retryable: false },
+        error: { code, message: e instanceof Error ? e.message : String(e), retryable: false },
       };
     }
     const system = composeWriterPrompt(ctxW);
@@ -307,6 +311,9 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
       projectId,
       role: 'writer',
       kind: 'chapter',
+      // chapterId = 章号字符串（库侧章 id 口径即「数字章号」，见 chapter-repo
+      // createChapter 的 max+1 算号）。采纳时指向章尚不存在由 ipc.writeCanon
+      // 的 R14 分支兜底：恰为下一章则建章写入，跳章则 E_PIPELINE_STATE 拒。
       chapterId: String(chapterNo),
       content,
     });

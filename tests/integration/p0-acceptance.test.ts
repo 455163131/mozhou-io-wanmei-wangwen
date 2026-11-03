@@ -5,12 +5,17 @@
 // ★ 依控制器裁决 R2：ToolRegistry 没有公共 invoke，测试直接调
 //   pipelineHandlers(deps) 导出的三个 handler（与注册进 registry 的是同一份
 //   实现，见 src/main/pipeline/tools.ts 头注释），断言语义与 brief 原稿一致。
+// ★ 终评修复轮（C1）：采纳段走**真路径**——pipeline/ipc 的 adoptDraft(draftId)，
+//   services 组装参照 pipeline-ipc-sentinel.test.ts B 组；不再手工模拟
+//   setStatus+createChapter+updateBody。空库上 writeDraft 草稿 chapterId="1"
+//   指向不存在的章，由 writeCanon 的 R14 回退分支建章后写入。
 import { describe, it, expect } from 'vitest';
 import Database from 'better-sqlite3';
 import { migrate } from '@main/db/migrate';
 import { ProjectRepo, ChapterRepo } from '@main/db/repos/chapter-repo';
 import { DraftRepo } from '@main/db/repos/draft-repo';
 import { pipelineHandlers, type PipelineDeps } from '@main/pipeline/tools';
+import { adoptDraft, type PipelineIpcServices } from '@main/pipeline/ipc';
 
 const FIX = {
   concept: JSON.stringify({ titles: ['雾隐山海', '玉佩三千年', '山海崩'], logline: 'l', synopsis: 's'.repeat(30), goldenFinger: 'g', hooks: ['h1', 'h2', 'h3', 'h4', 'h5'] }),
@@ -39,11 +44,20 @@ describe('P0 验收：空库到第一章草稿全流程', () => {
     expect([c.ok, o.ok, w.ok]).toEqual([true, true, true]);
     expect(chapters.count(pid)).toBe(0);                       // 草稿隔离：正稿仍空
 
+    // 采纳走真路径：IPC adoptDraft（正文入正稿唯一入口，C1 修复后空库可采纳）
+    const services = {
+      db,
+      chapterRepo: chapters,
+      push: { send: (_ch: string, _p: Record<string, unknown>) => {} },
+      backup: { noteEdit: () => {} },
+      currentProjectId: () => pid,
+      pipelineHandlers: () => h,
+    } as unknown as PipelineIpcServices;
     const draftId = w.data.draftId as string;
-    drafts.setStatus(draftId, 'adopted');                      // 人工定稿主权（IPC adopt 内部同路径）
-    const meta = chapters.createChapter(pid, { title: '雾中拾玉' });
-    chapters.updateBody(pid, meta.id, drafts.get(draftId)!.content, meta.rev);
-    expect(chapters.getBody(pid, meta.id)).toContain('雾从江面上漫过来');
+    const r = await adoptDraft(services, draftId);             // 人工定稿主权
+    expect(r.chapterId).toBeTruthy();
+    expect(chapters.getBody(pid, r.chapterId!)).toContain('雾从江面上漫过来');
+    expect(drafts.get(draftId)!.status).toBe('adopted');
     expect(chapters.count(pid)).toBe(1);
   });
 });
