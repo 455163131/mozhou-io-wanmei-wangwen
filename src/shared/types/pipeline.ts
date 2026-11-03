@@ -1,0 +1,103 @@
+/**
+ * P0 生成流水线的共享类型与产出物校验。
+ *
+ * ★ 为什么放 shared：构思/架构/写手三个环节的产出（ConceptOut / OutlineOut）
+ *   既要被主进程的 pipeline 装配器消费，也要在渲染层展示与编辑——
+ *   契约必须放在两侧都能 import 的位置，且**只有一份**。
+ *
+ * ★ 为什么带 zod：这三个产出全部来自 LLM 的 JSON 回复，字段缺失、
+ *   空串充数、数组条数不对是常态而非意外。入库/入装配器之前先过
+ *   schema，坏数据在门口就被拦下，而不是渗进正文生成环节。
+ */
+import { z } from 'zod';
+
+/* ── 流水线上下文 ──────────────────────────────────────────────── */
+
+/**
+ * 一次生成流水线的全部共享上下文。
+ *
+ * 字段分两层：
+ * - 书籍级（genre/platform/chapterWords/targetWords/premise/canon/concept/outline）：
+ *   同一本书内恒定——写手 system 只吃这一层，因此同书逐字节稳定，命中 prompt cache；
+ * - 章节级（chapterNo/planItem/prevEnding）：逐章变化——**只进 user 消息**
+ *   （由 Task 3 的装配器注入），绝不进 system。
+ */
+export interface PipelineCtx {
+  /** 题材，如「古风玄幻」 */
+  genre: string;
+  /** 发布平台，如「番茄」 */
+  platform: string;
+  /** 单章目标字数 */
+  chapterWords: number;
+  /** 全书目标总字数 */
+  targetWords: number;
+  /** 作者的原始脑洞/前提，一句话 */
+  premise: string;
+  /** 正史设定清单（既定事实，任何环节不得与之相抵） */
+  canon: string[];
+  /** 构思环节产出（构思完成后回填） */
+  concept?: ConceptOut;
+  /** 架构环节产出（大纲完成后回填） */
+  outline?: OutlineOut;
+  /** 当前章节序号（1-based）——章节级字段，不进 system */
+  chapterNo?: number;
+  /** 本章章纲条目——章节级字段，不进 system */
+  planItem?: { title: string; hook: string };
+  /** 上一章结尾片段（衔接用）——章节级字段，不进 system */
+  prevEnding?: string;
+}
+
+/* ── 构思产出 ──────────────────────────────────────────────────── */
+
+export interface ConceptOut {
+  /** 恰好 3 个互不重复的书名 */
+  titles: string[];
+  /** 一句话卖点 */
+  logline: string;
+  /** 约 300 字梗概 */
+  synopsis: string;
+  /** 金手指设定：机制/边界/代价，三样写全 */
+  goldenFinger: string;
+  /** 恰好 5 条彼此有差异的脑洞分支 */
+  hooks: string[];
+}
+
+/** 非空字符串（先去首尾空白再判空：全空格串等同空串充数） */
+const NonEmptyStr = z.string().trim().min(1);
+
+export const ConceptSchema = z.object({
+  titles: z.array(NonEmptyStr).length(3, 'titles 需为 3 个非空且不重复的书名'),
+  logline: NonEmptyStr,
+  synopsis: NonEmptyStr,
+  goldenFinger: NonEmptyStr,
+  hooks: z.array(NonEmptyStr).length(5, 'hooks 需为 5 条非空的差异化分支'),
+});
+
+/* ── 架构产出 ──────────────────────────────────────────────────── */
+
+export interface OutlineOut {
+  /** 全书卷纲：必须列全所有卷 */
+  volumes: { title: string; goal: string; targetChapters: number }[];
+  /** 章纲（本次任务覆盖的卷）：每项 title/hook 非空 */
+  chapterPlan: { title: string; hook: string }[];
+}
+
+export const OutlineSchema = z.object({
+  volumes: z
+    .array(
+      z.object({
+        title: NonEmptyStr,
+        goal: NonEmptyStr,
+        targetChapters: z.number().int().positive(),
+      }),
+    )
+    .min(1, 'volumes 至少 1 卷'),
+  chapterPlan: z
+    .array(
+      z.object({
+        title: NonEmptyStr,
+        hook: NonEmptyStr,
+      }),
+    )
+    .min(1, 'chapterPlan 至少 1 章'),
+});
