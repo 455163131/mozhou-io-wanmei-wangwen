@@ -32,10 +32,11 @@ import type { ToolRegistry } from '../tools/registry';
 
 /* ── 依赖契约 ──────────────────────────────────────────────────── */
 
-/** 生成流水线用到的 LLM 子集（LlmClient.chat 结构兼容，测试可注入假实现） */
+/** 生成流水线用到的 LLM 子集（LlmClient.chat 结构兼容，测试可注入假实现）。
+ *  assistant 角色供 P1-B T2 降级续写回灌首稿用。 */
 export interface PipelineLlm {
   chat(req: {
-    messages: { role: 'system' | 'user'; content: string }[];
+    messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
     temperature?: number;
     maxTokens?: number;
   }): Promise<{ content: string; usage: { input: number; output: number } }>;
@@ -321,8 +322,31 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
       maxTokens: ctxW.chapterWords * 2,
     });
 
-    const content = resp.content.trim();
+    let content = resp.content.trim();
     if (!content) return parseFailure(started, 'content（正文为空）');
+
+    // ★ P1-B T2：字数不足降级续写（机制参照 NovelCraft 的降级续写，措辞原创）。
+    //   首稿不足单章目标的一半 = 半章草稿，静默入库会污染草稿区。R24 裁决：
+    //   续写**最多 1 次**——把首稿以 assistant 回灌、追加续写指令再 chat 一次，
+    //   拼接后仍不足则不再死循环，ok 保持 true 且 data.shortfall=true，交作者判断。
+    let retries = 0;
+    const minChars = ctxW.chapterWords * 0.5;
+    if (content.length < minChars) {
+      const cont = await deps.llm.chat({
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+          { role: 'assistant', content },
+          { role: 'user', content: '字数不足目标一半，从中断处继续写完本章，不重复已写内容' },
+        ],
+        temperature: TEMPERATURE.writer,
+        maxTokens: ctxW.chapterWords * 2,
+      });
+      const extra = cont.content.trim();
+      if (extra) content = `${content}\n${extra}`;
+      retries = 1;
+    }
+    const shortfall = content.length < minChars;
 
     const draft = drafts.insert({
       projectId,
@@ -334,7 +358,7 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
       chapterId: String(chapterNo),
       content,
     });
-    return { ok: true, durationMs: Date.now() - started, data: { draftId: draft.id, trace } };
+    return { ok: true, durationMs: Date.now() - started, data: { draftId: draft.id, trace, retries, shortfall } };
   };
 
   return { concept, outline, writeDraft };

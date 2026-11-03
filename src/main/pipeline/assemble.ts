@@ -71,9 +71,28 @@ export const PREV_ENDING_CAP_CHARS = 260;
 
 /**
  * 写作工艺槽（craftSkills）的硬顶（tokens）。
- * 命中条目的正文合计超过硬顶时截尾保留靠前的命中条目，并留一条 trace。
+ * 命中条目的正文合计超过硬顶时按条目边界整条丢弃末位命中（R25），并留一条 trace。
  */
 export const CRAFT_SKILLS_CAP_TOKENS = 1200;
+
+/**
+ * R25：craftSkills 硬顶的条目边界收敛——保留靠前的命中条目，末位装不下的
+ * **整条丢弃**。此前的裸字符切分会把一条 skill 指令拦腰截半，半条指令比没有
+ * 更糟（模型会执行残缺的规则）；宁可少一条完整的，不要多半条碎的。
+ * @param parts 逐条渲染好的 skill 文本（'\n\n' 连接口径与装配一致）
+ * @param capChars 硬顶（字符数）
+ */
+export function fitCraftSkillEntries(parts: string[], capChars: number): { text: string; droppedCount: number } {
+  const kept: string[] = [];
+  let len = 0;
+  for (const p of parts) {
+    const next = kept.length === 0 ? p.length : len + 2 + p.length; // +2 = '\n\n' 连接符
+    if (next > capChars) break;
+    kept.push(p);
+    len = next;
+  }
+  return { text: kept.join('\n\n'), droppedCount: parts.length - kept.length };
+}
 
 /* ── token 估算 ────────────────────────────────────────────────── */
 
@@ -215,35 +234,51 @@ export function assembleWriterContext(ctx: PipelineCtx, budget: WriterBudget): A
   }
 
   // craftSkills：按「本章章纲标题 + 章末钩子 + 题材」做触发词匹配，仅注入写手
-  // （roles 含 'writer' 的命中条目）。硬顶 CRAFT_SKILLS_CAP_TOKENS，超出截尾留痕。
+  // （roles 含 'writer' 的命中条目）。硬顶 CRAFT_SKILLS_CAP_TOKENS，超出按条目
+  // 边界整条丢弃末位命中（R25）并留痕。
   {
     const craftMatchText = `${ctx.planItem?.title ?? ''}${ctx.planItem?.hook ?? ''}${ctx.genre}`;
     const matched = matchSkills(craftMatchText, 'writer');
     if (matched.length) {
-      let text = matched.map((s) => `◆ ${s.title}\n${s.body}`).join('\n\n');
+      const parts = matched.map((s) => `◆ ${s.title}\n${s.body}`);
+      let text = parts.join('\n\n');
       const before = estimateTokens(text);
       let touched = false;
       const capChars = Math.floor(CRAFT_SKILLS_CAP_TOKENS / 0.6);
       if (text.length > capChars) {
-        // 截尾保头：注册序靠前的命中条目优先保留，与牺牲顺序的直觉一致。
-        text = text.slice(0, capChars);
+        // R25：条目边界收敛——注册序靠前的命中条目优先保留，末位装不下的整条丢弃，
+        // 绝不拦腰截断半条指令。
+        const fitted = fitCraftSkillEntries(parts, capChars);
+        text = fitted.text;
         touched = true;
-        trace.push({
+        if (text) {
+          trace.push({
+            slot: 'craftSkills',
+            action: 'compressed',
+            before,
+            after: estimateTokens(text),
+            reason: `超出 ${CRAFT_SKILLS_CAP_TOKENS} tokens 硬顶，按条目边界整条丢弃末位 ${fitted.droppedCount} 条命中（不拦腰截断指令）`,
+          });
+        } else {
+          trace.push({
+            slot: 'craftSkills',
+            action: 'dropped',
+            before,
+            after: 0,
+            reason: `首条命中即超 ${CRAFT_SKILLS_CAP_TOKENS} tokens 硬顶，按条目边界无可保留，整槽丢弃`,
+          });
+        }
+      }
+      if (text) {
+        slots.push({
           slot: 'craftSkills',
-          action: 'compressed',
-          before,
-          after: estimateTokens(text),
-          reason: `超出 ${CRAFT_SKILLS_CAP_TOKENS} tokens 硬顶，截尾保留靠前的命中条目`,
+          sacrificeRank: 2,
+          header: '【写作工艺·本章命中的可执行指令】',
+          items: [{ text, rank: 0 }],
+          originalTokens: before,
+          touched,
         });
       }
-      slots.push({
-        slot: 'craftSkills',
-        sacrificeRank: 2,
-        header: '【写作工艺·本章命中的可执行指令】',
-        items: [{ text, rank: 0 }],
-        originalTokens: before,
-        touched,
-      });
     }
   }
 

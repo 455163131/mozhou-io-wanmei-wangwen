@@ -26,6 +26,8 @@ const FIX = {
   concept: JSON.stringify({ titles: ['雾隐山海', '玉佩三千年', '山海崩'], logline: 'l', synopsis: 's'.repeat(30), goldenFinger: 'g', hooks: ['h1', 'h2', 'h3', 'h4', 'h5'] }),
   outline: JSON.stringify({ volumes: [{ title: '第一卷', goal: 'g', targetChapters: 30 }], chapterPlan: [{ title: '雾中拾玉', hook: '玉佩里传出心跳声' }] }),
   draft: '雾从江面上漫过来，先把渡口的石阶吞了半截。林渡提着灯在雾里走了半晌。',
+  // P1-B T2：短稿会触发一次降级续写（chat 队列要多备一条续写响应）。
+  draftCont: '玉佩在袖中微微发烫。',
 };
 
 describe('P0 验收：空库到第一章草稿全流程', () => {
@@ -35,7 +37,7 @@ describe('P0 验收：空库到第一章草稿全流程', () => {
     const pid = projects.create('雾隐山海', '/tmp/moshu', 1200000).id;
     expect(chapters.count(pid)).toBe(0);                       // 空库
 
-    const queue = [FIX.concept, FIX.outline, FIX.draft];
+    const queue = [FIX.concept, FIX.outline, FIX.draft, FIX.draftCont];
     const deps: PipelineDeps = {
       db,
       llm: { chat: async () => ({ content: queue.shift()!, usage: { input: 1, output: 1 } }) },
@@ -76,8 +78,9 @@ describe('P0 验收：空库到第一章草稿全流程', () => {
     const projects = new ProjectRepo(db); const chapters = new ChapterRepo(db);
     const pid = projects.create('雾隐山海', '/tmp/moshu', 1200000).id;
 
-    const queue = [FIX.draft, '第二章正文：雾散之后的渡口。'];
-    let lastMessages: { role: 'system' | 'user'; content: string }[] = [];
+    // P1-B T2：两章的短稿各会触发一次降级续写，队列按「首稿→续写」成对备货。
+    const queue = [FIX.draft, FIX.draftCont, '第二章正文：雾散之后的渡口。', '第二章续写：船帆越来越近。'];
+    let lastMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
     const captured = (): { system: string; user: string } => ({
       system: lastMessages[0]?.content ?? '',
       user: lastMessages[1]?.content ?? '',

@@ -29,6 +29,23 @@ function harness(fixed: string) {
 }
 
 /**
+ * P1-B T2：harness 的队列版——llm.chat 按调用次序逐条消费 queue，
+ * 用于「首稿 → 续写」多轮对话的降级续写测试（chapterWords=8000 → 阈值 4000 字）。
+ */
+function harnessQueue(queue: string[]) {
+  const db = new Database(':memory:'); migrate(db);
+  const pid = new ProjectRepo(db).create('测试书', '/tmp/t', 300000).id;
+  const q = [...queue];
+  const deps: PipelineDeps = {
+    db,
+    llm: { chat: async () => ({ content: q.shift() ?? '', usage: { input: 10, output: 10 } }) },
+    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [] }),
+    chapters: new ChapterRepo(db),
+  };
+  return { db, pid, drafts: new DraftRepo(db), handlers: pipelineHandlers(deps) };
+}
+
+/**
  * P1-A T3：在 harness 基础上用闭包记录 llm.chat 收到的 messages，
  * captured() 返回 {system,user}——user 取第二条 message content（第一条是 system）。
  */
@@ -36,7 +53,7 @@ function harnessWithCapture(fixed: string) {
   const db = new Database(':memory:'); migrate(db);
   const pid = new ProjectRepo(db).create('测试书', '/tmp/t', 300000).id;
   const registry = new ToolRegistry({} as any);
-  let lastMessages: { role: 'system' | 'user'; content: string }[] = [];
+  let lastMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
   const chapters = new ChapterRepo(db);
   const deps: PipelineDeps = {
     db,
@@ -105,5 +122,17 @@ describe('生成工具', () => {
     const { handlers, captured } = harnessWithCapture('正文。');
     await handlers.writeDraft({ chapterNo: 1, planItem: { title: 't', hook: 'h' } }, {} as any);
     expect(captured().user).not.toContain('上章结尾');
+  });
+  it('字数不足一半触发一次续写并拼接', async () => {
+    const { handlers, drafts, pid } = harnessQueue(['短稿。', '续写部分补足本章。']);
+    const res = await handlers.writeDraft({ chapterNo: 1, planItem: { title: 't', hook: 'h' } }, {} as any);
+    expect(res.ok).toBe(true);
+    expect(res.data.retries).toBe(1);
+    expect(drafts.list(pid, 'pending')[0].content).toContain('续写部分补足本章。');
+  });
+  it('字数达标不续写 retries=0', async () => {
+    const { handlers } = harnessQueue(['x'.repeat(9000)]);
+    const res = await handlers.writeDraft({ chapterNo: 1, planItem: { title: 't', hook: 'h' } }, {} as any);
+    expect(res.data.retries).toBe(0);
   });
 });
