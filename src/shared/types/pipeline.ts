@@ -39,7 +39,7 @@ export interface PipelineCtx {
   concept?: ConceptOut;
   /** 架构环节产出（大纲完成后回填） */
   outline?: OutlineOut;
-  /** 当前章节序号（1-based）——章节级字段，不进 system */
+  /** 本章的章节序号（从 1 起算）——章节级字段，不进 system */
   chapterNo?: number;
   /** 本章章纲条目——章节级字段，不进 system */
   planItem?: { title: string; hook: string };
@@ -52,9 +52,9 @@ export interface PipelineCtx {
 export interface ConceptOut {
   /** 恰好 3 个互不重复的书名 */
   titles: string[];
-  /** 一句话卖点 */
+  /** 一句凝出的核心卖点 */
   logline: string;
-  /** 约 300 字梗概 */
+  /** 三百字上下的剧情梗概 */
   synopsis: string;
   /** 金手指设定：机制/边界/代价，三样写全 */
   goldenFinger: string;

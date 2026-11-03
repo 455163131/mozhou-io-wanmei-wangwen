@@ -3,7 +3,10 @@
  *
  * ★ 机制与措辞的边界（AGPL 红线）：本文件的设计机制（场景路由、七项确认门、
  *   金手指代价、hook 质量标准、写手 system 与章节号解耦）参照了行业内公开的
- *   流水线做法，但**全部语句均为原创中文措辞**，未复制任何受版权保护的文本。
+ *   流水线做法；解释性语句与 JSON 示例中的占位文案均为原创中文措辞，未复制
+ *   任何受版权保护的文本。JSON 字段名（titles/logline/synopsis/goldenFinger/
+ *   hooks/volumes/chapterPlan/goal/targetChapters/title/hook）由任务规格的
+ *   接口定义强制规定，属接口要素的功能性例外，必须逐字保留。
  *
  * ★ 缓存纪律（写手的 system 提示在同一本书内保持逐字节恒定）：
  *   composeWriterPrompt 只允许消费 PipelineCtx 中的**书籍级**字段
@@ -71,12 +74,12 @@ export function composeConceptPrompt(ctx: PipelineCtx): string {
     '',
     '【JSON 硬约束】五个字段缺一不可、一律不得为空串：',
     '· titles：不多不少 3 个书名，个个非空、互不重复；',
-    '· logline：一句话卖点；',
-    '· synopsis：约 300 字的梗概；',
+    '· logline：把全书核心卖点凝练成一句话；',
+    '· synopsis：三百字上下的剧情梗概；',
     '· goldenFinger：机制、边界与代价三样写全；',
     '· hooks：恰好 5 条，条条非空、各自走不同的展开路径。',
     '任何一项不达标，都不许作为最终构思交付。',
-    '输出 JSON：{"titles":["书名一","书名二","书名三"],"logline":"一句话卖点","synopsis":"约300字梗概","goldenFinger":"机制/边界/代价","hooks":["分支一","分支二","分支三","分支四","分支五"]}',
+    '输出 JSON：{"titles":["备选书名甲","备选书名乙","备选书名丙"],"logline":"凝成一句话的核心卖点","synopsis":"三百字上下的剧情梗概","goldenFinger":"机制/边界/代价","hooks":["分支一","分支二","分支三","分支四","分支五"]}',
     '只准输出纯 JSON——不要代码围栏、不要任何多余文字，严格照此执行。',
   ]
     .filter(Boolean)
@@ -122,8 +125,8 @@ export function composeArchitectPrompt(ctx: PipelineCtx): string {
     '· 金手指每上一台阶都要付出匹配的代价——白拿的好处堆不出读者的期待感。',
     '',
     '【输出契约】',
-    '任务① 输出 JSON：{"volumes":[{"title":"第一卷","goal":"本卷对抗什么、卷末强敌是谁、主线推进到哪","targetChapters":30}],"chapterPlan":[{"title":"章标题","hook":"具体代价或损失 + 未解事件"}]}',
-    '任务② 输出 JSON：{"chapterPlan":[{"title":"续写章标题","hook":"具体代价或损失 + 未解事件"}]}',
+    '任务① 输出 JSON：{"volumes":[{"title":"该卷的卷题","goal":"本卷对抗什么、卷末强敌是谁、主线推进到哪","targetChapters":30}],"chapterPlan":[{"title":"该章的章题","hook":"写清谁付出了什么代价，再附一件章末仍悬而未决的事"}]}',
+    '任务② 输出 JSON：{"chapterPlan":[{"title":"接续章的章题","hook":"写清谁付出了什么代价，再附一件章末仍悬而未决的事"}]}',
     'chapterPlan 每一项里，title 与 hook 均不得留空，条数按本次任务要求交付；volumes 每一项的 title、goal 非空，targetChapters 为正整数。',
     '只给纯 JSON，不带围栏、不带解释。',
   ]
