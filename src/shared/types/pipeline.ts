@@ -101,3 +101,19 @@ export const OutlineSchema = z.object({
     )
     .min(1, 'chapterPlan 至少 1 章'),
 });
+
+/**
+ * 架构师任务②（续写某一卷的章纲）的局部契约：只产出 chapterPlan。
+ * 校验通过后由调用方（pipeline/tools.ts）与既有 outline.volumes 合并成
+ * 完整 OutlineOut 再入草稿——续写不该逼模型把全书卷纲重吐一遍。
+ */
+export const ChapterPlanSchema = z.object({
+  chapterPlan: z
+    .array(
+      z.object({
+        title: NonEmptyStr,
+        hook: NonEmptyStr,
+      }),
+    )
+    .min(1, 'chapterPlan 至少 1 章'),
+});

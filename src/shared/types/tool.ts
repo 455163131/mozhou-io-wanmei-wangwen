@@ -102,6 +102,8 @@ export type ToolErrorCode =
   | 'E_NOT_PROJECT_FILE'
   | 'E_COMPLIANCE_BLOCKED'
   | 'E_SIDE_EFFECT_REJECTED'
+  /** 生成流水线：模型输出未通过 JSON 提取或 zod 契约校验（可重试） */
+  | 'E_PIPELINE_PARSE'
   | 'E_INTERNAL';
 
 /** 工具调用请求：模型选中工具 + 参数 */

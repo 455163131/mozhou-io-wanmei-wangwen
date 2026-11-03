@@ -20,6 +20,10 @@ import { LedgerRepo } from './db/repos/ledger-repo';
 import { DailyWriteRepo } from './db/repos/daily-write-repo';
 import { RunRepo, type UnclosedRun } from './db/repos/run-repo';
 import { ToolRegistry, type ToolDeps } from './tools/registry';
+import { registerPipelineTools, type PipelineDeps } from './pipeline/tools';
+import { DraftRepo } from './db/repos/draft-repo';
+import type { ConceptOut, OutlineOut, PipelineCtx } from '@shared/types/pipeline';
+import { ConceptSchema, OutlineSchema } from '@shared/types/pipeline';
 import { CheckpointManager } from './checkpoint/manager';
 import { Replayer } from './checkpoint/replayer';
 import { PushChannel } from './ipc/push';
@@ -338,8 +342,77 @@ export class AppServices {
   get registry(): ToolRegistry {
     if (!this.registryInstance) {
       this.registryInstance = new ToolRegistry(this.toolDeps());
+      // P0 生成流水线（T4）：构思/架构/写手三工具与内置工具同一张注册表。
+      // 三道门在 registerPipelineTools 内部（仿 registerExpertTool）：
+      // 依赖不全返回 false，工具根本不进注册表，Agent 看不到。
+      registerPipelineTools(this.registryInstance, this.pipelineDeps());
     }
     return this.registryInstance;
+  }
+
+  /**
+   * 生成流水线的依赖装配（T4）。
+   * llm 只暴露 chat 子集（LlmClient.chat 结构兼容）；getCtx 从 ProjectRepo
+   * 与最新 adopted 的 concept/outline 草稿解析——**只认已采纳的稿**，
+   * pending 草稿不进上下文（定稿主权：没被作者点头的东西不算事实）。
+   */
+  private pipelineDeps(): PipelineDeps {
+    return {
+      db: this.db,
+      projectId: () => this.currentProject?.id ?? null,
+      llm: {
+        // stream:false——生成环节要完整 JSON / 完整正文，流式拼接反而添乱
+        chat: (req) => this.llm.chat({ ...req, stream: false }),
+      },
+      getCtx: async (projectId) => this.pipelineCtx(projectId),
+    };
+  }
+
+  /**
+   * 从库里解析某项目的流水线上下文。
+   * ★ genre/platform/chapterWords/premise/canon 目前没有独立存储（projects 表
+   *   只有 targetWords），P0 用诚实的缺省值占位，T5 的 IPC 会补真正的入口；
+   *   concept/outline 来自最新 adopted 草稿，坏 JSON 视同不存在（不炸装配）。
+   */
+  private pipelineCtx(projectId: string): PipelineCtx {
+    const proj = this.projectRepo.get(projectId);
+    const drafts = new DraftRepo(this.db);
+    const adopted = drafts.list(projectId, 'adopted'); // 新稿在前，find 即最新
+
+    let concept: ConceptOut | undefined;
+    const conceptDraft = adopted.find((d) => d.kind === 'concept');
+    if (conceptDraft) {
+      try {
+        const r = ConceptSchema.safeParse(JSON.parse(conceptDraft.content));
+        if (r.success) concept = r.data;
+      } catch {
+        /* 坏草稿视同不存在 */
+      }
+    }
+
+    let outline: OutlineOut | undefined;
+    const outlineDraft = adopted.find((d) => d.kind === 'outline');
+    if (outlineDraft) {
+      try {
+        const r = OutlineSchema.safeParse(JSON.parse(outlineDraft.content));
+        if (r.success) outline = r.data;
+      } catch {
+        /* 坏草稿视同不存在 */
+      }
+    }
+
+    return {
+      genre: '未设定',
+      platform: '未设定',
+      chapterWords: 2000,
+      // 目标字数没填时给 0 会让架构师算出「全书约 1 章」——用 30 万缺省兜住
+      targetWords: proj && proj.targetWords > 0 ? proj.targetWords : 300_000,
+      // premise 尚无独立入口：已采纳构思的卖点是最接近的既有事实
+      premise: concept?.logline ?? '',
+      canon: [],
+      concept,
+      outline,
+    };
   }
 
   /** 供 IPC handler 直接调只读工具用的依赖（与 registry 共用同一份，避免两处漂移） */
