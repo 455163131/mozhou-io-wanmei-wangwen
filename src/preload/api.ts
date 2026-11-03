@@ -173,6 +173,15 @@ export interface MzBridge {
     /** 订阅生成进度推送（pipeline:progress）；返回取消订阅函数 */
     onProgress(handler: (payload: IpcPushMap['pipeline:progress']) => void): () => void;
   };
+
+  // ── 世界观铁律 canon（P1-A T2）：保护层真数据源 ──
+  canon: {
+    list(projectId: string): Promise<IpcInvokeMap['canon:list']['res']>;
+    /** 空文本 → E_INVALID_ARGS（detail.retryable=false，不画重试按钮） */
+    add(projectId: string, text: string): Promise<IpcInvokeMap['canon:add']['res']>;
+    /** 不存在返回 {ok:false} 而不抛 */
+    remove(projectId: string, id: string): Promise<IpcInvokeMap['canon:remove']['res']>;
+  };
 }
 
 /** 全部 invoke 通道（与 shared/types/ipc.ts 同源，禁止手写字符串） */
@@ -248,6 +257,10 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'pipeline:list-drafts',
   'pipeline:adopt-draft',
   'pipeline:discard-draft',
+  // 世界观铁律 canon（P1-A T2）
+  'canon:list',
+  'canon:add',
+  'canon:remove',
 ];
 
 /** 全部订阅通道 */

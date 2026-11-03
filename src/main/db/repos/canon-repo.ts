@@ -7,13 +7,11 @@
  */
 import type { Database } from 'better-sqlite3';
 import { MzError } from '@shared/types/ipc';
+// ★ P1-A T2：CanonEntry 上移到 shared/types/pipeline（IPC 契约 canon:* 三通道的载荷类型），
+//   这里 re-export 保持既有 import 路径不变——定义仍只有一份。
+import type { CanonEntry } from '@shared/types/pipeline';
 
-export interface CanonEntry {
-  id: string;
-  projectId: string;
-  text: string;
-  createdAt: number;
-}
+export type { CanonEntry };
 
 interface CanonRow {
   id: string;

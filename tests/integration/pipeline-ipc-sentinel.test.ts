@@ -12,7 +12,9 @@ import { join } from 'node:path';
 
 // ★ T6/R3：CH 扩展含 project:set-gen——立项参数通道同样四处齐改（ipc.ts / api.ts /
 //   index.ts / register.ts），哨兵同步钉死，防「契约散在四处漏一处」。
-const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen'];
+// ★ P1-A T2：canon 三通道（canon:list/canon:add/canon:remove）入列，总 10 通道——
+//   世界观铁律的管理通道同样受四处齐改铁律约束。
+const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove'];
 const FILES = ['src/shared/types/ipc.ts', 'src/preload/api.ts', 'src/preload/index.ts', 'src/main/ipc/register.ts'];
 
 describe('pipeline IPC 四处契约哨兵', () => {

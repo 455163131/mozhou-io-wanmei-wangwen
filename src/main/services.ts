@@ -26,9 +26,8 @@ import {
   type PipelineDeps,
   type PipelineHandlers,
 } from './pipeline/tools';
-import { DraftRepo } from './db/repos/draft-repo';
-import type { ConceptOut, OutlineOut, PipelineCtx } from '@shared/types/pipeline';
-import { ConceptSchema, OutlineSchema } from '@shared/types/pipeline';
+import type { PipelineCtx } from '@shared/types/pipeline';
+import { buildPipelineCtx } from './pipeline/ctx';
 import { CheckpointManager } from './checkpoint/manager';
 import { Replayer } from './checkpoint/replayer';
 import { PushChannel } from './ipc/push';
@@ -392,51 +391,12 @@ export class AppServices {
 
   /**
    * 从库里解析某项目的流水线上下文。
-   * ★ R10（T5）：genre/platform/chapterWords 读 v12 补的 projects 真列。
-   *   空串/0 = 未设定，回退占位——message 不撒谎：占位时 genre 传「未设定」
-   *   是如实陈述，T6 的参数面板写入真值后这里读到的就是作者填的内容；
-   *   concept/outline 来自最新 adopted 草稿，坏 JSON 视同不存在（不炸装配）。
+   * ★ P1-A T2：实现抽到 `pipeline/ctx.ts` 的 buildPipelineCtx（可测纯函数），
+   *   这里只委托——占位语义（genre 空→'未设定'、chapterWords 0→2000）与
+   *   adopted 草稿解析原样保留在那边；canon 换成 CanonRepo 真读。
    */
   private pipelineCtx(projectId: string): PipelineCtx {
-    const proj = this.projectRepo.get(projectId);
-    const params = this.projectRepo.pipelineParams(projectId);
-    const drafts = new DraftRepo(this.db);
-    const adopted = drafts.list(projectId, 'adopted'); // 新稿在前，find 即最新
-
-    let concept: ConceptOut | undefined;
-    const conceptDraft = adopted.find((d) => d.kind === 'concept');
-    if (conceptDraft) {
-      try {
-        const r = ConceptSchema.safeParse(JSON.parse(conceptDraft.content));
-        if (r.success) concept = r.data;
-      } catch {
-        /* 坏草稿视同不存在 */
-      }
-    }
-
-    let outline: OutlineOut | undefined;
-    const outlineDraft = adopted.find((d) => d.kind === 'outline');
-    if (outlineDraft) {
-      try {
-        const r = OutlineSchema.safeParse(JSON.parse(outlineDraft.content));
-        if (r.success) outline = r.data;
-      } catch {
-        /* 坏草稿视同不存在 */
-      }
-    }
-
-    return {
-      genre: params.genre || '未设定',
-      platform: params.platform || '未设定',
-      chapterWords: params.chapterWords > 0 ? params.chapterWords : 2000,
-      // 目标字数没填时给 0 会让架构师算出「全书约 1 章」——用 30 万缺省兜住
-      targetWords: proj && proj.targetWords > 0 ? proj.targetWords : 300_000,
-      // premise 尚无独立入口：已采纳构思的卖点是最接近的既有事实
-      premise: concept?.logline ?? '',
-      canon: [],
-      concept,
-      outline,
-    };
+    return buildPipelineCtx(this.db, projectId);
   }
 
   /** 供 IPC handler 直接调只读工具用的依赖（与 registry 共用同一份，避免两处漂移） */

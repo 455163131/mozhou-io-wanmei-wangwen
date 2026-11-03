@@ -36,6 +36,8 @@ import { FLAVOR_DISCLAIMER } from '@shared/types/ai-flavor';
 import { applyLocalRewrites, diffReports, needsAgent } from '../flavor/rewrite';
 // ── P0 生成流水线（T5）：业务语义全在 pipeline/ipc.ts，这里只登记通道 ──
 import * as pipelineIpc from '../pipeline/ipc';
+// ── 世界观铁律 canon（P1-A T2）：业务语义全在 pipeline/canon-ipc.ts，这里只登记通道 ──
+import * as canonIpc from '../pipeline/canon-ipc';
 
 type Handler<K extends IpcChannel> = (
   payload: IpcInvokeMap[K]['req'],
@@ -639,6 +641,13 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   handle('pipeline:list-drafts', (p, s) => pipelineIpc.listDrafts(s, p), services);
   handle('pipeline:adopt-draft', async (p, s) => pipelineIpc.adoptDraft(s, p.draftId), services);
   handle('pipeline:discard-draft', async (p, s) => pipelineIpc.discardDraft(s, p.draftId), services);
+
+  // ── 世界观铁律 canon（P1-A T2）──
+  // AppServices 结构化满足 canonIpc.CanonIpcServices（db/currentProjectId），
+  // handler 直调，不在此复制业务口径（trim/判空/幂等删除全在 CanonRepo + canon-ipc）。
+  handle('canon:list', (p, s) => canonIpc.listCanon(s, p), services);
+  handle('canon:add', (p, s) => canonIpc.addCanon(s, p), services);
+  handle('canon:remove', (p, s) => canonIpc.removeCanon(s, p), services);
 }
 
 // ══════════════════════════════════════════════════════════════════════

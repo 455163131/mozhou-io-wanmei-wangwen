@@ -177,6 +177,13 @@ const bridge: MzBridge = {
     discardDraft: (draftId) => invoke('pipeline:discard-draft', { draftId }),
     onProgress: (handler) => subscribe('pipeline:progress', handler),
   },
+
+  // ── 世界观铁律 canon（P1-A T2）──
+  canon: {
+    list: (projectId) => invoke('canon:list', { projectId }),
+    add: (projectId, text) => invoke('canon:add', { projectId, text }),
+    remove: (projectId, id) => invoke('canon:remove', { projectId, id }),
+  },
 };
 
 contextBridge.exposeInMainWorld('mz', bridge);

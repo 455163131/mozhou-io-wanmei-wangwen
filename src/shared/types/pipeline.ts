@@ -47,6 +47,20 @@ export interface PipelineCtx {
   prevEnding?: string;
 }
 
+/* ── 世界观铁律（canon，P1-A T2 上移到 shared：IPC 契约 canon:list/add/remove 的 res/req） ── */
+
+/**
+ * 一条世界观铁律（project_canon 表的一行）。
+ * 定义放 shared 的原因与 Draft 相同：既是主进程 CanonRepo 的返回类型，
+ * 也是 IPC 契约的载荷类型——契约只有一份，两侧 import 同一处。
+ */
+export interface CanonEntry {
+  id: string;
+  projectId: string;
+  text: string;
+  createdAt: number;
+}
+
 /* ── 草稿隔离区记录（T5 上移到 shared：IPC 契约 pipeline:list-drafts 的 res） ── */
 
 /** 草稿状态：pending → adopted | discarded 单向流转（终局决定，不可改判） */

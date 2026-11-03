@@ -20,7 +20,7 @@ import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, Ledg
 import type { Checkpoint, RollbackResult } from './checkpoint';
 import type { RunState, RunBudget, TerminationReason, RunStats, StepRecord } from './agent';
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
-import type { Draft, DraftStatus } from './pipeline';
+import type { Draft, DraftStatus, CanonEntry } from './pipeline';
 
 // ───────────────────────── 请求/响应载荷 ─────────────────────────
 
@@ -303,6 +303,20 @@ export interface IpcInvokeMap {
   'pipeline:adopt-draft': { req: { draftId: string }; res: { chapterId: string | null } };
   /** 弃稿：pending → discarded，单向终局，不可改判 */
   'pipeline:discard-draft': { req: { draftId: string }; res: { ok: true } };
+
+  // ── 世界观铁律 canon（P1-A T2：三通道，保护层真数据源）──────────────
+  /**
+   * 铁律列表（按录入序）。projectId 必须与当前打开项目一致——
+   * 不许拿 A 书的 id 读 B 书的铁律（与 pipeline 六通道同款守卫）。
+   */
+  'canon:list': { req: { projectId: string }; res: CanonEntry[] };
+  /**
+   * 新增铁律。trim/去空行/判空口径在 CanonRepo；空文本 → E_INVALID_ARGS，
+   * detail 带 {retryable:false}（T1 评审 minor-1：渲染层据此不画重试按钮）。
+   */
+  'canon:add': { req: { projectId: string; text: string }; res: CanonEntry };
+  /** 删除铁律。不存在返回 {ok:false} 而不抛（删除是幂等的收尾动作） */
+  'canon:remove': { req: { projectId: string; id: string }; res: { ok: boolean } };
 }
 
 /** 当前生效的 AI 味基线摘要（渲染层展示用；不含完整分位数） */
@@ -507,6 +521,10 @@ export const IPC_CHANNELS = [
   'pipeline:list-drafts',
   'pipeline:adopt-draft',
   'pipeline:discard-draft',
+  // 世界观铁律 canon（P1-A T2）
+  'canon:list',
+  'canon:add',
+  'canon:remove',
 ] as const;
 
 export type IpcChannel = keyof IpcInvokeMap;
