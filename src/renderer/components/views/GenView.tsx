@@ -208,7 +208,7 @@ export function GenView(): JSX.Element {
     // 空串 = 未设定（库里 0 就是未设定，services.pipelineCtx 会回退 2000 兜底）
     const words = chapterWords.trim() === '' ? 0 : Number(chapterWords);
     if (!Number.isInteger(words) || words < 0) {
-      setProgress('失败：E_INVALID_ARGS: 单章字数必须是非负整数（留空 = 未设定）', true);
+      setProgress(`失败：E_INVALID_ARGS: ${language === 'en' ? '单章词数' : '单章字数'}必须是非负整数（留空 = 未设定）`, true);
       return;
     }
     void run(
@@ -354,14 +354,14 @@ export function GenView(): JSX.Element {
             </select>
           </label>
           <label className={styles.field}>
-            <span className={styles.label}>单章字数</span>
+            <span className={styles.label}>{language === 'en' ? '单章词数' : '单章字数'}</span>
             <input
               className={styles.input}
               value={chapterWords}
               inputMode="numeric"
               disabled={busy.params}
               placeholder="如 2000，留空 = 未设定（兜 2000）"
-              aria-label="单章字数"
+              aria-label={language === 'en' ? '单章词数' : '单章字数'}
               onChange={(e) => setChapterWords(e.target.value)}
             />
           </label>
@@ -395,7 +395,7 @@ export function GenView(): JSX.Element {
           </label>
         </fieldset>
         <div className={styles.readonly}>
-          <span>全书目标字数：{project.targetWords > 0 ? `${project.targetWords.toLocaleString()} 字` : '未设定（生成时兜 30 万）'}</span>
+          <span>全书目标字数：{project.targetWords > 0 ? `${project.targetWords.toLocaleString()} ${language === 'en' ? 'words（词）' : '字'}` : '未设定（生成时兜 30 万）'}</span>
           <span>作者前提（premise）：由已采纳构思的卖点回填，无独立入口</span>
         </div>
         <div className={styles.row}>
