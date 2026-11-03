@@ -78,12 +78,13 @@ export default defineConfig({
      * 阈值刻意设得**低于当前实际值**：先让门能过、把趋势锁住（只许涨不许跌），
      * 再随装配层测试补齐逐步上调。一上来设高阈值只会让人加 --no-verify。
      *
-     * ⚠️ 已知环境限制（2026-10-09 实测）：在本机 WorkBuddy 沙箱下 `npm run test:coverage`
-     *   会以 Unhandled Rejection 失败——v8 provider 往临时目录写 coverage-N.json 时
-     *   报 ENOENT，**预先创建该目录也无效**。这与本文件头部记录的 fs shim 问题同源
-     *   （`node-brokered-fs-shim.cjs` 代理层），不是配置错误：同样的配置在正常终端
-     *   与 CI 下可用。故 `npm test`（不带 --coverage）仍是本机的验收命令，
-     *   覆盖率门请在 CI 或本地正常终端执行。
+     * ⚠️ 历史环境限制（2026-10-09 记录，2026-11-04 更正归因）：`npm run test:coverage`
+     *   曾以 Unhandled Rejection 失败——v8 provider 固定把临时文件写在
+     *   `<reportsDirectory>/.tmp`，而 reportsDirectory 当时指向 `.tmp/coverage`，
+     *   与 tests/unit/preview-execute.test.ts 的「.tmp 目录可清理」用例删整个 `.tmp`
+     *   同目录相撞（运行期删目录 → 后续 coverage-N.json 写入 ENOENT）。
+     *   当时误归因于 fs shim；实测把 reportsDirectory 移出 `.tmp` 后本沙箱亦全绿。
+     *   故现指向 node_modules/.cache（gitignore 内、无测试会删它）。
      */
     coverage: {
       provider: 'v8',
@@ -91,8 +92,8 @@ export default defineConfig({
       // ★ 必须用绝对路径：写成相对路径时报告目录会相对 root 二次解析，
       //   与本项目 include 那条「必须用正斜杠相对 glob」的坑同源。
       //   注：vitest 2.1 的 CoverageV8Options **没有** tempDirectory 选项
-      //   （v8 provider 固定用 `<reportsDirectory>/.tmp`），故此处不设。
-      reportsDirectory: resolve(__dirname, '.tmp/coverage'),
+      //   （v8 provider 固定用 `<reportsDirectory>/.tmp`），故目录本身必须避开 `.tmp`。
+      reportsDirectory: resolve(__dirname, 'node_modules/.cache/mz-coverage'),
       include: ['src/**/*.ts', 'src/**/*.tsx'],
       exclude: [
         'src/**/*.d.ts',
