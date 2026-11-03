@@ -24,6 +24,7 @@ import { MzError } from '@shared/types/ipc';
 import type { ConceptOut, OutlineOut, PipelineCtx } from '@shared/types/pipeline';
 import { ChapterPlanSchema, ConceptSchema, OutlineSchema } from '@shared/types/pipeline';
 import { DraftRepo } from '../db/repos/draft-repo';
+import { ChapterRepo } from '../db/repos/chapter-repo';
 import { composeArchitectPrompt, composeConceptPrompt, composeWriterPrompt } from './prompts';
 import { assembleWriterContext, type TrimTrace } from './assemble';
 import { extractJson } from '../agent/host';
@@ -55,6 +56,12 @@ export interface PipelineDeps {
    * 做成函数而非定值：provider 可在运行期被重新配置/探测，窗口要跟着活。
    */
   budget?: () => number;
+  /**
+   * P1-A T3：正稿章节仓库（writeDraft 取上章结尾衔接桥用）。
+   * 生产装配由 services 注入 chapterRepo；未注入时 pipelineHandlers 内部
+   * 用同一个 db 自建兜底——衔接桥不能因为"忘了喂"而静默缺席。
+   */
+  chapters?: ChapterRepo;
 }
 
 export interface PipelineHandlers {
@@ -114,6 +121,9 @@ function composeParamsUser(ctx: PipelineCtx): string {
  */
 export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
   const drafts = new DraftRepo(deps.db);
+  // P1-A T3：上章结尾衔接桥的读侧。services 注入优先；未注入用同一个 db
+  // 自建（ChapterRepo 的 dailyWrites 缺省也是自建同库，口径一致）。
+  const chapters = deps.chapters ?? new ChapterRepo(deps.db);
 
   /** 构思：composeConceptPrompt → LLM → extractJson + ConceptSchema → 草稿区 */
   const concept: ToolHandler = async () => {
@@ -270,6 +280,12 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
     const ctx0 = await deps.getCtx(projectId);
     // 章节级字段（chapterNo/planItem）只进 ctx 供装配器装入 user，绝不进 system
     const ctxW: PipelineCtx = { ...ctx0, chapterNo, planItem: { title: planItem.title, hook: planItem.hook } };
+    // ★ P1-A T3：上章结尾衔接桥——写第 N≥2 章时取第 N-1 章（章 id = 章号
+    //   字符串）的正文尾部 260 字注入 ctx.prevEnding；第 1 章 / 上章无正文
+    //   时为 undefined，装配器对缺席槽位不渲染头。slice(-260) 截头保尾，
+    //   与装配器 R9 口径一致（衔接关节在尾部）。
+    const prevBody = chapterNo > 1 ? chapters.getBody(projectId, String(chapterNo - 1)) : null;
+    ctxW.prevEnding = prevBody ? prevBody.slice(-260) : undefined;
 
     let user: string;
     let trace: TrimTrace[];

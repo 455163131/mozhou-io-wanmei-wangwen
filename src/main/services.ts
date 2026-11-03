@@ -374,6 +374,9 @@ export class AppServices {
       // R11：写手装配窗口取当前 provider 的有效上下文（探测值优先，
       // 未探测用 provider 常量表的 maxContextTokens）——替换 tools.ts 的硬编码
       budget: () => this.effectiveContextTokens,
+      // P1-A T3：writeDraft 上章结尾衔接桥的读侧——复用带日增量记账的
+      // 同一个 chapterRepo 实例（同库同表，只读 getBody，不写正稿）
+      chapters: this.chapterRepo,
     };
   }
 
