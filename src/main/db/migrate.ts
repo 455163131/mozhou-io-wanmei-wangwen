@@ -464,6 +464,22 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 11, name: 'add_drafts_isolation',
+    up(db) {
+      db.exec(`CREATE TABLE drafts (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        chapter_id TEXT,
+        role TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        content TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY(project_id) REFERENCES projects(id)
+      );`);
+    },
+  },
 ];
 
 export function migrate(db: Database): void {
