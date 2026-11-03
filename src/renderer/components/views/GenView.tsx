@@ -1,17 +1,22 @@
 /**
- * 生成模式（P0 T6）：立项参数 + 分步执行 + 草稿采纳/丢弃。
+ * 生成模式（P0 T6）：立项参数 + 世界观铁律 + 分步执行 + 草稿采纳/丢弃。
  *
- * 让用户在 UI 里跑通「空库 → 第一章草稿 → 采纳」的最短路径，三区块：
+ * 让用户在 UI 里跑通「空库 → 第一章草稿 → 采纳」的最短路径，四区块：
  *
  *  ① 立项卡：genre/platform/chapterWords 经 `project:set-gen` 写 v12 真列
  *     （数值口径在 ProjectRepo.setPipelineParams：拒非整数/负数）。
  *     targetWords/premise **只读展示**——前者建项目时定（services.pipelineCtx
  *     缺省兜 30 万），后者由已采纳构思的 logline 回填，两者都没有写通道，
  *     这里不给假入口（画一个存不进去的输入框比不画更糟）。
- *  ② 执行卡：三按钮直调 T5 六通道；busy 各键独立；订阅 pipeline:progress
+ *  ② 铁律卡（canon，P1-A T4）：保护层真数据源的录入入口。挂载拉 canon:list；
+ *     输入框+添加按钮走 canon:add（清洗口径在 CanonRepo，本层不复制）；
+ *     每行删除按钮走 canon:remove（幂等收尾），成功后刷新列表。
+ *     失败红字直报「code: message」；detail.retryable===false 时不画重试
+ *     按钮（空文本重试一万次还是空文本，minor-1 口径）。
+ *  ③ 执行卡：三按钮直调 T5 六通道；busy 各键独立；订阅 pipeline:progress
  *     推送（SUBSCRIBE_CHANNELS 已含），失败红字直报 e.message（含 error code，
  *     不拟人化、不含糊）。
- *  ③ 草稿卡：pending 列表（kind/role/时间/前 80 字预览）+ 采纳/丢弃。
+ *  ④ 草稿卡：pending 列表（kind/role/时间/前 80 字预览）+ 采纳/丢弃。
  *     采纳 chapter 草稿 = 正文入正稿唯一入口，成功后刷新章节树
  *     （setChapters → App 挂在 chapters 上的 dash 重算订阅会跟着走）。
  *
@@ -22,7 +27,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { bridge, errorText, hasBridge } from '../../hooks/use-mz-bridge';
 import { useProjectStore } from '../../store';
 import { usePipelineStore } from '../../store/pipeline';
-import type { Draft } from '@shared/types/pipeline';
+import type { CanonEntry, Draft } from '@shared/types/pipeline';
 import styles from './GenView.module.css';
 
 const KIND_LABEL: Record<string, string> = { concept: '构思', outline: '大纲', chapter: '正文' };
@@ -41,6 +46,16 @@ function failText(e: unknown): string {
     return typeof code === 'string' && code ? `${code}: ${e.message}` : e.message;
   }
   return errorText(e);
+}
+
+/**
+ * P1-A T4：错误是否值得重试——preload 把 MzError 的 detail 原样挂在 Error 上。
+ * detail.retryable===false 时不画重试按钮（minor-1 口径：空文本重试一万次
+ * 还是空文本）；detail 缺席或 retryable 非 false 一律按可重试处理。
+ */
+function retryableOf(e: unknown): boolean {
+  const detail = e instanceof Error ? (e as Error & { detail?: unknown }).detail : undefined;
+  return (detail as { retryable?: unknown } | undefined)?.retryable !== false;
 }
 
 export function GenView(): JSX.Element {
@@ -62,6 +77,12 @@ export function GenView(): JSX.Element {
   const [chapterNo, setChapterNo] = useState('1');
   const [chTitle, setChTitle] = useState('');
   const [chHook, setChHook] = useState('');
+  // 铁律 canon（P1-A T4）：列表本地态；busy 走 pipeline store（键
+  // 'canonAdd' / `canonRemove:${id}`，与 adopt/discard 同口径）。
+  const [canon, setCanon] = useState<CanonEntry[]>([]);
+  const [canonText, setCanonText] = useState('');
+  // 失败红字（code: message）；retry 仅在 detail.retryable!==false 时给出
+  const [canonErr, setCanonErr] = useState<{ text: string; retry?: () => void } | null>(null);
 
   const pid = project?.id ?? null;
 
@@ -74,9 +95,72 @@ export function GenView(): JSX.Element {
     }
   }, [pid, setDrafts, setProgress]);
 
-  /** 挂载：拉一次 pending 草稿 + 订阅 progress 推送（卸载必须退订） */
+  /** canon 列表刷新（挂载拉一次；add/remove 成功后再拉——列表永远来自库，不做本地增删） */
+  const refreshCanon = useCallback(async (): Promise<void> => {
+    if (!pid || !hasBridge()) return;
+    try {
+      setCanon(await bridge().canon.list(pid));
+    } catch (e) {
+      setCanonErr({
+        text: `失败：${failText(e)}`,
+        retry: retryableOf(e) ? () => void refreshCanon() : undefined,
+      });
+    }
+  }, [pid]);
+
+  /** 添加铁律：清洗口径在 CanonRepo（trim/去空行/判空），本层不复制、失败直报真因 */
+  const submitCanon = useCallback(
+    async (raw: string): Promise<void> => {
+      if (!pid || !hasBridge()) return;
+      const text = raw.trim();
+      if (!text) {
+        // 本地预检与 repo 同文案口径；不可重试（retryable:false 语义 → 不画重试按钮）
+        setCanonErr({ text: '失败：E_INVALID_ARGS: canon 条目不能为空' });
+        return;
+      }
+      setBusy('canonAdd', true);
+      try {
+        await bridge().canon.add(pid, text);
+        setCanonText('');
+        setCanonErr(null);
+        await refreshCanon();
+      } catch (e) {
+        setCanonErr({
+          text: `失败：${failText(e)}`,
+          retry: retryableOf(e) ? () => void submitCanon(text) : undefined,
+        });
+      } finally {
+        setBusy('canonAdd', false);
+      }
+    },
+    [pid, refreshCanon, setBusy],
+  );
+
+  /** 删除铁律：remove 后刷新列表（remove 幂等，不存在也不炸——repo 口径） */
+  const removeCanon = useCallback(
+    async (entry: CanonEntry): Promise<void> => {
+      if (!pid || !hasBridge()) return;
+      setBusy(`canonRemove:${entry.id}`, true);
+      try {
+        await bridge().canon.remove(pid, entry.id);
+        setCanonErr(null);
+        await refreshCanon();
+      } catch (e) {
+        setCanonErr({
+          text: `失败：${failText(e)}`,
+          retry: retryableOf(e) ? () => void removeCanon(entry) : undefined,
+        });
+      } finally {
+        setBusy(`canonRemove:${entry.id}`, false);
+      }
+    },
+    [pid, refreshCanon, setBusy],
+  );
+
+  /** 挂载：拉一次 pending 草稿 + canon 列表 + 订阅 progress 推送（卸载必须退订） */
   useEffect(() => {
     void refreshDrafts();
+    void refreshCanon();
     if (!hasBridge()) return;
     const off = bridge().pipeline.onProgress((p) => {
       // R13 守卫：切换项目后，前一本书的 progress 推送不许串写当前状态行
@@ -93,7 +177,7 @@ export function GenView(): JSX.Element {
       if (p.state === 'done') void refreshDrafts();
     });
     return off;
-  }, [refreshDrafts, setProgress]);
+  }, [refreshCanon, refreshDrafts, setProgress]);
 
   /** 三执行按钮与参数保存共用的包装：busy 上锁 → 状态行 → 失败红字 → 成功刷草稿 */
   const run = useCallback(
@@ -275,7 +359,58 @@ export function GenView(): JSX.Element {
         </div>
       </section>
 
-      {/* ② 执行卡 */}
+      {/* ② 铁律卡（canon，P1-A T4）：保护层真数据源的录入入口 */}
+      <section className={styles.card}>
+        <h2 className={styles.cardHead}>世界观铁律（canon {canon.length} 条）</h2>
+        {canon.length === 0 ? (
+          <p className={styles.empty}>还没有铁律：保护层空转，史官查穿帮会少一层依据</p>
+        ) : (
+          <ul className={styles.canonList}>
+            {canon.map((c) => (
+              <li key={c.id} className={styles.canonRow}>
+                <span className={styles.canonText}>{c.text}</span>
+                <button
+                  className={styles.btn}
+                  disabled={busy[`canonRemove:${c.id}`] || busy.canonAdd}
+                  aria-label={`删除铁律：${c.text.slice(0, 20)}`}
+                  onClick={() => void removeCanon(c)}
+                >
+                  {busy[`canonRemove:${c.id}`] ? '删除中…' : '删除'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className={styles.canonAdd}>
+          <input
+            className={styles.input}
+            value={canonText}
+            disabled={busy.canonAdd}
+            placeholder="如「玉佩内时间流速 3000:3，不可逆」"
+            aria-label="铁律文本"
+            onChange={(e) => setCanonText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !busy.canonAdd) void submitCanon(canonText);
+            }}
+          />
+          <button className={styles.btnPrimary} disabled={busy.canonAdd} onClick={() => void submitCanon(canonText)}>
+            {busy.canonAdd ? '添加中…' : '添加铁律'}
+          </button>
+        </div>
+        {canonErr && (
+          <div className={styles.canonErrRow}>
+            <p className={styles.progressFail} role="alert">{canonErr.text}</p>
+            {/* detail.retryable===false 不画重试按钮：重试不会让非法输入变合法 */}
+            {canonErr.retry && (
+              <button className={styles.btn} disabled={busy.canonAdd} onClick={canonErr.retry}>
+                重试
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ③ 执行卡 */}
       <section className={styles.card}>
         <h2 className={styles.cardHead}>分步执行</h2>
         <div className={styles.row}>
@@ -330,7 +465,7 @@ export function GenView(): JSX.Element {
         </div>
       </section>
 
-      {/* ③ 草稿卡 */}
+      {/* ④ 草稿卡 */}
       <section className={styles.card}>
         <h2 className={styles.cardHead}>草稿区（pending {drafts.length} 条）</h2>
         {drafts.length === 0 ? (

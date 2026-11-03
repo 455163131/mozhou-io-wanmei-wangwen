@@ -210,3 +210,55 @@
   color: var(--mz-text-tertiary);
   line-height: 1.7;
 }
+
+/* ── 铁律 canon 卡（P1-A T4）：列表行 + 录入行 + 失败红字行。
+ * 只用 tokens.css 既有变量；形状与草稿卡同语言（surface 底 + radius）。 */
+.canonList {
+  list-style: none;
+  margin: 0 0 var(--mz-space-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-2);
+}
+
+.canonRow {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  background: var(--mz-bg-surface);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-2) var(--mz-space-3);
+}
+
+.canonText {
+  flex: 1;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-primary);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.canonAdd {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+}
+
+.canonAdd .input {
+  flex: 1;
+}
+
+.canonErrRow {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  margin-top: var(--mz-space-2);
+}
+
+/* 复用失败红字的视觉语言，但收掉段落底距、吃掉行内剩余宽度 */
+.canonErrRow .progressFail {
+  flex: 1;
+  margin: 0;
+}

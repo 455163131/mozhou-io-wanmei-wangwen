@@ -26,7 +26,7 @@ import { ChapterPlanSchema, ConceptSchema, OutlineSchema } from '@shared/types/p
 import { DraftRepo } from '../db/repos/draft-repo';
 import { ChapterRepo } from '../db/repos/chapter-repo';
 import { composeArchitectPrompt, composeConceptPrompt, composeWriterPrompt } from './prompts';
-import { assembleWriterContext, type TrimTrace } from './assemble';
+import { assembleWriterContext, PREV_ENDING_CAP_CHARS, type TrimTrace } from './assemble';
 import { extractJson } from '../agent/host';
 import type { ToolRegistry } from '../tools/registry';
 
@@ -281,11 +281,12 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
     // 章节级字段（chapterNo/planItem）只进 ctx 供装配器装入 user，绝不进 system
     const ctxW: PipelineCtx = { ...ctx0, chapterNo, planItem: { title: planItem.title, hook: planItem.hook } };
     // ★ P1-A T3：上章结尾衔接桥——写第 N≥2 章时取第 N-1 章（章 id = 章号
-    //   字符串）的正文尾部 260 字注入 ctx.prevEnding；第 1 章 / 上章无正文
-    //   时为 undefined，装配器对缺席槽位不渲染头。slice(-260) 截头保尾，
+    //   字符串）的正文尾部注入 ctx.prevEnding；第 1 章 / 上章无正文
+    //   时为 undefined，装配器对缺席槽位不渲染头。截头保尾的硬顶直接引
+    //   装配器导出的 PREV_ENDING_CAP_CHARS（R22：消除双处魔数同步风险），
     //   与装配器 R9 口径一致（衔接关节在尾部）。
     const prevBody = chapterNo > 1 ? chapters.getBody(projectId, String(chapterNo - 1)) : null;
-    ctxW.prevEnding = prevBody ? prevBody.slice(-260) : undefined;
+    ctxW.prevEnding = prevBody ? prevBody.slice(-PREV_ENDING_CAP_CHARS) : undefined;
 
     let user: string;
     let trace: TrimTrace[];
