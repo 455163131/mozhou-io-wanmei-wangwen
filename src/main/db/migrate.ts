@@ -498,6 +498,21 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 13,
+    name: 'add_project_canon',
+    /**
+     * ★ P1-A T1：世界观铁律（canon）的**真数据源表**。
+     *   P0 里保护层的 canon 恒为空数组、处于休眠态——没有落库入口，
+     *   铁律既写不进也读不出。本表把它唤醒：一条铁律一行，按创建序读取。
+     *   **只增不改**：新表 + 外键，旧迁移一根手指都不碰。
+     *   project_id 外键指向 projects(id)，读写一律带 project_id 定位（与
+     *   chapters 的项目内隔离同口径），杜绝拿 A 书的铁律打到 B 书头上。
+     */
+    up(db) {
+      db.exec(`CREATE TABLE project_canon (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL, FOREIGN KEY(project_id) REFERENCES projects(id));`);
+    },
+  },
 ];
 
 export function migrate(db: Database): void {
