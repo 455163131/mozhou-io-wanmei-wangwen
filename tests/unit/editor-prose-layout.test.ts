@@ -150,6 +150,23 @@ describe('C. 排版取值', () => {
     expect(globalCss).toMatch(/:focus-visible\s*\{[^}]*outline/);
   });
 
+  /**
+   * ★ P2-UI T3（墨韵国风）：正文取值定为 **衬链 serif + 16px 档 + 行高 2.15**。
+   * 修复前是 18px/1.85（v2 网文松档）；国风换肤把正文压回 16px 一档、行距拉开到
+   * 2.15，靠「小字＋大呼吸」做纸感。刻度表里的 --mz-fs-editor/--mz-lh-editor 与
+   * 体裁块是同一件事的两处书写——必须同步，不然就是两套口径。
+   * （family 一直是 serif，这里连它一起钉死：换肤不许把正文悄悄降回 sans。）
+   */
+  it('★ T3 novel 正文取值：serif / 16px 档 / 2.15 行高，且刻度表同步同值', () => {
+    expect(tokensCss, 'novel 正文字体链不是衬线').toMatch(
+      /--mz-editor-font-novel:\s*var\(--mz-font-serif\)/,
+    );
+    expect(tokensCss, 'novel 字号不在 16px 档').toMatch(/--mz-editor-size-novel:\s*16px/);
+    expect(tokensCss, 'novel 行高不是 2.15').toMatch(/--mz-editor-lh-novel:\s*2\.15/);
+    expect(tokensCss, '--mz-fs-editor 与体裁块漂移').toMatch(/--mz-fs-editor:\s*16px/);
+    expect(tokensCss, '--mz-lh-editor 与体裁块漂移').toMatch(/--mz-lh-editor:\s*2\.15/);
+  });
+
   it('.mz-prose 这个全局类不许再定义编辑器排版（两处定义必漂移，且它本来就零引用）', () => {
     const refs = (() => {
       const files: string[] = [];

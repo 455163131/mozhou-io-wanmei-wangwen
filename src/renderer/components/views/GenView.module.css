@@ -55,6 +55,8 @@
 
 .cardHead {
   font-size: var(--mz-chrome-type-title);
+  /* ★ P2-UI T3 导演台化：卡片头走 chrome-title 衬线令牌（标题级 serif，明暗共用） */
+  font-family: var(--mz-chrome-font-title);
   color: var(--mz-text-primary);
   font-weight: 600;
   margin: 0 0 var(--mz-space-3);
@@ -160,6 +162,9 @@
 }
 
 .btnPrimary {
+  /* ★ P2-UI T3 导演台化：主 CTA = 金底深字。实底取 --mz-accent（ink 档香槟金），
+   *   字色取 --mz-accent-ink（ink 档即深墨档，压金底约 8.2:1；paper 档自动
+   *   翻成近白）。全令牌，无一处裸色（色值现算见 task-3 报告）。 */
   border: 1px solid var(--mz-accent);
   background: var(--mz-accent);
   color: var(--mz-accent-ink);
@@ -167,6 +172,7 @@
   padding: var(--mz-space-half) var(--mz-space-3);
   cursor: pointer;
   font-size: var(--mz-fs-xs);
+  font-weight: var(--mz-fw-semibold);
 }
 
 .btnPrimary:hover:not(:disabled) {
@@ -203,7 +209,10 @@
 
 .kind {
   font-size: var(--mz-fs-2xs);
-  color: var(--mz-accent);
+  /* ★ R35-②b：徽标小字是正文级金，改走 text-link——ink 档两令牌同值观感不变，
+   *   paper 档从 accent 的 4.03:1（压 accent-soft 金晕，不过 AA，T1 点名档）
+   *   提到 text-link 的 5.40:1。底色仍留 accent-soft：它是"金色标签"的语义本体。 */
+  color: var(--mz-text-link);
   background: var(--mz-accent-soft);
   border-radius: var(--mz-radius-sm);
   padding: 0 var(--mz-space-1);
@@ -242,6 +251,14 @@
 
 /* ── 铁律 canon 卡（P1-A T4）：列表行 + 录入行 + 失败红字行。
  * 只用 tokens.css 既有变量；形状与草稿卡同语言（surface 底 + radius）。 */
+
+/* ★ P2-UI T3 导演台化：canon 卡金调描边——铁律是这本书的"御批"，
+ *   描边走 --mz-border-accent（ink 档取金按压档、paper 档取金墨深档，对各自
+ *   底面都在 3:1 图形级以上，见 task-3 报告现算表），其余卡不抢这层金。 */
+.canonCard {
+  border: 1px solid var(--mz-border-accent);
+}
+
 .canonList {
   list-style: none;
   margin: 0 0 var(--mz-space-3);

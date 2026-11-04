@@ -62,7 +62,7 @@
 }
 /**
  * ★ §UI ·R2：选中态**只留底色**，删掉 `box-shadow: inset 2px 0 0` 那条朱砂竖条。
- * 底色 + 竖条是同一件事说两遍；而树里已经有「状态点（○◐◑●）+ 字数」两个信号，
+ * 底色 + 竖条是同一件事说两遍；而树里已经有「状态点（四色圆点）+ 字数」两个信号，
  * 再加一条竖条就是三重编码，整行看起来很吵。
  */
 .node.active {
@@ -78,7 +78,9 @@
   outline-offset: -1px;
 }
 .volume.volumeOver > .volumeTitle {
-  color: var(--mz-accent);
+  /* ★ R35-②b：拖拽落点的卷标题是**正文级字**，金色走 text-link 不走 accent
+   *   （accent 在 paper 档压 surface 只有 4.21:1；text-link 5.63:1，ink 档不变 7.42:1）*/
+  color: var(--mz-text-link);
 }
 .err {
   padding: var(--mz-space-half) var(--mz-space-2);
@@ -90,10 +92,35 @@
   font-size: var(--mz-fs-xs);
   line-height: 1.6;
 }
-.status {
-  color: var(--mz-text-tertiary);
+/**
+ * ★ P2-UI T3（墨韵国风）：四色状态点。旧的 `.status`（10px 宽的字形位）退场，
+ *   换成 8px 圆点 + 四条颜色规则。语义由 title 的文字兜底（见 tsx 的 STATUS_LABEL），
+ *   点色只是快扫路径；红点（穿帮）留 Phase 2。
+ *   色值全部走令牌：pass 绿 / warn 黄 / quaternary 灰 / todo 用 border-subtle 空心。
+ *   （quaternary 禁用于文字面是 R35⑥ 的**文字**纪律；8px 圆点是非文本图形，
+ *   且旁边永远跟着状态词，不违反该条。）
+ */
+.statusDot {
   flex: none;
-  width: 10px;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--mz-radius-full);
+  background: var(--mz-text-quaternary);
+}
+.dotDone {
+  background: var(--mz-sem-pass-fg);
+}
+.dotRevised {
+  background: var(--mz-sem-warn-fg);
+}
+.dotDraft {
+  background: var(--mz-text-quaternary);
+}
+.dotTodo {
+  /* 空心：未动笔的章不该和「有字」的章抢视觉重量 */
+  background: transparent;
+  border: var(--mz-bw-hairline) solid var(--mz-border-subtle);
 }
 .nodeTitle {
   flex: 1;

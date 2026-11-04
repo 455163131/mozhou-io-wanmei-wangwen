@@ -146,7 +146,9 @@
 }
 
 .cost {
-  color: var(--mz-accent);
+  /* ★ R35-②b：成本数字是面板里的小字（正文级），金色走 text-link 不走 accent
+   *   （accent 压 elevated：paper 4.81:1 踩着线、hover 面更低；text-link 6.45:1）。 */
+  color: var(--mz-text-link);
   font-weight: 600;
 }
 

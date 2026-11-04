@@ -21,12 +21,32 @@ import { CHAPTER_TREE_WINDOW } from '@shared/constants/metrics';
 import type { ChapterMeta } from '@shared/types/project';
 import styles from './ChapterTree.module.css';
 
-const STATUS_MARK: Record<string, string> = {
-  todo: '○',
-  draft: '◐',
-  revised: '◑',
-  done: '●',
+/**
+ * ★ P2-UI T3（墨韵国风）：状态字形（○◐◑●）换成**四色圆点**——
+ *   done=pass 绿 / revised=warn 黄 / draft=quaternary 灰 / todo=border-subtle 空心。
+ *   颜色之外语义仍由 title 的文字兜底（STATUS_LABEL），读屏与色觉障碍都不靠猜点色。
+ *   红点（穿帮 = health 命中章）留 Phase 2，这里不预埋假红。
+ *   四键都走点取值（dotDone/dotRevised/dotDraft/dotTodo 四条规则都在同名
+ *   module.css 里——css-module-classes A 组门禁）。
+ */
+const STATUS_DOT: Record<string, string> = {
+  done: styles.dotDone,
+  revised: styles.dotRevised,
+  draft: styles.dotDraft,
+  todo: styles.dotTodo,
 };
+
+/** 状态语义文字（title 用；与仪表盘「已发布/待审/草稿/大纲」同一口径） */
+const STATUS_LABEL: Record<string, string> = {
+  todo: '大纲',
+  draft: '草稿',
+  revised: '待审',
+  done: '已发布',
+};
+
+/** 状态点：未知状态按 todo 空心画（与旧字形表的 `?? '○'` 回落同口径） */
+const statusDotCls = (status: string): string =>
+  `${styles.statusDot} ${STATUS_DOT[status] ?? styles.dotTodo}`;
 
 /** 「未分卷」分组在 map 里的键；真实卷 id 不会长这样 */
 const NONE_KEY = '__none__';
@@ -345,7 +365,7 @@ export function ChapterTree(): JSX.Element {
               if (renamingId === c.id) {
                 return (
                   <div key={c.id} className={`${styles.node} ${styles.active}`}>
-                    <span className={styles.status}>{STATUS_MARK[c.status] ?? '○'}</span>
+                    <span className={statusDotCls(c.status)} aria-hidden="true" />
                     <input
                       className={styles.input}
                       value={renameValue}
@@ -398,9 +418,9 @@ export function ChapterTree(): JSX.Element {
                     e.stopPropagation();
                     void dropOnChapter(c.id);
                   }}
-                  title={`${c.title || `第${c.id}章`}（${c.charCount} 字）拖动可改顺序，拖到卷名上可换卷，双击可改标题`}
+                  title={`${c.title || `第${c.id}章`}（${STATUS_LABEL[c.status] ?? c.status}·${c.charCount} 字）拖动可改顺序，拖到卷名上可换卷，双击可改标题`}
                 >
-                  <span className={styles.status}>{STATUS_MARK[c.status] ?? '○'}</span>
+                  <span className={statusDotCls(c.status)} aria-hidden="true" />
                   <span className={styles.nodeTitle}>{c.title || `第${c.id}章`}</span>
                   <span className={styles.chars}>{c.charCount}</span>
                 </button>

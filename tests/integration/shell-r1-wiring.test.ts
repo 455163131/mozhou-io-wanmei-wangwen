@@ -123,9 +123,11 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
 
   /**
    * ★ P2-UI T2：id 集不再只靠「两张镜子对看」（palette↔onRun 自洽可以是两份
-   * 一起丢命令），这里逐字钉死 T2 定稿的 13 条：mode:* 六条保留（review 不在
-   * 四组导航里，但面板是它的可达路径）、soon 占位项**不进面板**（导航里只是
-   * disabled 的「设计中」按钮，点了没有动作，面板里就不许有它）。
+   * 一起丢命令），这里逐字钉死 T2 定稿的 13 条：mode:* 六条保留、soon 占位项
+   * **不进面板**（导航里只是 disabled 的「设计中」按钮，点了没有动作，面板里就
+   * 不许有它）。
+   * ★ T3 R36 并批：审稿回补进 NAV_GROUPS 创作组（一级入口重新出现）后，
+   * mode:review 仍只此一条 id——「审稿报告」是 label，不是新命令；id 集维持 13。
    */
   it('★ T2 钉死清单：面板与分派逐字等于 id 集；soon 项不进面板', () => {
     const EXPECTED = [
@@ -154,6 +156,16 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
     expect(appTsx, '收起态 title 补偿（B 组盯的 m.label 形态）丢了').toMatch(
       /title=\{railCollapsed \? m\.label/,
     );
+    // ★ T3 R36 并批：审稿的**一级入口**回补进创作组（T2 定稿把它留在 R32 纪律外，
+    //   评审判为计划缺口）。它是真 mode（kind:'mode'，id 'review'），四字内 label，
+    //   于是「面板可达但导航没有门」的形状不许再出现。
+    expect(appTsx, "R36：NAV_GROUPS 里没有 id 'review' 的 mode 条目").toMatch(
+      /kind:\s*'mode',\s*id:\s*'review'/,
+    );
+    expect(appTsx, 'R36：审稿条目没挂四字内 label（MODE_LABELS.review）').toMatch(
+      /id:\s*'review',\s*label:\s*MODE_LABELS\.review/,
+    );
+    expect(appTsx, 'R36：MODE_LABELS.review 不是「审稿报告」').toMatch(/review:\s*'审稿报告'/);
   });
 
   it('★ T2 PipelineBar：八节点、状态从 useProjectStore 推导、挂 write/gen 的 .body 顶部', () => {
@@ -265,7 +277,7 @@ describe('B. 两态导航：类名 → 令牌 → 窄窗回退', () => {
     expect(expanded).toBeGreaterThan(collapsed);
   });
 
-  it('★ 展开态的宽度账必须成立（1280 时仍装得下正文下限 504px）', () => {
+  it('★ 展开态的宽度账必须成立（1280 时仍装得下正文可读下限 28em×字号令牌）', () => {
     // 这是第 33 条那条算术的第二次执行：R1 让 rail 多了一个更宽的形态，
     // 宽度账必须对新形态重算，否则第 33 条会被这一次改动静默破坏。
     const root = rootBlock(tokensCss);
@@ -276,7 +288,9 @@ describe('B. 两态导航：类名 → 令牌 → 窄窗回退', () => {
       px(root, 'mz-layout-rail-expanded-w') -
       px(root, 'mz-layout-tree-min-w') -
       px(root, 'mz-layout-rail-min-w');
-    const floor = 28 * 18; // 28em × 18px：正文可读下限（measure-novel 的 clamp MIN）
+    // ★ T3 同步：字号从令牌现读（18→16 那次换肤就是把魔法数 18 抄死在这里的
+    //   后果——口径必须是 tokens，不是评审当天的记忆值）。
+    const floor = 28 * px(root, 'mz-editor-size-novel'); // 28em × 正文字号：可读下限
     expect(editor, `展开态下编辑器只剩 ${editor}px，正文下限是 ${floor}px`).toBeGreaterThanOrEqual(
       floor,
     );

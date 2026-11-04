@@ -405,8 +405,9 @@ export function GenView(): JSX.Element {
         </div>
       </section>
 
-      {/* ② 铁律卡（canon，P1-A T4）：保护层真数据源的录入入口 */}
-      <section className={styles.card}>
+      {/* ② 铁律卡（canon，P1-A T4）：保护层真数据源的录入入口。
+          T3 导演台化：金调描边单独成类（.canonCard），与普通卡区分——它是"铁律"。 */}
+      <section className={`${styles.card} ${styles.canonCard}`}>
         <h2 className={styles.cardHead}>世界观铁律（canon {canon.length} 条）</h2>
         {canon.length === 0 ? (
           <p className={styles.empty}>还没有铁律：保护层空转，史官查穿帮会少一层依据</p>

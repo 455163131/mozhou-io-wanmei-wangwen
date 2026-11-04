@@ -63,11 +63,17 @@ describe('A. 宽度账算术（本文件的核心：把数字读出来算，不�
   const railW = pxToken(tokensCss, 'mz-layout-rail-w');
   const treeMin = pxToken(tokensCss, 'mz-layout-tree-min-w');
   const railMin = pxToken(tokensCss, 'mz-layout-rail-min-w');
+  /**
+   * ★ P2-UI T3 同步：正文字号从 tokens 现读。此前这里把 18 抄死在乘法里，
+   *   而 T3 把 novel 正文压到 16px 档——抄死的乘法会一夜之间变成「用不存在的
+   *   字号做算术」。本文件 A 组的口径本来就是"把数字读出来再算"，字号同理。
+   */
+  const edPx = pxToken(tokensCss, 'mz-editor-size-novel');
 
   it('★ 最窄可达状态下，编辑器拿到的宽度必须 >= 正文行长下限', () => {
     const editorAtWorst = winMin - railW - treeMin - railMin;
-    // 正文下限 = measure 的 clamp 最小值 28em x 字号 18px
-    const measureMin = 28 * 18;
+    // 正文下限 = measure 的 clamp 最小值 28em x 字号令牌
+    const measureMin = 28 * edPx;
     expect(
       editorAtWorst,
       `最窄窗口下编辑器只剩 ${editorAtWorst}px，正文下限 ${measureMin}px —— 必溢出`,
@@ -90,8 +96,8 @@ describe('A. 宽度账算术（本文件的核心：把数字读出来算，不�
     const BREAKPOINT = 1360;
     const treeMax = pxToken(tokensCss, 'mz-layout-tree-max-w');
     const railMax = pxToken(tokensCss, 'mz-layout-rail-max-w');
-    const ideal = 34 * 18; // 612
-    const floor = 28 * 18; // 504（measure 的 clamp 下限）
+    const ideal = 34 * edPx; // 理想行长 = 34em x 字号令牌
+    const floor = 28 * edPx; // measure 的 clamp 下限
 
     const rows: string[] = [];
     for (let win = winMin; win <= 1920; win += 1) {
@@ -116,7 +122,7 @@ describe('A. 宽度账算术（本文件的核心：把数字读出来算，不�
     const m = /width\s*:\s*(\d+)/.exec(windowTs);
     const winDefault = m ? Number((m as RegExpExecArray)[1]) : 1440;
     const fixed = railW + pxToken(tokensCss, 'mz-layout-tree-max-w') + pxToken(tokensCss, 'mz-layout-rail-max-w');
-    expect(winDefault - fixed, '默认窗口下编辑器容不下理想行长').toBeGreaterThanOrEqual(34 * 18);
+    expect(winDefault - fixed, '默认窗口下编辑器容不下理想行长').toBeGreaterThanOrEqual(34 * edPx);
   });
 });
 

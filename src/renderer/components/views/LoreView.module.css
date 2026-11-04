@@ -92,7 +92,11 @@
   place-items: center;
   font-family: var(--mz-font-serif);
   font-size: var(--mz-fs-sm);
-  color: var(--mz-accent);
+  /* ★ R35-②b：徽标里的姓氏字压在 accent-soft 金晕上——语义确属"金色标签"，
+   *   颜色改走 text-link（paper 档 5.40:1 过 AA；旧 accent 只有 4.03:1，正是
+   *   T1 点名的 3.97-4.03 档；ink 档两令牌同值，观感不变）。描边保留 accent：
+   *   1px 线是非文本图形，4.03 >= 3 图形级成立。 */
+  color: var(--mz-text-link);
   background: var(--mz-accent-soft);
   border: 1px solid var(--mz-accent);
   flex: none;

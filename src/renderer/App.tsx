@@ -51,7 +51,7 @@ type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
 /**
  * ★ P2-UI T2（DRD §4.1）：左导航从「六个并列按钮」重排为**四组 IA**。
  *
- *   创作=[写作坊 / 大纲管理 / 生成·导演台]   —— 产出正文的三个入口
+ *   创作=[写作坊 / 大纲管理 / 生成·导演台 / 审稿报告(R36 回补)]  —— 产出与定稿的入口
  *   资产=[世界观设定 / 人物记忆·设计中 / 伏笔台账·设计中 / 长期记忆·设计中]
  *   灵感=[扫榜热榜 / 抽脑洞 / 拆书报告 / 选题库]（全部设计中）
  *   输出=[统计账本 / 导出中心·设计中]
@@ -63,19 +63,20 @@ type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
  *   - `soon`：**disabled 占位按钮 + .soonTag「设计中」**。它是路标不是入口——
  *     没有可执行动作，所以不进命令面板（shell-r1 A 组钉死），也不进 onRun 分派。
  *
- * 「审稿」不在四组导航里（R32 Phase-1 纪律），但 `mode:review` 保留在命令面板——
- * 那是它的可达路径，A 组 palette↔onRun 双向清单不含 soon 项、含 review。
+ * 「审稿」在 T2 定稿里暂不入四组导航（R32 Phase-1 纪律），但 `mode:review` 一直
+ * 保留在命令面板与 onRun 分派里。**T3 R36 并批回补**：审稿是一级工作流不是二级
+ * 功能，创作组补上「审稿报告」条目（shell-r1 A 组钉死清单的 id 集不变，仍 13 条）。
  */
 type NavItem =
   | { kind: 'mode'; id: Mode; label: string; d: string }
   | { kind: 'soon'; id: string; label: string; d: string };
 
-/** 模式显示名（面包屑用）。与 NAV_GROUPS 的 label 同步，另含导航外的 review。 */
+/** 模式显示名（面包屑用）。与 NAV_GROUPS 的 label 同步（R36 后 review 也进了导航）。 */
 const MODE_LABELS: Record<Mode, string> = {
   write: '写作坊',
   plan: '大纲管理',
   lore: '世界观设定',
-  review: '审稿',
+  review: '审稿报告',
   dash: '统计账本',
   gen: '生成·导演台',
 };
@@ -90,6 +91,9 @@ const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
       { kind: 'mode', id: 'plan', label: MODE_LABELS.plan, d: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z' },
       // ★ T6：生成模式（P0 生成流水线的 UI 入口）。图标 = 简易闪电。
       { kind: 'mode', id: 'gen', label: MODE_LABELS.gen, d: 'M13 2L5 13.5h5.5L9.5 22 19 10.5h-5.5L13 2z' },
+      // ★ T3 R36：审稿报告回补进创作组（写作→审稿是一级工作流，不该只剩面板入口）。
+      //   图标 = 审阅放大镜；label 四字内（R1 展开态 168px 的标签账）。
+      { kind: 'mode', id: 'review', label: MODE_LABELS.review, d: 'M11 4a6 6 0 100 12 6 6 0 000-12M20 20l-4.5-4.5' },
     ],
   },
   {

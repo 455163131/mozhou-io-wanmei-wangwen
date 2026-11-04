@@ -175,7 +175,9 @@
 .tag {
   font-size: var(--mz-fs-2xs);
   font-weight: 600;
-  color: var(--mz-accent);
+  /* ★ R35-②b：命中标签小字是正文级金字，走 text-link（elevated 上 paper 6.45:1；
+   *   旧 accent 4.81:1 只踩线，hover/提亮面一漂移就跌破）。 */
+  color: var(--mz-text-link);
 }
 
 .hitPara {

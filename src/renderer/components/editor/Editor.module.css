@@ -9,7 +9,7 @@
   --ed-lh: var(--mz-editor-lh-novel);
   /**
    * 正文**不加**正字距。`--mz-tracking-cjk`（+0.01em）是给 UI 标签的；
-   * 汉字本是方格字，18px 正文再加字距只会稀释笔画、把行尾推得更散。
+   * 汉字本是方格字，16px 正文再加字距只会稀释笔画、把行尾推得更散。
    */
   --ed-tracking: 0;
   --ed-pad-y: 24px;
@@ -30,6 +30,10 @@
 }
 .chapterTitle {
   font-size: var(--mz-fs-sm);
+  /* ★ P2-UI T3「标题级 serif」：工具条里的章名是编辑器的标题层，
+   *   走 chrome-title 令牌（:root 定义为衬线链，明暗两套共用）。
+   *   动的是工具条，不是 .area/.backdrop——镜像层纪律（第 7 条）不碰。 */
+  font-family: var(--mz-chrome-font-title);
   color: var(--mz-text-primary);
   font-weight: var(--mz-fw-medium);
 }
@@ -86,7 +90,7 @@
   /**
    * ★ 第 33 条：`min(100%)` 不是冗余。`--mz-editor-measure-novel` 现在是
    *   clamp(28em, 34em, 100%)，而 clamp 的**下限是硬下限**：容器窄于 28em 时
-   *   它返回 28em 而**不是**容器宽，正文照样溢出。28em x 18px = 504px，
+   *   它返回 28em 而**不是**容器宽，正文照样溢出。28em x 16px（T3 档）= 448px，
    *   正常情况下编辑器远宽于它（三栏让位后 >= 724px），但那是**另一处**的算术
    *   （App.module.css 的三栏区间）。把 `min(100%)` 写在这里，等于让这条规则
    *   自己站稳：无论外面怎么改栏宽，正文都不会比容器宽。

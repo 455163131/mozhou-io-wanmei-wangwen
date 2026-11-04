@@ -169,7 +169,10 @@
   --mz-fs-h2:         20px;  --mz-lh-h2:         1.40;  /* section heading */
   --mz-fs-h3:         17px;  --mz-lh-h3:         1.45;  /* card title */
   --mz-fs-body:       15px;  --mz-lh-body:       1.60;  /* UI body copy */
-  --mz-fs-editor:     18px;  --mz-lh-editor:     1.85;  /* editor body (novel base) */
+  /* ★ P2-UI T3（墨韵国风）：editor 档从 18px/1.85 改为 16px/2.15——正文降半档、
+     行距拉开，纸感靠「小字＋大呼吸」而不是大字；与下面 §8 novel 体裁块同步同值
+     （两处书写一件事，漂移过一次就被 layout-flex-wiring 的算术抓到）。 */
+  --mz-fs-editor:     16px;  --mz-lh-editor:     2.15;  /* editor body (novel base) */
   --mz-fs-sm:         13px;  --mz-lh-sm:         1.50;  /* secondary / help text */
   --mz-fs-xs:         12px;  --mz-lh-xs:         1.40;  /* tags, badges, footnotes */
   --mz-fs-metric-lg:  28px;  --mz-lh-metric-lg:  1.10;  /* hero metric figure */
@@ -211,10 +214,12 @@
   /* --------------------------------------------------------------------------
    * 8. EDITOR TYPOGRAPHY PER GENRE  (must differ for real - acceptance D2)
    * ------------------------------------------------------------------------ */
-  /* novel - long-form web fiction: serif, wide measure, loose leading */
+  /* novel - long-form web fiction: serif, wide measure, loose leading
+     ★ P2-UI T3：正文衬线链不变（--mz-font-serif），字号落 16px 档、行高 2.15；
+       标题级衬线走 --mz-chrome-font-title（§9d，两套皮肤共用）。 */
   --mz-editor-font-novel:      var(--mz-font-serif);
-  --mz-editor-size-novel:      18px;
-  --mz-editor-lh-novel:        1.85;
+  --mz-editor-size-novel:      16px;
+  --mz-editor-lh-novel:        2.15;
   /**
    * ★ 第 33 条：34em 是**理想**行长（约 34 个汉字一行的阅读舒适区），但它此前是硬上限，
    *   在最小窗口下 34em x 18px = 612px 已经大于编辑器容器 604px —— max-width 形同不存在，

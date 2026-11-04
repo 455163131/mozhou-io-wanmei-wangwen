@@ -56,7 +56,8 @@ interface Command {
  * 每个按钮都搬进来 —— 面板里只放“用户在写作过程中会想切换的东西”。
  *
  * ★ P2-UI T2（四组 IA）同步口径：
- *   - `mode:*` 六条**全保留**（含不在导航里的 审稿——面板是它的可达路径）；
+ *   - `mode:*` 六条**全保留**（R36 后审稿也进了创作组导航——面板条目与 id 集不变，
+ *     仍是 13 条；面板仍是它的⌘K 快路）；
  *   - 左导航的 soon 占位项（人物记忆/伏笔台账/…）**不进面板**：
  *     它们是 disabled 的「设计中」路标，没有可执行动作，进面板就是骗用户点；
  *   - label 跟随新显示名（写作坊/大纲管理/…），alias 保留旧名关键词——
@@ -67,7 +68,7 @@ const COMMANDS: Command[] = [
   { id: 'mode:write', label: '切换到 写作坊', group: '模式', alias: 'write xiezuo fang', keys: '' },
   { id: 'mode:plan', label: '切换到 大纲管理', group: '模式', alias: 'plan guihua dagang' },
   { id: 'mode:lore', label: '切换到 世界观设定', group: '模式', alias: 'lore sheding shijieguan' },
-  { id: 'mode:review', label: '切换到 审稿', group: '模式', alias: 'review shengao' },
+  { id: 'mode:review', label: '切换到 审稿报告', group: '模式', alias: 'review shengao' },
   { id: 'mode:dash', label: '切换到 统计账本', group: '模式', alias: 'dashboard yibiaopan tongji' },
   { id: 'mode:gen', label: '切换到 生成·导演台', group: '模式', alias: 'gen shengcheng daoyantai' },
 
@@ -130,7 +131,7 @@ const MODE_LABEL: Record<string, string> = {
   write: '写作坊',
   plan: '大纲管理',
   lore: '世界观设定',
-  review: '审稿',
+  review: '审稿报告',
   dash: '统计账本',
   gen: '生成·导演台',
 };
