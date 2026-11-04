@@ -15,17 +15,25 @@
 }
 
 .stat {
-  border: 1px solid var(--mz-border-subtle);
+  /* ★ §UI ·R2：从「带框白卡片」改成**无边、靠底色浮起的面**。
+   *   修复前：`border: 1px solid + background: var(--mz-bg-elevated) + radius-lg`
+   *   —— 四张统计卡各带一条框，加上下面两个列表卡片，仪表盘一屏里就又有六条线。
+   *   外壳已经统一到「只留一条分隔线 + 用底色分层」，组件层不能反过来堆框。
+   *   现在：无边框 + 半径降到 md + 底色仍抬一档（elevated 比 canvas 亮），
+   *   「这是一块浮起来的卡」由底色说，不由线说。 */
   background: var(--mz-bg-elevated);
-  border-radius: var(--mz-radius-lg);
+  border-radius: var(--mz-radius-md);
   padding: var(--mz-space-3) var(--mz-space-4);
-  transition: border-color var(--mz-dur-base) var(--mz-ease-standard),
-    transform var(--mz-dur-base) var(--mz-ease-standard);
+  /* ★ §UI ·R2：`transform: translateY(-1px)` 的悬停位移**删掉了**。
+   *   调研的动效结论是明确的：普遍只做 120-200ms 的 background/color/opacity
+   *   过渡，**不做位移动画**（唯一的例外是抽屉滑入）。整页卡片一起上下抖一像素，
+   *   正是「整体看着让人感觉恶心」那种说不清的浮动感的来源之一。
+   *   悬停反馈改成只改底色（见下），鼠标划过时页面是静不下来的。 */
+  transition: background var(--mz-dur-base) var(--mz-ease-standard);
 }
 
 .stat:hover {
-  border-color: var(--mz-accent);
-  transform: translateY(-1px);
+  background: var(--mz-bg-hover);
 }
 
 .sk {
@@ -62,9 +70,9 @@
 }
 
 .panel {
-  border: 1px solid var(--mz-border-subtle);
+  /* ★ §UI ·R2：与 .stat 同款 —— 无边、底色浮起、半径收一档。 */
   background: var(--mz-bg-elevated);
-  border-radius: var(--mz-radius-lg);
+  border-radius: var(--mz-radius-md);
   padding: var(--mz-space-3) var(--mz-space-4);
 }
 
@@ -72,8 +80,8 @@
   display: flex;
   align-items: center;
   gap: var(--mz-space-2);
-  font-size: var(--mz-fs-xs);
-  color: var(--mz-text-secondary);
+  font-size: var(--mz-chrome-type-body);
+  color: var(--mz-text-primary);
   margin-bottom: var(--mz-space-3);
   font-weight: 600;
 }

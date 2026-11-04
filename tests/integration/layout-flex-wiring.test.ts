@@ -190,25 +190,38 @@ describe('C. 正文永不溢出容器（第 28 条那条规则的另一面）', 
 
 describe('D. 断点必须够得着（"防御写了触发不了"是本仓反复出现的形状）', () => {
   it('★ 存在一条真正的宽度断点，且落在 minWidth 之上', () => {
-    const bp = /@media\s*\(max-width:\s*(\d+)px\)/.exec(appCss);
-    expect(bp, 'App.module.css 里没有任何宽度断点——窄窗下三栏不会进紧凑档').not.toBeNull();
-    const bpPx = Number((bp as RegExpExecArray)[1]);
+    /* ★ §UI ·R2 修订：原来抓的是**第一条** `@media (max-width:)`。R2 在文件更前面
+     *   加了一条只补边框的窄窗规则（`.right { border-left }`），于是「第一条」不再
+     *   是布局断点，这条断言会去量一条 4 行的边框规则。改成抓**所有**宽度断点，
+     *   取那个真正收栏宽的（含 `--mz-layout-*-min-w` 的那块）来量。
+     *   教训与第 32 条同款：`indexOf` 抓「第一处」在文件长起来之后必然抓错。 */
+    const all = [...appCss.matchAll(/@media\s*\(max-width:\s*(\d+)px\)/g)].map((m) => Number(m[1]));
+    expect(all.length, 'App.module.css 里没有任何宽度断点——窄窗下三栏不会进紧凑档').toBeGreaterThan(0);
     const winMin = Number((/minWidth\s*:\s*(\d+)/.exec(windowTs) as RegExpExecArray)[1]);
     /**
      * ★ 断点必须 **大于** minWidth。若断点 <= minWidth，则用户真能拖到的
      *   整个区间都落在断点之外，紧凑档**永不进入** —— 与第 33 条边界 (a)
      *   记录的同类先例一致：两个模态的 `max-width: calc(100vw - 48px)`
      *   在 1280 下限下反而永远用不上。
+     *   ★ 每一个宽度断点都要满足（R2 之后不止一条）。
      */
-    expect(
-      bpPx,
-      `断点 ${bpPx}px 不大于 minWidth ${winMin}px，紧凑档永远进不去`,
-    ).toBeGreaterThan(winMin);
+    for (const bpPx of all) {
+      expect(
+        bpPx,
+        `断点 ${bpPx}px 不大于 minWidth ${winMin}px，紧凑档永远进不去`,
+      ).toBeGreaterThan(winMin);
+    }
   });
 
   it('断点里两栏都收到各自的下限', () => {
-    const at = appCss.indexOf('@media (max-width:');
-    const blk = appCss.slice(at, at + 400);
+    /* ★ §UI ·R2 修订：同上，按「哪一块里出现了收栏宽的规则」定位，
+     *   而不是取第一条 `@media`。 */
+    const blocks = [...appCss.matchAll(/@media\s*\(max-width:\s*\d+px\)\s*\{[\s\S]*?\n\}/g)].map(
+      (m) => m[0],
+    );
+    const layoutBlock = blocks.find((b) => b.includes('--mz-layout-tree-min-w'));
+    expect(layoutBlock, '没有任何宽度断点块收 .left 的栏宽').not.toBeUndefined();
+    const blk = layoutBlock as string;
     expect(blk, '断点里没收 .left').toMatch(/\.left\s*\{[^}]*width:\s*var\(--mz-layout-tree-min-w\)/);
     expect(blk, '断点里没收 .right').toMatch(/\.right\s*\{[^}]*width:\s*var\(--mz-layout-rail-min-w\)/);
   });

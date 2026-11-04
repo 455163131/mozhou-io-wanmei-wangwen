@@ -3,9 +3,16 @@
   flex-direction: column;
   gap: var(--mz-space-2);
   height: 100%;
-  padding: var(--mz-space-3);
+  /* ★ §UI ·R2：`padding: var(--mz-space-3)`（16px）四边等宽 → 改为**顶部留白更小**。
+   *   面板顶上是页签（`.tabs` 已经给了 10px 的 padding-top + 一条下划线），
+   *   再来 16px 就是 26px 的空白带 —— 内容被推下去，而右侧栏总共才 300-360px 宽，
+   *   每一像素的纵向空间都比横向珍贵。左右下保持 16px 让内容与栏边有呼吸。 */
+  padding: var(--mz-space-2) var(--mz-space-3) var(--mz-space-3);
   background: var(--mz-bg-surface);
-  border-left: 1px solid var(--mz-border-subtle);
+  /* ★ §UI ·R2：`border-left` **删掉了**。宿主 `.right`（App.module.css）负责这条线
+   *   （且只在紧凑档才画），面板再画一条就是两条线并排相差 0px ——
+   *   肉眼是一条更粗、颜色被抗锯齿带偏的线（与 ChapterTree 的 `.tree` 同款缺陷，
+   *   本次一并清掉：全应用的分隔线只允许 `--mz-sep` 那一条）。 */
   overflow-y: auto;
 }
 
@@ -99,10 +106,12 @@
 
 /* ── 计划 ── */
 .planBox {
-  padding: var(--mz-space-2);
+  padding: var(--mz-space-2) var(--mz-space-2);
+  /* ★ §UI ·R2：`border: 1px solid var(--mz-border-subtle)` 删掉。
+   *   它是面板里唯一一块 elevated 底色的盒子 —— 「这块浮起来」已经由底色说了，
+   *   再描一圈就是同一件事说两遍。半径统一到 md。 */
   background: var(--mz-bg-elevated);
-  border: 1px solid var(--mz-border-subtle);
-  border-radius: var(--mz-radius-sm);
+  border-radius: var(--mz-radius-md);
 }
 .planGoal {
   font-size: var(--mz-fs-sm);
@@ -122,9 +131,10 @@
   font-style: normal;
 }
 .skippedBox {
-  margin-top: var(--mz-space-half);
+  margin-top: var(--mz-space-2);
+  /* ★ §UI ·R2：`border-top: 1px solid var(--mz-border-subtle)` 删掉 ——
+   *   跳过项与计划步骤同属一个 planBox，留白分组即可。 */
   padding-top: var(--mz-space-half);
-  border-top: 1px solid var(--mz-border-subtle);
 }
 .skippedTitle {
   font-size: var(--mz-fs-xs);
@@ -194,28 +204,40 @@
   font-size: var(--mz-fs-sm);
 }
 
+/* ★ §UI ·R2：`border: 1px solid var(--mz-border-subtle)` 换成 **左侧状态条**。
+ *   修复前：每一步都是一张描边卡片，边框颜色表达状态（succeeded/failed/
+ *   running/rolled-back/aborted 五档，见下面五条规则）。
+ *   问题有两层：
+ *   ① 轨迹是**列表**，一次 run 二三十步 = 二三十条包围盒，面板被线填满；
+ *   ② 底色已经从 `--mz-bg-surface` 换成 `--mz-bg-elevated`，而在**暗色**主题下
+ *      「浮起」的方向是提亮，可这一步卡此前用的是与稿纸同族的那一档 ——
+ *      二三十个包围框叠起来就是二三十圈亮线，非常吵。
+ *      （注：这里**不写字面色值**，裸 hex 会被零裸色值门禁判红 —— 已在 App.module.css
+ *      头部记过同款教训。）
+ *   现在：左侧 2px 状态条承担颜色语义，卡片自身无边、靠底色浮起 ——
+ *   颜色信号保留，包围盒消失。`.step.succeeded` 等五条规则改为写这条**左侧条**。 */
 .step {
-  border: 1px solid var(--mz-border-subtle);
-  border-radius: var(--mz-radius-sm);
+  border-radius: var(--mz-radius-md);
   padding: var(--mz-space-half) var(--mz-space-2);
   background: var(--mz-bg-elevated);
+  border-left: 2px solid var(--mz-border-subtle);
 }
 .step.succeeded {
-  border-color: var(--mz-sem-pass-border);
+  border-left-color: var(--mz-sem-pass-border);
 }
 .step.failed {
-  border-color: var(--mz-sem-warn-border);
+  border-left-color: var(--mz-sem-warn-border);
 }
 .step.running {
-  border-color: var(--mz-sem-ai-border);
+  border-left-color: var(--mz-sem-ai-border);
 }
 .step.rolled-back {
-  border-color: var(--mz-border-strong);
+  border-left-color: var(--mz-border-strong);
   opacity: 0.7;
 }
-/* 第 23 条起 aborted 有产出方了（叫停落在正在跑的那一步时由 loop 写出），这条边框自此真的会被用上。 */
+/* 第 23 条起 aborted 有产出方了（叫停落在正在跑的那一步时由 loop 写出），这条状态条自此真的会被用上。 */
 .step.aborted {
-  border-color: var(--mz-sem-con-border);
+  border-left-color: var(--mz-sem-con-border);
 }
 
 .stepHead {
@@ -309,9 +331,10 @@
 
 /* 展开详情 */
 .detail {
-  margin-top: var(--mz-space-half);
+  margin-top: var(--mz-space-2);
+  /* ★ §UI ·R2：`border-top: 1px solid var(--mz-border-subtle)` 删掉 ——
+   *   展开的详情与折叠的那一行同属一张步骤卡，留白分组即可（同 HistoryTimeline 的 .detail）。 */
   padding-top: var(--mz-space-half);
-  border-top: 1px solid var(--mz-border-subtle);
   font-size: var(--mz-fs-xs);
 }
 .detailRow {

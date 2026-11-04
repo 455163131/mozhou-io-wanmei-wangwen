@@ -64,17 +64,17 @@
 }
 
 .card {
-  border: 1px solid var(--mz-border-subtle);
+  /* ★ §UI ·R2：无边卡片 + 只改底色的悬停（理由同 DashboardView 的 .stat / PlanView 的 .oc：
+   *   调研的动效结论是「不做位移动画」，且组件层不该在外壳统一到「一条线」之后继续堆框）。
+   *   设定卡是网格里的一格，浮起由底色说，不由线说。 */
   background: var(--mz-bg-elevated);
-  border-radius: var(--mz-radius-lg);
+  border-radius: var(--mz-radius-md);
   padding: var(--mz-space-3) var(--mz-space-3);
-  transition: border-color var(--mz-dur-base) var(--mz-ease-standard),
-    transform var(--mz-dur-base) var(--mz-ease-standard);
+  transition: background var(--mz-dur-base) var(--mz-ease-standard);
 }
 
 .card:hover {
-  border-color: var(--mz-accent);
-  transform: translateY(-2px);
+  background: var(--mz-bg-hover);
 }
 
 .ch {
@@ -123,32 +123,38 @@
   display: flex;
   gap: var(--mz-space-3);
   margin-top: var(--mz-space-2h);
+  /* ★ §UI ·R2：`border-top: 1px dashed var(--mz-border-subtle)` 删掉 ——
+   *   卡片底部的一排元信息，靠留白与字号区分即可（同 ExpertPanel 的 .decideRow）。 */
   padding-top: var(--mz-space-2);
-  border-top: 1px dashed var(--mz-border-subtle);
   font-size: var(--mz-fs-2xs);
   color: var(--mz-text-tertiary);
 }
 
 .empty {
   padding: var(--mz-space-7) var(--mz-space-5);
-  border: 1px dashed var(--mz-border-strong);
-  border-radius: var(--mz-radius-lg);
+  /* ★ §UI ·R2：空态从「一整块虚线大框」改成**无边的一段说明**。
+   *   空态是「这里还没有东西」，用一个大虚线框把「没有东西」框起来是本末倒置 ——
+   *   虚线框本身比那句说明更显眼，整屏第一眼看到的是一个框。 */
+  border-radius: var(--mz-radius-md);
   text-align: center;
   color: var(--mz-text-tertiary);
-  font-size: var(--mz-fs-sm);
+  font-size: var(--mz-chrome-type-body);
   line-height: 2;
 }
 
 .err {
   padding: var(--mz-space-2) var(--mz-space-3);
   border-radius: var(--mz-radius-sm);
+  /* ★ 语义提示保留边框（同 ExpertPanel 的 .warn/.err）。 */
   background: var(--mz-sem-warn-bg);
   border: 1px solid var(--mz-sem-warn-border);
   color: var(--mz-sem-warn-fg);
   font-size: var(--mz-fs-xs);
 }
 
-.note {
-  font-size: var(--mz-fs-2xs);
-  color: var(--mz-text-tertiary);
-}
+/* ★ §UI ·R2：这里原来有**第二条 `.note`**（只有字号 + `--mz-text-tertiary`），
+ *   与上面那条同特异性 —— 后者把前者的 `-webkit-line-clamp: 3` 与
+ *   `display: -webkit-box` 整块吃掉：正文不再截断、颜色也从 secondary 降成
+ *   tertiary，而且 CSS 一个字都不报。这是本仓最典型的「两份都在改、
+ *   改一处忘另一处」形状（同 ConfirmDialog 七条样式搬走前的状态）。
+ *   现在只留上面那一条 .note（带三行截断，卡片正文该截），本条删除。 */

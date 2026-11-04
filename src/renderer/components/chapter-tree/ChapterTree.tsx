@@ -151,7 +151,18 @@ export function ChapterTree(): JSX.Element {
     }
   };
 
-  const newForm = (
+  /**
+   * ★ §UI ·R2：建章入口默认收起。
+   *
+   * 修复前它永久占据侧栏顶部约 90px（输入框 + 两个竖排按钮），比树里前四章加起来
+   * 还高，而它的使用频率是「一天几次」——一块「偶尔用、却永远占最显眼位置」的控件
+   * 是面板看起来塞满东西的主要来源。现在收起成一行「＋ 新建章节」（与树行同高），
+   * 点开才展开输入框与两个动作；空树时**仍然默认展开**（那时它是唯一能做的事，
+   * 收起会让人找不到入口——§4 第 17 条的原始痛点就是「没有入口」）。
+   */
+  const [showNew, setShowNew] = useState(false);
+
+  const newForm = showNew ? (
     <div className={styles.newform}>
       <input
         className={styles.input}
@@ -160,30 +171,39 @@ export function ChapterTree(): JSX.Element {
         disabled={creating}
         placeholder="新章标题，可留空"
         aria-label="新建章节标题"
+        autoFocus
         onChange={(e) => {
           setDraftTitle(e.target.value);
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') void createChapter();
+          else if (e.key === 'Escape') setShowNew(false);
         }}
       />
-      <button
-        className={styles.btn}
-        disabled={creating}
-        onClick={() => void createChapter()}
-      >
-        {creating ? '建章中…' : '新建章节'}
-      </button>
-      <button
-        className={styles.btn}
-        disabled={importing}
-        onClick={() => void importMarkdown()}
-        title="把项目 chapters 目录里已有的 .md 旧稿读进库。库里已有同号的会跳过，正文不覆盖；目录里的文件一个都不删改。"
-      >
-        {importing ? '导入中…' : '导入旧稿 .md'}
-      </button>
+      <div className={styles.newActions}>
+        <button
+          className={styles.btn}
+          disabled={creating}
+          onClick={() => void createChapter()}
+        >
+          {creating ? '建章中…' : '新建章节'}
+        </button>
+        <button
+          className={styles.btn}
+          disabled={importing}
+          onClick={() => void importMarkdown()}
+          title="把项目 chapters 目录里已有的 .md 旧稿读进库。库里已有同号的会跳过，正文不覆盖；目录里的文件一个都不删改。"
+        >
+          {importing ? '导入中…' : '导入旧稿 .md'}
+        </button>
+      </div>
       {importNote && <div className={styles.note}>{importNote}</div>}
     </div>
+  ) : (
+    <button className={styles.newToggle} onClick={() => setShowNew(true)}>
+      <span className={styles.newToggleIcon} aria-hidden="true">＋</span>
+      新建章节
+    </button>
   );
 
   /** 把拖动的章落到 targetId 之前；跨卷时先落卷再落序 */
@@ -245,11 +265,43 @@ export function ChapterTree(): JSX.Element {
   };
 
   if (chapters.length === 0) {
+    // ★ §UI ·R2：空树时表单**无条件展开**（那时它是唯一能做的事）。
+    //   注意上面 showNew 的初值是 false，这里不能直接复用 newForm ——
+    //   否则新用户看到的是一个收起的「＋ 新建章节」，还得再点一下才看到入口。
     return (
       <div className={styles.tree}>
         <div className={styles.title}>章节（0）</div>
         {err && <div className={styles.err}>{err}</div>}
-        {newForm}
+        <div className={styles.newform}>
+          <input
+            className={styles.input}
+            value={draftTitle}
+            maxLength={40}
+            disabled={creating}
+            placeholder="新章标题，可留空"
+            aria-label="新建章节标题"
+            onChange={(e) => {
+              setDraftTitle(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void createChapter();
+            }}
+          />
+          <div className={styles.newActions}>
+            <button className={styles.btn} disabled={creating} onClick={() => void createChapter()}>
+              {creating ? '建章中…' : '新建章节'}
+            </button>
+            <button
+              className={styles.btn}
+              disabled={importing}
+              onClick={() => void importMarkdown()}
+              title="把项目 chapters 目录里已有的 .md 旧稿读进库。库里已有同号的会跳过，正文不覆盖；目录里的文件一个都不删改。"
+            >
+              {importing ? '导入中…' : '导入旧稿 .md'}
+            </button>
+          </div>
+          {importNote && <div className={styles.note}>{importNote}</div>}
+        </div>
         <div className={styles.empty}>
           还没有章节。
           <br />

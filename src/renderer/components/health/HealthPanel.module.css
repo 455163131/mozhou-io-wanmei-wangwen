@@ -2,9 +2,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--mz-space-2h);
-  padding: var(--mz-space-3);
-  background: var(--mz-bg-editor);
-  border-left: 1px solid var(--mz-border-subtle);
+  /* ★ §UI ·R2：顶部留白收窄（理由是页签已给过间距），左右下不动。 */
+  padding: var(--mz-space-2) var(--mz-space-3) var(--mz-space-3);
+  /* ★ §UI ·R2：底色从 `--mz-bg-editor`（更亮，和稿纸同底）改回 `--mz-bg-surface`。
+   *   侧栏四个面板里只有体检一块用稿纸底色，于是切页签时侧栏会整块变亮变暗 ——
+   *   那是「同一块面」在用两种底色说话。侧栏就是侧栏，底色只有一种。 */
+  background: var(--mz-bg-surface);
+  /* ★ §UI ·R2：`border-left` 删掉（宿主 `.right` 负责这条线，见 AgentPanel 同款注释）。 */
   overflow-y: auto;
 }
 .header {

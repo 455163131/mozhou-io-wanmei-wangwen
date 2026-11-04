@@ -4,27 +4,45 @@
   gap: var(--mz-space-1);
   padding: var(--mz-space-2h) var(--mz-space-2);
   background: var(--mz-bg-surface);
-  border-right: 1px solid var(--mz-border-subtle);
+  /* ★ §UI ·R2：这条 border-right **删掉了**。宿主 `.left`（App.module.css）
+   *   已经画了全应用唯一的那条分隔线，这里再画一条就是两条线并排相差 0px ——
+   *   肉眼看是一条更粗的线，而两条线的颜色会因为抗锯齿各自偏色，
+   *   看起来像描边糊了（同款形状：§UI ② 的「焦点两圈」）。 */
   overflow-y: auto;
   height: 100%;
 }
+/* 树是 .left 的唯二内容（另一个是空态），它自己撑满时不该再有自己的滚动条 ——
+   滚动交给 .left，否则会出现「外层滚一点、内层滚一点」的双滚动条。 */
+.tree {
+  min-height: 0;
+}
 .title {
-  font-size: var(--mz-fs-xs);
+  font-size: var(--mz-chrome-type-meta);
   color: var(--mz-text-tertiary);
   letter-spacing: var(--mz-tracking-wide);
-  text-transform: uppercase;
   margin-bottom: var(--mz-space-1);
   padding: 0 var(--mz-space-1);
 }
 .volume {
-  margin-bottom: var(--mz-space-half);
+  margin-bottom: var(--mz-space-2);
 }
+/**
+ * ★ §UI ·R2：卷标题不再是「一行下划线 + 上方空白」的一小节表格头。
+ * 修复前它有 `border-bottom: 1px`，于是树里每一卷都多一条横线；一棵十卷的树
+ * 会往侧栏里塞十条横线，加上每行的选中底色和状态点，侧栏成了横线密集区。
+ * 现在靠「字号升半档 + 字色更重 + 上方留白」分组，线一条都不要。
+ */
 .volumeTitle {
   font-size: var(--mz-fs-xs);
+  font-weight: var(--mz-fw-semibold);
   color: var(--mz-text-secondary);
-  padding: var(--mz-space-1) var(--mz-space-1);
-  border-bottom: 1px solid var(--mz-border-subtle);
-  margin-bottom: var(--mz-space-1);
+  padding: var(--mz-space-2) var(--mz-space-1) var(--mz-space-1);
+  margin-bottom: 0;
+  letter-spacing: var(--mz-tracking-cjk);
+}
+/* 首卷不需要上方留白（否则树顶会出现一块空） */
+.volume:first-child > .volumeTitle {
+  padding-top: var(--mz-space-1);
 }
 .node {
   display: flex;
@@ -36,14 +54,19 @@
   border-radius: var(--mz-radius-xs);
   background: transparent;
   text-align: left;
-  font-size: var(--mz-fs-xs);
+  font-size: var(--mz-chrome-type-body);
+  color: var(--mz-text-body);
 }
 .node:hover {
   background: var(--mz-bg-hover);
 }
+/**
+ * ★ §UI ·R2：选中态**只留底色**，删掉 `box-shadow: inset 2px 0 0` 那条朱砂竖条。
+ * 底色 + 竖条是同一件事说两遍；而树里已经有「状态点（○◐◑●）+ 字数」两个信号，
+ * 再加一条竖条就是三重编码，整行看起来很吵。
+ */
 .node.active {
-  background: var(--mz-accent-soft);
-  box-shadow: inset 2px 0 0 var(--mz-accent);
+  background: var(--mz-bg-selected);
 }
 
 /* 拖拽态：被拖起的章减淡；落点章加外描边（与 .active 的内左条区分开） */
@@ -56,7 +79,6 @@
 }
 .volume.volumeOver > .volumeTitle {
   color: var(--mz-accent);
-  border-bottom-color: var(--mz-accent);
 }
 .err {
   padding: var(--mz-space-half) var(--mz-space-2);
@@ -88,9 +110,8 @@
 }
 .virtualNote {
   padding: var(--mz-space-1) var(--mz-space-half);
-  font-size: var(--mz-fs-2xs);
+  font-size: var(--mz-chrome-type-meta);
   color: var(--mz-text-tertiary);
-  border-top: 1px solid var(--mz-border-subtle);
   margin-top: var(--mz-space-1);
 }
 .empty {
@@ -101,13 +122,52 @@
   line-height: 1.8;
 }
 
-/* 建章入口（§4 第 17 条）：侧栏窄，标题框和按钮竖着排 */
+/**
+ * ★ §UI ·R2：建章入口从「常驻的三件套」改成**默认收起**（见 ChapterTree.tsx）。
+ *
+ * 修复前它永久占据侧栏顶部：一个 40 字宽的输入框 + 「新建章节」+ 「导入旧稿 .md」
+ * 两个按钮，竖着排 = 约 90px，**比树里前四章加起来还高**。而它的实际使用频率是
+ * 「一天几次、且每次都在同一时刻（想开新章时）」，「导入旧稿」更是一次性动作。
+ * 一块「偶尔用、但永远占着最显眼位置」的控件，正是让面板看起来「塞满了东西」的
+ * 主要来源。现在收起成一个 24px 高的「＋ 新建章节」行，点开才展开输入与导入。
+ */
 .newform {
   display: flex;
   flex-direction: column;
   gap: var(--mz-space-half);
-  margin-bottom: var(--mz-space-2);
+  margin-bottom: var(--mz-space-1);
   padding: 0 var(--mz-space-1);
+}
+/** 收起的「＋ 新建章节」触发行：与树行同高同排布，看起来是树的一部分 */
+.newToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-half);
+  width: 100%;
+  padding: var(--mz-space-1) var(--mz-space-half);
+  border: none;
+  border-radius: var(--mz-radius-xs);
+  background: transparent;
+  color: var(--mz-text-tertiary);
+  text-align: left;
+  font-size: var(--mz-chrome-type-body);
+  cursor: pointer;
+  margin-bottom: var(--mz-space-1);
+}
+.newToggle:hover {
+  background: var(--mz-bg-hover);
+  color: var(--mz-text-primary);
+}
+.newToggleIcon {
+  flex: none;
+  width: 12px;
+  text-align: center;
+  font-family: var(--mz-font-numeric);
+}
+/* 展开后的两行按钮（新建 / 导入）横排，不再各占一整行 */
+.newActions {
+  display: flex;
+  gap: var(--mz-space-1);
 }
 .input {
   width: 100%;
@@ -115,7 +175,7 @@
   border: 1px solid var(--mz-border-default);
   border-radius: var(--mz-radius-sm);
   padding: var(--mz-space-half) var(--mz-space-2);
-  font-size: var(--mz-fs-xs);
+  font-size: var(--mz-chrome-type-body);
   color: var(--mz-text-primary);
   outline: none;
   font-family: inherit;
@@ -125,13 +185,15 @@
   border-color: var(--mz-accent);
 }
 .btn {
+  /* ★ §UI ·R2：**保留边框** —— 这是可交互控件（新建/导入），
+   *   不是装饰卡；外壳减线不等于把按钮的边也减掉。只把字号升到外壳刻度。 */
   border: 1px solid var(--mz-border-subtle);
   background: var(--mz-bg-surface);
   color: var(--mz-text-primary);
   border-radius: var(--mz-radius-sm);
   padding: var(--mz-space-half) var(--mz-space-2h);
   cursor: pointer;
-  font-size: var(--mz-fs-xs);
+  font-size: var(--mz-chrome-type-body);
 }
 .btn:hover:not(:disabled) {
   border-color: var(--mz-text-link);
@@ -147,10 +209,12 @@
 
 /* 导入旧稿的结果（§4 第 19 条②）：跳过与认不出的都得看得见，不写成一行小灰字 */
 .note {
-  font-size: var(--mz-fs-xs);
+  font-size: var(--mz-chrome-type-meta);
   line-height: 1.6;
   color: var(--mz-text-secondary);
-  border-left: 2px solid var(--mz-border-default);
-  padding: var(--mz-space-1) 0 var(--mz-space-1) var(--mz-space-half);
+  /* ★ §UI ·R2：`border-left: 2px solid var(--mz-border-default)` 删掉。
+   *   它在侧栏里是一条灰色竖线，而同侧栏的选中态、状态点、字数已经三种信号了；
+   *   这条注释块靠字号降一档 + 缩进 + 字色区分即可，不需要第四条线。 */
+  padding: var(--mz-space-2) 0 0;
   word-break: break-all;
 }

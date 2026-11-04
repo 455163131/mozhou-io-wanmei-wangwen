@@ -19,7 +19,7 @@
 
 .title {
   font-weight: 600;
-  font-size: var(--mz-fs-sm);
+  font-size: var(--mz-chrome-type-title);
 }
 
 .btn,
@@ -55,10 +55,13 @@
   display: flex;
   align-items: center;
   gap: var(--mz-space-3);
-  padding: var(--mz-space-3);
+  padding: var(--mz-space-3) var(--mz-space-3);
   border-radius: var(--mz-radius-md);
-  border: 1px solid var(--mz-border-subtle);
-  background: var(--mz-bg-surface);
+  /* ★ §UI ·R2：`border: 1px solid var(--mz-border-subtle)` 删掉。
+   *   与 ReviewView 的 `.scoreBox` 同款：这是侧栏最上面的「总分」，
+   *   是首屏主信息，此前和下面一列维度卡用同一种边框同一种底色 ——
+   *   主信息淹没在结构信息里。现在靠底色抬一档 + 大号数字立住。 */
+  background: var(--mz-bg-elevated);
 }
 
 .scoreNum {
@@ -238,10 +241,13 @@
 }
 
 .hit {
-  border: 1px solid var(--mz-border-subtle);
-  border-radius: var(--mz-radius-sm);
+  /* ★ §UI ·R2：`border: 1px solid var(--mz-border-subtle)` 删掉。
+   *   与 ReviewView 的 `.hit` 同款：命中条目是**列表项**，一屏十几条 ——
+   *   每条一条框 = 十几条线，而它们又与侧栏底同色，框是唯一的存在证明。
+   *   改成底色抬一档（elevated 比 surface 亮），线不要。 */
+  border-radius: var(--mz-radius-md);
   padding: var(--mz-space-2) var(--mz-space-2h);
-  background: var(--mz-bg-surface);
+  background: var(--mz-bg-elevated);
   display: flex;
   flex-direction: column;
   gap: var(--mz-space-1);
@@ -326,7 +332,12 @@
   flex-direction: column;
   gap: var(--mz-space-half);
   padding: var(--mz-space-2) var(--mz-space-2h);
-  border-radius: var(--mz-radius-sm);
+  border-radius: var(--mz-radius-md);
+  /* ★ §UI ·R2：这里**保留**边框，但必须补全声明。
+   *   修复前它只写 `border: 1px solid var(--mz-border-subtle)`，而下面
+   *   `.baselineUser` / `.baselineStale` 只改 `border-color` ——
+   *   这条栏靠「边的颜色」表达状态（内置 / 用户自建 / 口径过期三态），
+   *   所以它是**信息的一部分**而不是装饰，与「卡片堆框」不是一回事。 */
   border: 1px solid var(--mz-border-subtle);
   background: var(--mz-bg-surface);
 }
@@ -352,7 +363,8 @@
 .baselineTag {
   font-size: var(--mz-fs-2xs);
   font-weight: 600;
-  border: 1px solid var(--mz-border-subtle);
+  /* ★ §UI ·R2：`border: 1px solid var(--mz-border-subtle)` 删掉，改淡底签（同 ExpertPanel 的 .decisionTag）。 */
+  background: var(--mz-bg-inset);
   border-radius: var(--mz-radius-xs);
   padding: 0 var(--mz-space-half);
   color: var(--mz-text-secondary);
@@ -374,8 +386,8 @@
   font-size: var(--mz-fs-xs);
   line-height: 1.7;
   color: var(--mz-text-primary);
-  border-top: 1px dashed var(--mz-border-subtle);
-  padding-top: var(--mz-space-half);
+  /* ★ §UI ·R2：`border-top: 1px dashed var(--mz-border-subtle)` 删掉（同 ExpertPanel 的 .decideRow）。 */
+  padding-top: var(--mz-space-2);
 }
 
 .rebWarn {

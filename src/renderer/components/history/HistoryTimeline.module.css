@@ -8,10 +8,12 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: var(--mz-fs-xs);
+  font-size: var(--mz-chrome-type-meta);
   color: var(--mz-text-tertiary);
-  letter-spacing: var(--mz-tracking-wide);
-  text-transform: uppercase;
+  /* ★ §UI ·R2：`letter-spacing: var(--mz-tracking-wide)` 与
+   *   `text-transform: uppercase` 都删掉 —— 与 ChapterTree 的 `.title` 同款：
+   *   中文没有大小写，uppercase 对中文无效却对「Agent 改动」这类含拉丁字母的
+   *   标题生效，结果是同级的两个标题一个宽一个窄；字距对汉字只是稀释笔画。 */
   margin-bottom: var(--mz-space-1);
 }
 .hint {
@@ -21,8 +23,11 @@
   font-size: var(--mz-fs-2xs);
 }
 .node {
-  border: 1px solid var(--mz-border-subtle);
-  border-radius: var(--mz-radius-sm);
+  /* ★ §UI ·R2：`border: 1px solid var(--mz-border-subtle)` 删掉。
+   *   改动历史是一串节点（一次 Agent 跑动一个），几十个节点就是几十条线；
+   *   它们底色已经是 elevated（比侧栏底亮），浮起由面说，不需要再描一圈。
+   *   半径同步从 sm 提到 md，与其余列表卡一致。 */
+  border-radius: var(--mz-radius-md);
   background: var(--mz-bg-elevated);
 }
 .nodeHead {
@@ -71,8 +76,9 @@
   color: var(--mz-text-tertiary);
 }
 .detail {
-  padding: var(--mz-space-half) var(--mz-space-2);
-  border-top: 1px solid var(--mz-border-subtle);
+  padding: var(--mz-space-2) var(--mz-space-2);
+  /* ★ §UI ·R2：`border-top: 1px solid var(--mz-border-subtle)` 删掉 ——
+   *   展开的详情与收起的那一行本就同属一张节点卡，card 出面、留白分组即可。 */
   font-size: var(--mz-fs-xs);
   color: var(--mz-text-tertiary);
 }

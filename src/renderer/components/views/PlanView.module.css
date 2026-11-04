@@ -24,15 +24,18 @@
 }
 
 .bookg {
-  border: 1px solid var(--mz-sem-ai-border);
+  /* ★ §UI ·R2：`border: 1px solid var(--mz-sem-ai-border)` 删掉。
+   *   它已经有一条 150° 的 AI 淡染渐变（wash-ai → surface）——
+   *   这条渐变本身就是「这是 AI 给的全局建议」的标记，再描一圈赭边是
+   *   同一件事说两遍（外壳的旧毛病：线 + 面双重编码）。 */
   background: linear-gradient(150deg, var(--mz-wash-ai), var(--mz-bg-surface) 60%);
-  border-radius: var(--mz-radius-lg);
+  border-radius: var(--mz-radius-md);
   padding: var(--mz-space-4) var(--mz-space-4);
   margin-bottom: var(--mz-space-4);
 }
 
 .bh {
-  font-size: var(--mz-fs-sm);
+  font-size: var(--mz-chrome-type-title);
   color: var(--mz-text-primary);
   margin-bottom: var(--mz-space-2h);
   font-weight: 600;
@@ -106,27 +109,29 @@
 }
 
 .oc {
-  border: 1px solid var(--mz-border-subtle);
+  /* ★ §UI ·R2：无边卡片 + 只改底色的悬停（理由同 DashboardView 的 .stat：
+   *   调研的动效结论是「不做位移动画」，且组件层不该在外壳已统一到「一条线」
+   *   之后继续堆框）。卷卡是一张可拖拽的纸，浮起由底色说，不由线说。 */
   background: var(--mz-bg-elevated);
-  border-radius: var(--mz-radius-lg);
+  border-radius: var(--mz-radius-md);
   padding: var(--mz-space-3) var(--mz-space-3);
-  transition: border-color var(--mz-dur-base) var(--mz-ease-standard),
-    transform var(--mz-dur-base) var(--mz-ease-standard);
+  transition: background var(--mz-dur-base) var(--mz-ease-standard);
 }
 
 .oc:hover {
-  border-color: var(--mz-accent);
-  transform: translateY(-2px);
+  background: var(--mz-bg-hover);
 }
 
-/* 拖拽中：被拖起的那张减淡，落点那张描一圈实线，避免两个都浮动看不出谁在哪 */
+/* 拖拽中：被拖起的那张减淡，落点那张**加一圈提示环**，避免两个都浮动看不出谁在哪。
+   ★ §UI ·R2：落点提示从「border-color + inset shadow」整成**一圈描边环**，
+   因为卡片本身已经没有边框了 —— 再改 border-color 是改一条不存在的线。 */
 .ocDrag {
   opacity: 0.45;
 }
 
 .ocOver {
-  border-color: var(--mz-accent);
-  box-shadow: inset 0 0 0 2px var(--mz-accent-soft);
+  background: var(--mz-bg-selected);
+  box-shadow: inset 0 0 0 2px var(--mz-accent);
   transform: none;
 }
 
