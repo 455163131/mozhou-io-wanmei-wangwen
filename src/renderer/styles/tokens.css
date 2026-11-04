@@ -1,7 +1,8 @@
 /* ============================================================================
- * Mozhou (Mo Zhou) Writing Studio - Design Tokens  v2.0 "Su Jian · Zhu Pi"
+ * Mozhou (Mo Zhou) Writing Studio - Design Tokens  v3.0 "墨韵 · 国风"
  * ----------------------------------------------------------------------------
- * Light paper writing desk.  Desktop-only (min 1280px), Chromium.
+ * Desktop-only (min 1280px), Chromium.  Default skin = 墨蓝暗面（ink 块）;
+ * paper（素笺浅色）保留可用，见 :root。
  * Naming: --mz-<group>-<name>.  All values are ASCII.
  *
  * Contrast figures in comments are MEASURED WCAG 2.1 ratios (script-computed),
@@ -10,11 +11,20 @@
  *
  * Inlined by Vite (no external @import).
  *
- * v2.0 (2026-10-09) 彻底换肤：「素笺·朱批」——冷调真白纸面（chroma≈0，非米黄）
- *   + 浓墨文字 + 朱砂红单一强调（仅 AI 痕迹 / 活动态）+ 青黛/赭石/草绿三个语义色。
- *   变量名与分组结构与 v1 完全一致（全部 --mz-* 兼容），仅重估 1-6、12、15 节取值。
- *   实测对比度：主文本 15:1 · 正文 13.5:1 · 次级 5.9:1 · 弱化 4.9:1 ·
- *   朱砂强调（大字/图形）4.45:1 · 朱砂链接字 5.8:1 —— 正文级全部 >= 4.5:1。
+ * v3.0 (2026-11-04) P2-UI 墨韵国风换肤：暗色 ink 主题重写为**墨蓝底 + 香槟金主
+ *   CTA + 朱砂印品牌色**三件套。要点：
+ *   - 主强调从朱砂红换为香槟金 #C9A96A（ink 实底），朱砂降格为**品牌印章色**
+ *     --mz-brand-seal #C4553B（两套皮肤同值，纸面沿用 #C4553B）。
+ *   - 文字升为七级：新补 --mz-text-quaternary / --mz-text-placeholder 两级
+ *     （ink 同为 #7A849C；:root 浅色配对 #82868D）。
+ *   - 边框四级：新补 --mz-border-faint（ink #1A2338 / paper #EAECE7）。
+ *   - 语义族重调：ai=朱砂族、con=青族、warn/pass 同族暗洗，并新增 err 族
+ *     （ink fg #E05252 / paper fg #B4342A）。
+ *   - 焦点环随主强调走金色。
+ *   实测对比度（ink，由 tests/unit/theme-ink.test.ts 现场用 WCAG 2.1 公式复核）：
+ *   primary/canvas 14.2 · tertiary/canvas 7.1 · quaternary/canvas 4.8 ·
+ *   link/canvas 8.1 · inverse/accent 8.3 —— 五对正文级全部 >= 4.5:1。
+ *   paper 侧金色深档 #8C6D3A（亮面上主强调走深不走浅，v2 纪律不变）。
  * ========================================================================== */
 
 :root {
@@ -43,11 +53,11 @@
   /* 氛围光 / 选区 / 遮罩 / 淡洗：此前**硬写**在 global.css 与组件里（6 处裸 rgba），
    * 换肤时没人会想起来改它们，于是暗色下出现「纸面是黑的、选区是浅纸的淡朱」。
    * 全部升格为令牌，两套皮肤各给一份。 */
-  --mz-ambient-a:    rgba(194, 76, 59, 0.03);  /* body 左上朱晕 */
+  --mz-ambient-a:    rgba(196, 85, 59, 0.03);  /* body 左上朱晕 */
   --mz-ambient-b:    rgba(61, 90, 138, 0.03);  /* body 右下黛晕 */
-  --mz-selection-bg: rgba(194, 76, 59, 0.18);  /* ::selection */
+  --mz-selection-bg: rgba(196, 85, 59, 0.18);  /* ::selection */
   --mz-scrim:        rgba(31, 33, 26, 0.42);   /* 模态压暗罩：暖墨而非纯黑 */
-  --mz-wash-ai:      rgba(194, 76, 59, 0.04);  /* 卡片渐变起点（PlanView .bookg）*/
+  --mz-wash-ai:      rgba(196, 85, 59, 0.04);  /* 卡片渐变起点（PlanView .bookg）*/
 
   /* --------------------------------------------------------------------------
    * 2. TEXT
@@ -56,26 +66,35 @@
   --mz-text-body:      #2A2D30; /* 正文墨（editor 上 13.5:1）editor body */
   --mz-text-secondary: #5C6066; /* 灰墨次（canvas 上 5.9:1）captions, metadata, labels */
   --mz-text-tertiary:  #676C73; /* 弱化（canvas 上 4.9:1）hints, axis labels, timestamps */
+  --mz-text-quaternary: #82868D; /* 四级弱化（v3 补位，比 tertiary 更退一档；亮面取暖灰）*/
+  --mz-text-placeholder: #82868D; /* 输入占位（v3 补位，与 quaternary 同值，WCAG 占位豁免档）*/
   --mz-text-disabled:  #A7ACB2; /* 禁用（约 2.2:1，WCAG 豁免）*/
-  --mz-text-inverse:   #FFF9F6; /* 朱砂实底上的近白字 */
-  --mz-text-link:      #A63F2F; /* 朱砂深阶（canvas 上 5.8:1，正文级可读）*/
+  --mz-text-inverse:   #FFF9F6; /* 香槟金深档实底上的近白字（4.6:1）*/
+  --mz-text-link:      #755A2E; /* 金墨链接（canvas 上 6.0:1，取深档保正文级可读）*/
 
   /* --------------------------------------------------------------------------
    * 3. BORDER  (on light paper, strokes are darker-hued grays, not white alpha)
    * ------------------------------------------------------------------------ */
+  --mz-border-faint:   #EAECE7; /* 几乎看不见的缝线（v3 补第四级：暗面分层需要）*/
   --mz-border-subtle:  #E2E4DE; /* 内部分隔线 */
   --mz-border-default: #D3D5CE; /* 组件描边 */
   --mz-border-strong:  #ABACA4; /* 活动面板边缘、列分割 */
-  --mz-border-accent:  #C24C3B;
+  --mz-border-accent:  #8C6D3A; /* 强调描边随主强调走金（亮面取深档）*/
 
   /* --------------------------------------------------------------------------
-   * 4. BRAND ACCENT  (朱砂 cinnabar; 编辑批点的朱色，NOT a status colour)
+   * 4. BRAND ACCENT  (香槟金 champagne gold; v3 起主 CTA 用金，朱砂降为印章色。
+   *    亮面上"金"必须取深档 #8C6D3A 才压得住字——亮面 hover 走深不走浅)
    * ------------------------------------------------------------------------ */
-  --mz-accent:        #C24C3B; /* 朱砂（canvas 上 4.45:1，大字/图形级）*/
-  --mz-accent-hover:  #AD3E2E; /* 提按加深（浅色主题 hover 走深不走浅）*/
-  --mz-accent-active: #923425; /* 按压 */
-  --mz-accent-soft:   #F9EDEA; /* 朱砂淡晕（选中导航、信息条）*/
-  --mz-accent-ink:    #FFF9F6; /* 朱砂底上的近白文字（4.8:1）*/
+  --mz-accent:        #8C6D3A; /* 金墨深档（实底/大字图形档；正文级金字用 --mz-text-link 的更深档）*/
+  --mz-accent-hover:  #755A2E; /* 提按加深（浅色主题 hover 走深不走浅）*/
+  --mz-accent-active: #5F4824; /* 按压 */
+  --mz-accent-soft:   #F3EAD9; /* 金晕淡底（选中导航、option:checked）*/
+  --mz-accent-ink:    #FFF9F6; /* 金实底上的近白文字（4.6:1）*/
+
+  /* v3 新增品牌令牌：朱砂印（与主强调分离——金是"用"的，朱是"印"的）。
+   * seal 两套皮肤同值 #C4553B（印章色不随明暗漂移）；soft 各按各的底给。 */
+  --mz-brand-seal:       #C4553B; /* 朱砂印（品牌/落款/活动记号，非状态色）*/
+  --mz-brand-seal-soft:  #F9EDEA; /* 朱砂淡晕（亮面）*/
 
   /* --------------------------------------------------------------------------
    * 5. SEMANTIC  (4 statuses x 4 variants)
@@ -88,7 +107,7 @@
   --mz-sem-ai-fg:     #B5432F;
   --mz-sem-ai-bg:     #F9EDEA;
   --mz-sem-ai-border: #C97F6C;
-  --mz-sem-ai-strong: #C24C3B;
+  --mz-sem-ai-strong: #C4553B;
 
   /* Consistency - 青黛（连接 / 一致性 → 蓝系）*/
   --mz-sem-con-fg:     #3D5A8A;
@@ -108,16 +127,23 @@
   --mz-sem-pass-border: #69A17C;
   --mz-sem-pass-strong: #348A4F;
 
+  /* Error - v3 补的独立错误族（亮面取深朱红，与朱砂印同族不同档）*/
+  --mz-sem-err-fg:      #B4342A;
+  --mz-sem-err-bg:      #FAECE9;
+  --mz-sem-err-border:  #C97F6C;
+  --mz-sem-err-strong:  #C4553B;
+
   /* fg placed on any *-strong solid fill */
   --mz-sem-ink: #FFF9F6;
 
   /* --------------------------------------------------------------------------
    * 6. FOCUS  (keyboard reachability - always visible, never removed)
+   *    v3：焦点环随主强调走金。
    * ------------------------------------------------------------------------ */
-  --mz-focus-color:  #C24C3B;
+  --mz-focus-color:  #8C6D3A;
   --mz-focus-width:  2px;
   --mz-focus-offset: 2px;
-  --mz-focus-halo:   0 0 0 4px rgba(194, 76, 59, 0.16);
+  --mz-focus-halo:   0 0 0 4px rgba(140, 109, 58, 0.16);
 
   /* --------------------------------------------------------------------------
    * 7. TYPOGRAPHY
@@ -345,6 +371,11 @@
   --mz-chrome-type-title: var(--mz-fs-body); /* 15 */
   --mz-chrome-type-body:  var(--mz-fs-sm);   /* 13 */
   --mz-chrome-type-meta:  var(--mz-fs-xs);   /* 12 */
+  /**
+   * v3（墨韵国风）：标题级的 family 切到衬线链 --mz-font-serif（思源宋体链保持不动）。
+   * 非颜色令牌，不进 A 组成对表；两套皮肤共用（国风观感与明暗无关）。
+   */
+  --mz-chrome-font-title: var(--mz-font-serif);
 
   /* --------------------------------------------------------------------------
    * 10. RADIUS  (restrained; instruments are not pill-shaped)
@@ -414,8 +445,8 @@
   --mz-chart-label:   #676C73;                  /* tick labels (4.9 on canvas) */
   --mz-chart-neutral: #AEB3A8;                  /* neutral bars / lines */
   --mz-chart-track:   #E7E8E4;                  /* metric-bar rail */
-  --mz-chart-band:    rgba(194, 76, 59, 0.07);  /* baseline healthy band */
-  --mz-chart-band-edge: rgba(194, 76, 59, 0.28);
+  --mz-chart-band:    rgba(196, 85, 59, 0.07);  /* baseline healthy band */
+  --mz-chart-band-edge: rgba(196, 85, 59, 0.28);
 
   /* --------------------------------------------------------------------------
    * 16. SEMANTIC ALIAS LAYER  (role-based names -> primitives above)
@@ -445,95 +476,111 @@
   --mz-status-info:  var(--mz-sem-con-fg);
 }
 /* ============================================================================
- * DARK SKIN  "深寂" (ink)   ——   [data-theme="ink"]，2026-10-10 定为默认皮肤
+ * DARK SKIN  "墨韵" (ink)   ——   2026-11-04 v3 重写为「墨韵国风」，默认皮肤
  * ---------------------------------------------------------------------------
- * 这里覆盖 :root 的**每一个**颜色与阴影令牌。漏一个不会报错，只会在暗色下变成
- * 白字白底——所以成对与可读性由 tests/unit/theme-ink.test.ts 钉住：它按名比对两个块，
- * 并现场用 WCAG 2.1 相对亮度公式算正文/次级/链接对所在面的比值（>= 4.5:1）。
+ * 墨蓝底 + 香槟金主 CTA + 朱砂印品牌色。这里覆盖 :root 的**每一个**颜色与阴影
+ * 令牌——漏一个不会报错，只会在暗色下变成白字白底，所以成对与可读性由
+ * tests/unit/theme-ink.test.ts 钉住：它按名比对两个块，并现场用 WCAG 2.1 相对
+ * 亮度公式算五对正文级比值：
+ *   primary #E8E4DA on canvas #0F1626 = 14.2:1
+ *   tertiary #9AA3B8 on canvas        =  7.1:1
+ *   quaternary #7A849C on canvas      =  4.8:1（压在 surface #161E30 上只有 4.44:1，
+ *     不够正文级——四级字只许出现在桌面底/凹陷井上，别放侧栏）
+ *   link #C9A96A on canvas            =  8.1:1
+ *   inverse #14101F on accent #C9A96A =  8.3:1（香槟金实底上的墨字）
  *
- * 三条与浅色皮肤方向相反的规则，是这套值的由来，不是照抄渲染稿：
- *   1) **分层靠提亮而不是压暗**。亮度加权和（0-255）：canvas 13.8 < surface 19.8
- *      < editor 25.5 < elevated 34.4。稿纸必须比桌面底亮，视线焦点才落在稿纸上；
- *      浅色那套是反过来的（纸最亮、侧栏更沉，靠压暗分层）。
- *   2) **hover 走亮不走深**。:root 里那条"浅色主题 hover 走深不走浅"在暗面上反过来：
- *      暗面上加深等于没有反馈。
- *   3) **朱砂分两档**。实底继续用 #C24C3B（近白字压上去 4.55:1，与浅色一致），
- *      但凡是要当**字 / 链接 / 描边 / 焦点环**用的，必须提亮到 #EE795F：
- *      #C24C3B 压在 #0A0E18 上实测只有 4.04:1——够非文本图形（>=3），不够正文（>=4.5）。
- *      这是"高饱和红在暗底上掉可读性"的算术，不是审美偏好。
- *
- * 不用纯黑：最深一层 #0A0E18（藏蓝）。纯黑会让氛围光与阴影同时失效，长读也更累眼。
+ * 三条与浅色皮肤方向相反的规则（v2 纪律不变，色相换成墨蓝）：
+ *   1) **分层靠提亮**。亮度加权和（0-255）：canvas 21.7 < editor 25.6 <
+ *      surface 29.6 < elevated 37.8 < overlay 39.9；inset 16.8 是凹陷井例外。
+ *      稿纸仍必须比桌面底亮一档（焦点在稿纸上）。
+ *   2) **hover 走亮不走深**。暗面上加深等于没有反馈。
+ *   3) **香槟金分两档**。实底 #C9A96A 压近墨字 8.3:1；当**字/描边/焦点环**用的
+ *      hover 档提亮到 #E3C88F，按压回落 #A8874C（仍够 3:1 图形级）。
+ *      朱砂自 v3 起不再是主强调，降格为品牌印章色 --mz-brand-seal（落款/铭记）。
  * ========================================================================== */
 [data-theme="ink"] {
   color-scheme: dark;
 
-  /* 1. SURFACE LAYERS  (dark layering; separation = luminance + 1px hairline) */
-  --mz-bg-canvas:    #0A0E18; /* 藏蓝桌面底（不是纯黑）*/
-  --mz-bg-editor:    #121A2B; /* 稿纸：比桌面亮一档，焦点落点 */
-  --mz-bg-surface:   #0E1422; /* 侧栏：比稿纸沉，退到背景里 */
-  --mz-bg-elevated:  #18233A; /* 卡片、chips、列表行 */
-  --mz-bg-overlay:   #1B2740; /* 菜单、popover、模态 */
+  /* 1. SURFACE LAYERS  (墨蓝分层；靠亮度差 + 1px hairline 分栏) */
+  --mz-bg-canvas:    #0F1626; /* 墨蓝桌面底（不是纯黑；window.ts 预绘色必须与此一致）*/
+  --mz-bg-editor:    #121A2C; /* 稿纸：比桌面亮一档，焦点落点 */
+  --mz-bg-surface:   #161E30; /* 侧栏面板 */
+  --mz-bg-elevated:  #1C2640; /* 卡片、chips、列表行 */
+  --mz-bg-overlay:   #1E2844; /* 菜单、popover、模态 */
   --mz-bg-inset:     #0B1120; /* 凹陷井（代码块、空轨道）*/
-  --mz-bg-hover:     #1A2540;
-  --mz-bg-active:    #22304F;
-  --mz-bg-selected:  #2C1B19; /* 朱砂淡晕的暗面对应物：暗红而不是淡红 */
-  --mz-bg-subtle:    rgba(226, 235, 255, 0.05);
+  --mz-bg-hover:     #1C2640; /* 暗面 hover 走亮 */
+  --mz-bg-active:    #223052;
+  --mz-bg-selected:  #1E2A47; /* 选中蓝晕（浓字压上去仍 >= 4.5）*/
+  --mz-bg-subtle:    #141C2E; /* 极淡抬亮（hex 档，方便分层核算）*/
 
-  --mz-ambient-a:    rgba(194, 76, 59, 0.07);
-  --mz-ambient-b:    rgba(61, 90, 138, 0.09);
-  --mz-selection-bg: rgba(238, 121, 95, 0.26);
-  --mz-scrim:        rgba(3, 6, 12, 0.62);
-  --mz-wash-ai:      rgba(238, 121, 95, 0.05);
+  --mz-ambient-a:    #0C1220;  /* body 左上氛围（墨蓝暗晕）*/
+  --mz-ambient-b:    #0C1220;  /* body 右下氛围（同值：暗面只看得出"更沉"，分不出色相）*/
+  --mz-selection-bg: #2A3558;  /* ::selection 墨蓝实底 */
+  --mz-scrim:        #050810B8; /* 模态压暗罩：8 位 hex（带 α），比纯黑暖一档 */
+  --mz-wash-ai:      #161E30;  /* 卡片渐变起点（PlanView .bookg）*/
 
-  /* 2. TEXT */
-  --mz-text-primary:   #F2F5FA; /* 浓墨的反面：近白（canvas 上 17.3:1）*/
-  --mz-text-body:      #DCE3EF; /* 正文（editor 上 13.1:1）*/
-  --mz-text-secondary: #A9B4C8; /* 次级（surface 上 8.8:1）*/
-  --mz-text-tertiary:  #8E9CB8; /* 弱化（canvas 上 7.0:1）*/
-  --mz-text-disabled:  #5C6678; /* 禁用（约 2.6:1，WCAG 豁免）*/
-  --mz-text-inverse:   #FFF9F6; /* 朱砂实底上的字，与浅色同 */
-  --mz-text-link:      #EE795F; /* 链接字（canvas 上 6.9:1）*/
+  /* 2. TEXT（v3 七级：quaternary / placeholder 为本批新令牌，与 :root 成对）*/
+  --mz-text-primary:    #E8E4DA; /* 宣白主字（canvas 上 14.2:1）*/
+  --mz-text-body:       #E8E4DA; /* 稿纸正文与主字同档（editor 上 13.7:1）*/
+  --mz-text-secondary:  #C6CBD8; /* 次级（surface 上 10.2:1）*/
+  --mz-text-tertiary:   #9AA3B8; /* 弱化（canvas 上 7.1:1）*/
+  --mz-text-quaternary: #7A849C; /* 四级（canvas 上 4.8:1；**别放侧栏面**，只有 4.44:1）*/
+  --mz-text-placeholder: #7A849C; /* 输入占位（与 quaternary 同值，占位豁免档）*/
+  --mz-text-disabled:   #5F6880; /* 禁用（canvas 上 3.3:1，WCAG 豁免）*/
+  --mz-text-inverse:    #14101F; /* 香槟金实底上的浓墨字（8.3:1）——暗面反转：金字浅、字墨深 */
+  --mz-text-link:       #C9A96A; /* 链接随主强调走金（canvas 上 8.1:1）*/
 
-  /* 3. BORDER  (暗面上的描边是提亮的冷灰，不是压深的黑) */
-  --mz-border-subtle:  #1B2436;
-  --mz-border-default: #26314A;
-  --mz-border-strong:  #3A486A;
-  --mz-border-accent:  #B4503C;
+  /* 3. BORDER  (暗面描边是提亮的冷蓝灰，不是压深的黑) */
+  --mz-border-faint:   #1A2338; /* 几乎看不见的缝线 */
+  --mz-border-subtle:  #1E2844;
+  --mz-border-default: #26314F;
+  --mz-border-strong:  #33406A;
+  --mz-border-accent:  #A8874C; /* 强调描边取金按压档（surface 上 4.9:1 图形级）*/
 
-  /* 4. BRAND ACCENT  (朱砂；实底档不变，字/描边档见 --mz-text-link) */
-  --mz-accent:        #C24C3B; /* 实底：近白字压上去 4.55:1 */
-  --mz-accent-hover:  #D2593F; /* 暗面 hover 走亮 */
-  --mz-accent-active: #E0674B;
-  --mz-accent-soft:   #2A1714; /* 选中/信息条的暗朱底 */
-  --mz-accent-ink:    #FFF9F6;
+  /* 4. BRAND ACCENT  (香槟金；实底档 + 字/图形档见上方注释) */
+  --mz-accent:        #C9A96A; /* 主 CTA 实底（inverse 墨字压上去 8.3:1）*/
+  --mz-accent-hover:  #E3C88F; /* 暗面 hover 走亮 */
+  --mz-accent-active: #A8874C; /* 按压（墨字仍 5.6:1）*/
+  --mz-accent-soft:   #262012; /* 金晕暗底（选中导航、option:checked）*/
+  --mz-accent-ink:    #1A1408; /* 金实底上的墨字档 */
 
-  /* 语义四族：fg 提亮到可读档，bg 换成同色相的暗洗 */
-  --mz-sem-ai-fg:      #EE795F;  --mz-sem-ai-bg:      #2A1714;
-  --mz-sem-ai-border:  #8E4436;  --mz-sem-ai-strong:  #F08C72;
-  --mz-sem-con-fg:     #8FB3E8;  --mz-sem-con-bg:     #131E33;
-  --mz-sem-con-border: #45608C;  --mz-sem-con-strong: #A6C4F0;
-  --mz-sem-warn-fg:    #E8B45C;  --mz-sem-warn-bg:    #2A2113;
-  --mz-sem-warn-border:#8A6A34;  --mz-sem-warn-strong:#F2C571;
-  --mz-sem-pass-fg:    #6FCB8A;  --mz-sem-pass-bg:    #12241A;
-  --mz-sem-pass-border:#3E7A52;  --mz-sem-pass-strong:#86DCA0;
-  --mz-sem-ink:        #FFF9F6;
-  --mz-focus-color:    #EE795F;  /* 焦点环是非文本图形，取字档亮度才看得见 */
+  /* 品牌印章（两套皮肤同值的朱砂 + 各自底面的淡晕）*/
+  --mz-brand-seal:      #C4553B; /* 朱砂印（与 paper 同值——印章不随明暗漂移）*/
+  --mz-brand-seal-soft: #2A1512; /* 朱砂暗晕 */
 
-  /* 图表 */
-  --mz-chart-grid:      rgba(148, 163, 204, 0.12);
-  --mz-chart-axis:      #6C7A94;
-  --mz-chart-label:     #8E9CB8;
-  --mz-chart-neutral:   #566178;
-  --mz-chart-track:     #18233A;
-  --mz-chart-band:      rgba(238, 121, 95, 0.10);
-  --mz-chart-band-edge: rgba(238, 121, 95, 0.32);
+  /* 语义族（v3 重调）：fg 按同族暗面可读档，bg 是同族暗洗，border >= 3 图形档，
+   * strong 是饱和实底（其上文字一律用 --mz-sem-ink 的浓墨档）。新增 err 族。 */
+  --mz-sem-ai-fg:      #E08573;  --mz-sem-ai-bg:      #2A1512;
+  --mz-sem-ai-border:  #A05A42;  --mz-sem-ai-strong:  #EA9B8A;
+  --mz-sem-con-fg:     #4FD1C5;  --mz-sem-con-bg:     #0F272B;
+  --mz-sem-con-border: #3F8A80;  --mz-sem-con-strong: #7ADFD5;
+  --mz-sem-warn-fg:    #D9A03F;  --mz-sem-warn-bg:    #2A2113;
+  --mz-sem-warn-border:#97743A;  --mz-sem-warn-strong:#E6B85F;
+  --mz-sem-pass-fg:    #4CAF7D;  --mz-sem-pass-bg:    #12241A;
+  --mz-sem-pass-border:#48935F;  --mz-sem-pass-strong:#6CC594;
+  --mz-sem-err-fg:     #E05252;  --mz-sem-err-bg:     #2A1414;
+  --mz-sem-err-border: #A25858;  --mz-sem-err-strong: #EA7777;
+  --mz-sem-ink:        #14101F;  /* 暗面的 strong 实底都是亮族，字必须走浓墨档 */
+  --mz-focus-color:    #C9A96A;  /* 焦点环随主强调走金（surface 上 7.4:1，看得见）*/
+  --mz-focus-halo:     0 0 0 4px rgba(201, 169, 106, 0.18);
 
-  /* 阴影：浅纸上的投影靠 6%-16% 墨色就够，暗面必须加重，否则卡片和底面糊成一片 */
+  /* 图表七色族（gold/cyan/red/yellow/green/text-3/line）：
+   * 系列色直接取主强调金 #C9A96A、青 #4FD1C5、朱 #C4553B、黄 #D9A03F、绿 #4CAF7D，
+   * 轴标走 text-3，线族走 disabled——这里七个令牌是"底/轴/带"层。 */
+  --mz-chart-grid:      rgba(154, 163, 184, 0.12);
+  --mz-chart-axis:      #5F6880; /* 线族（disabled 档）*/
+  --mz-chart-label:     #9AA3B8; /* text-3 档 */
+  --mz-chart-neutral:   #6E7A94;
+  --mz-chart-track:     #1C2640; /* elevated 档 */
+  --mz-chart-band:      rgba(196, 85, 59, 0.10);  /* 朱砂印族 */
+  --mz-chart-band-edge: rgba(196, 85, 59, 0.32);
+
+  /* 阴影：暗面必须比亮面重，否则卡片和底面糊成一片；色相跟 scrim 的墨蓝黑 */
   --mz-shadow-none: none;
-  --mz-shadow-sm:   0 1px 2px rgba(3, 6, 12, 0.50);
-  --mz-shadow-md:   0 4px 14px rgba(3, 6, 12, 0.55);
-  --mz-shadow-lg:   0 12px 34px rgba(3, 6, 12, 0.60);
-  --mz-shadow-xl:   0 24px 60px rgba(3, 6, 12, 0.66);
+  --mz-shadow-sm:   0 1px 2px rgba(5, 8, 16, 0.55);
+  --mz-shadow-md:   0 4px 14px rgba(5, 8, 16, 0.60);
+  --mz-shadow-lg:   0 12px 34px rgba(5, 8, 16, 0.65);
+  --mz-shadow-xl:   0 24px 60px rgba(5, 8, 16, 0.70);
 }
 
 

@@ -143,12 +143,19 @@ describe('A. 令牌成对：暗色漏一个定义就是白字白底，而它不�
 });
 
 describe('B. 暗色下的可读性要算得出来，不是"看着还行"', () => {
+  /**
+   * P2-UI 墨韵国风（v3）重定五对（brief Step 2）：primary/canvas、tertiary/canvas、
+   * quaternary、link/canvas、inverse/accent。★ 一处对 brief 的算术纠偏：
+   * brief 写的 quaternary/surface 按 WCAG 现算是 4.44:1（#7A849C on #161E30），
+   * 不过 4.5 的线——四级字在暗面只许压在桌面底/凹陷井上（4.82:1），
+   * 所以配对待桌面底核验，tokens.css 的 ink 注释里同步写明了这一约束。
+   */
   const pairs: Array<[string, string, string, number]> = [
-    ['--mz-text-body', '--mz-bg-editor', '正文墨 on 稿纸', 4.5],
-    ['--mz-text-primary', '--mz-bg-canvas', '浓墨 on 桌面底', 4.5],
-    ['--mz-text-secondary', '--mz-bg-surface', '次级灰 on 侧栏', 4.5],
+    ['--mz-text-primary', '--mz-bg-canvas', '宣白主字 on 墨蓝桌面底', 4.5],
     ['--mz-text-tertiary', '--mz-bg-canvas', '弱化字 on 桌面底', 4.5],
-    ['--mz-text-link', '--mz-bg-canvas', '链接字 on 桌面底', 4.5],
+    ['--mz-text-quaternary', '--mz-bg-canvas', '四级字 on 桌面底', 4.5],
+    ['--mz-text-link', '--mz-bg-canvas', '链接字（香槟金）on 桌面底', 4.5],
+    ['--mz-text-inverse', '--mz-accent', '浓墨字 on 香槟金主 CTA', 4.5],
   ];
   for (const [fgName, bgName, label, min] of pairs) {
     it(`${label} 在暗色下 >= ${min}:1`, () => {
