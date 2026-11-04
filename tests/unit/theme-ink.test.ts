@@ -1,5 +1,5 @@
 /**
- * §UI ① 深寂（ink）皮肤 —— 令牌成对 + 零裸色 + 装配真的接上。
+ * §UI ① 墨韵（ink）皮肤 —— 令牌成对 + 零裸色 + 装配真的接上。
  *
  * ★ 为什么这条要写成门禁而不是"改完看一眼"：
  *   本项目最擅长的一类失效是**静默**——第 22 条②实测过「CSS 取不到自定义属性时也不报错」，
@@ -149,9 +149,13 @@ describe('B. 暗色下的可读性要算得出来，不是"看着还行"', () =>
    * brief 写的 quaternary/surface 按 WCAG 现算是 4.44:1（#7A849C on #161E30），
    * 不过 4.5 的线——四级字在暗面只许压在桌面底/凹陷井上（4.82:1），
    * 所以配对待桌面底核验，tokens.css 的 ink 注释里同步写明了这一约束。
+   * ★ R35⑤：T1 评审补回第 6 对 body/editor（正文墨 #E8E4DA 压在稿纸 #121A2C 上
+   *   现算 13.67:1）——这一对是全文读时长眼主力，v2 门禁里本来有，v3 重定五对时
+   *   被顺手删了，属覆盖回退，不是"没必要"。
    */
   const pairs: Array<[string, string, string, number]> = [
     ['--mz-text-primary', '--mz-bg-canvas', '宣白主字 on 墨蓝桌面底', 4.5],
+    ['--mz-text-body', '--mz-bg-editor', '正文墨 on 稿纸', 4.5],
     ['--mz-text-tertiary', '--mz-bg-canvas', '弱化字 on 桌面底', 4.5],
     ['--mz-text-quaternary', '--mz-bg-canvas', '四级字 on 桌面底', 4.5],
     ['--mz-text-link', '--mz-bg-canvas', '链接字（香槟金）on 桌面底', 4.5],
@@ -226,7 +230,7 @@ describe('C. 零裸色值：一旦组件里能硬写颜色，双皮肤就永远�
 });
 
 describe('D. 装配：令牌块没人设置就是又一个空壳', () => {
-  it('默认皮肤是深寂', () => {
+  it('默认皮肤是墨韵', () => {
     expect<Theme>(DEFAULT_THEME).toBe('ink');
   });
 

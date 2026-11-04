@@ -16,21 +16,23 @@
  *   - 主强调从朱砂红换为香槟金 #C9A96A（ink 实底），朱砂降格为**品牌印章色**
  *     --mz-brand-seal #C4553B（两套皮肤同值，纸面沿用 #C4553B）。
  *   - 文字升为七级：新补 --mz-text-quaternary / --mz-text-placeholder 两级
- *     （ink 同为 #7A849C；:root 浅色配对 #82868D）。
+ *     （ink 同为 #7A849C；:root 浅色配对 #6E7278 —— R35① 加深，旧 #82868D
+ *     在 canvas 上只有 3.40:1 不过 AA，新值 4.50:1）。
  *   - 边框四级：新补 --mz-border-faint（ink #1A2338 / paper #EAECE7）。
  *   - 语义族重调：ai=朱砂族、con=青族、warn/pass 同族暗洗，并新增 err 族
  *     （ink fg #E05252 / paper fg #B4342A）。
  *   - 焦点环随主强调走金色。
  *   实测对比度（ink，由 tests/unit/theme-ink.test.ts 现场用 WCAG 2.1 公式复核）：
- *   primary/canvas 14.2 · tertiary/canvas 7.1 · quaternary/canvas 4.8 ·
- *   link/canvas 8.1 · inverse/accent 8.3 —— 五对正文级全部 >= 4.5:1。
+ *   primary/canvas 14.2 · body/editor 13.7 · tertiary/canvas 7.1 ·
+ *   quaternary/canvas 4.8 · link/canvas 8.1 · inverse/accent 8.3 ——
+ *   六对正文级全部 >= 4.5:1（R35⑤：body/editor 一对为 T1 评审补回的覆盖）。
  *   paper 侧金色深档 #8C6D3A（亮面上主强调走深不走浅，v2 纪律不变）。
  * ========================================================================== */
 
 :root {
   /* 皮肤之外还有一层"皮肤管不到的原生像素"：下拉弹出层、滚动条、自动填充、
    * 日期控件、校验气泡都由操作系统按 color-scheme 画。不声明就一直按浅色画，
-   * 于是深寂里展开的下拉会浮一条系统蓝（§UI ② 截图抓到）。 */
+   * 于是墨韵里展开的下拉会浮一条系统蓝（§UI ② 截图抓到）。 */
   color-scheme: light;
 
   /* --------------------------------------------------------------------------
@@ -66,8 +68,8 @@
   --mz-text-body:      #2A2D30; /* 正文墨（editor 上 13.5:1）editor body */
   --mz-text-secondary: #5C6066; /* 灰墨次（canvas 上 5.9:1）captions, metadata, labels */
   --mz-text-tertiary:  #676C73; /* 弱化（canvas 上 4.9:1）hints, axis labels, timestamps */
-  --mz-text-quaternary: #82868D; /* 四级弱化（v3 补位，比 tertiary 更退一档；亮面取暖灰）*/
-  --mz-text-placeholder: #82868D; /* 输入占位（v3 补位，与 quaternary 同值，WCAG 占位豁免档）*/
+  --mz-text-quaternary: #6E7278; /* 四级弱化（canvas 上 4.50:1，R35① 加深自 #82868D 的 3.40:1；只许压 canvas 桌面底——paper 的 inset 比 canvas 暗，压井上只剩 3.93，surface 4.23 也不过）*/
+  --mz-text-placeholder: #6E7278; /* 输入占位（与 quaternary 同值；R35①：WCAG 1.4.3 的豁免不含空 placeholder，占位字也必须过 AA，旧注释的"占位豁免档"是错的，已删）*/
   --mz-text-disabled:  #A7ACB2; /* 禁用（约 2.2:1，WCAG 豁免）*/
   --mz-text-inverse:   #FFF9F6; /* 香槟金深档实底上的近白字（4.6:1）*/
   --mz-text-link:      #755A2E; /* 金墨链接（canvas 上 6.0:1，取深档保正文级可读）*/
@@ -106,7 +108,7 @@
   /* AI-trace  - 朱批：AI 痕迹即编辑的朱笔圈点（与主强调同源）*/
   --mz-sem-ai-fg:     #B5432F;
   --mz-sem-ai-bg:     #F9EDEA;
-  --mz-sem-ai-border: #C97F6C;
+  --mz-sem-ai-border: #B0483A; /* R35② 同值同批：旧 #C97F6C 对 canvas 仅 2.90:1，违本节"border >=3 vs canvas"契约；新值 5.10:1 */
   --mz-sem-ai-strong: #C4553B;
 
   /* Consistency - 青黛（连接 / 一致性 → 蓝系）*/
@@ -130,7 +132,7 @@
   /* Error - v3 补的独立错误族（亮面取深朱红，与朱砂印同族不同档）*/
   --mz-sem-err-fg:      #B4342A;
   --mz-sem-err-bg:      #FAECE9;
-  --mz-sem-err-border:  #C97F6C;
+  --mz-sem-err-border:  #B0483A; /* R35②：旧 #C97F6C 对 canvas 仅 2.90:1（<3 违本节契约）；加深后 5.10:1 */
   --mz-sem-err-strong:  #C4553B;
 
   /* fg placed on any *-strong solid fill */
@@ -481,11 +483,12 @@
  * 墨蓝底 + 香槟金主 CTA + 朱砂印品牌色。这里覆盖 :root 的**每一个**颜色与阴影
  * 令牌——漏一个不会报错，只会在暗色下变成白字白底，所以成对与可读性由
  * tests/unit/theme-ink.test.ts 钉住：它按名比对两个块，并现场用 WCAG 2.1 相对
- * 亮度公式算五对正文级比值：
+ * 亮度公式算六对正文级比值：
  *   primary #E8E4DA on canvas #0F1626 = 14.2:1
+ *   body    #E8E4DA on editor #121A2C = 13.7:1（R35⑤ 补回的一对）
  *   tertiary #9AA3B8 on canvas        =  7.1:1
  *   quaternary #7A849C on canvas      =  4.8:1（压在 surface #161E30 上只有 4.44:1，
- *     不够正文级——四级字只许出现在桌面底/凹陷井上，别放侧栏）
+ *     不够正文级——四级字只许出现在桌面底/凹陷井上，别放侧栏/卡片/选中面）
  *   link #C9A96A on canvas            =  8.1:1
  *   inverse #14101F on accent #C9A96A =  8.3:1（香槟金实底上的墨字）
  *
@@ -517,15 +520,15 @@
   --mz-ambient-b:    #0C1220;  /* body 右下氛围（同值：暗面只看得出"更沉"，分不出色相）*/
   --mz-selection-bg: #2A3558;  /* ::selection 墨蓝实底 */
   --mz-scrim:        #050810B8; /* 模态压暗罩：8 位 hex（带 α），比纯黑暖一档 */
-  --mz-wash-ai:      #161E30;  /* 卡片渐变起点（PlanView .bookg）*/
+  --mz-wash-ai:      #2A1512;  /* 卡片渐变起点（PlanView .bookg）；R35④：旧值与 bg-surface 同值把渐变熨平了，改取朱砂暗晕档（= --mz-brand-seal-soft）保留淡洗意图 */
 
   /* 2. TEXT（v3 七级：quaternary / placeholder 为本批新令牌，与 :root 成对）*/
   --mz-text-primary:    #E8E4DA; /* 宣白主字（canvas 上 14.2:1）*/
   --mz-text-body:       #E8E4DA; /* 稿纸正文与主字同档（editor 上 13.7:1）*/
   --mz-text-secondary:  #C6CBD8; /* 次级（surface 上 10.2:1）*/
   --mz-text-tertiary:   #9AA3B8; /* 弱化（canvas 上 7.1:1）*/
-  --mz-text-quaternary: #7A849C; /* 四级（canvas 上 4.8:1；**别放侧栏面**，只有 4.44:1）*/
-  --mz-text-placeholder: #7A849C; /* 输入占位（与 quaternary 同值，占位豁免档）*/
+  --mz-text-quaternary: #7A849C; /* 四级（canvas 4.8:1 / inset 5.0:1；R35⑥ 扩列：**禁用于 surface/elevated/selected/active 面**——实测 4.44/4.00/3.80/3.48:1 全不过，只许压 canvas/inset 底）*/
+  --mz-text-placeholder: #7A849C; /* 输入占位（与 quaternary 同值；R35①：WCAG 豁免不含空 placeholder，与四级字同纪律只压 canvas/inset）*/
   --mz-text-disabled:   #5F6880; /* 禁用（canvas 上 3.3:1，WCAG 豁免）*/
   --mz-text-inverse:    #14101F; /* 香槟金实底上的浓墨字（8.3:1）——暗面反转：金字浅、字墨深 */
   --mz-text-link:       #C9A96A; /* 链接随主强调走金（canvas 上 8.1:1）*/

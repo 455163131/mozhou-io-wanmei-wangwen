@@ -1,9 +1,9 @@
 /**
  * §UI ②：表单控件的三态，以及"皮肤管不到的原生像素"。
  *
- * ★ 五条实测到的修复前事实（2026-10-10，深寂皮肤，真机截图 + 源码点数）：
+ * ★ 五条实测到的修复前事实（2026-10-10，墨韵皮肤——当时显示名还叫「深寂」，真机截图 + 源码点数）：
  *   1. **下拉展开后，选中项是一整条系统蓝**（约 #2A6FDB）——它是全应用唯一一处蓝，
- *      不来自任何 token，深寂的暖朱配色到这里断了一截。根子：全仓 `grep -rn color-scheme
+ *      不来自任何 token，那版皮肤（深寂，v2 暖朱配色）到这里断了一截。根子：全仓 `grep -rn color-scheme
  *      src/renderer` **零命中**，弹出层按浅色系统主题画；而 `option:checked` 一条规则都没有。
  *   2. **聚焦输入框出现两圈**：`global.css:58` 的 `:focus-visible { outline: 2px 朱砂 }`
  *      与 `global.css:87` 的 `input:focus { border-color: var(--mz-accent) }` 叠在一起，
@@ -22,7 +22,7 @@
  *      中文里没有这个词，应是「立即生效」。
  *
  * ★ 一条刻意**不做**的事：不给 `select` 写 `appearance: none` + 自绘箭头。
- *   截图里原生箭头在深寂下是清晰可读的，关掉它就得自己画一个（多一条 data-URI 背景图），
+ *   截图里原生箭头在墨韵（当时叫深寂）下是清晰可读的，关掉它就得自己画一个（多一条 data-URI 背景图），
  *   收益看不出来。B 组因此是一条**反向**钉：谁哪天把 `appearance: none` 加上而没画箭头，
  *   下拉框就变成一个看不出能点的文本框——那条测试会红。
  */
@@ -108,7 +108,7 @@ describe('A. 皮肤必须告诉操作系统自己是明是暗', () => {
 
   it('[data-theme="ink"] 声明 color-scheme: dark', () => {
     const body = ruleBody(tokensCss, '[data-theme="ink"]');
-    expect(body, 'tokens.css 没有深寂块').not.toBeNull();
+    expect(body, 'tokens.css 没有墨韵块').not.toBeNull();
     expect(body as string).toMatch(/color-scheme:\s*dark/);
   });
 

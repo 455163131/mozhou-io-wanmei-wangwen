@@ -1,0 +1,110 @@
+/* ============================================================
+ * 管线条（P2-UI T2 · DRD §4.1）——八节点流水线状态条。
+ *
+ * 观感目标：一条**安静的进度轨**，不抢正文。所以：
+ *   - 高度收在一条 chrome 带（30px，与顶栏/底栏同族但更矮一档）；
+ *   - 零边框线——§UI ·R2「全应用只有一条线」的纪律不因新组件破例，
+ *     分层靠 --mz-bg-surface 与相邻 editor/canvas 的亮度差；
+ *   - 颜色全部走令牌（theme-ink C 组零裸色门禁 + 四级字禁令：
+ *     pending 字用 tertiary 而不是 quaternary——这条带压在 surface 上）。
+ * ============================================================ */
+
+.bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-3);
+  height: 30px;
+  padding: 0 var(--mz-space-3);
+  background: var(--mz-bg-surface);
+}
+
+.track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+/*
+ * 一个节点 = 圆点 + 标签，竖排；节点等宽摊满轨道，连接线用 ::before
+ * 从上一颗圆心画到本颗圆心（首节点不画）。
+ */
+.node {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mz-space-1);
+  padding-top: var(--mz-space-1);
+}
+
+.node + .node::before {
+  content: '';
+  position: absolute;
+  top: 8px; /* 圆点半径中点（dot 8px + padding 4px 的一半）——几何值，非刻度 */
+  left: calc(-50% + 4px);
+  right: calc(50% + 4px);
+  height: 2px;
+  background: var(--mz-border-default);
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--mz-radius-full);
+  border: 2px solid var(--mz-border-strong);
+  background: transparent;
+}
+
+.nodeLabel {
+  font-size: var(--mz-chrome-type-meta);
+  color: var(--mz-text-tertiary);
+  white-space: nowrap;
+}
+
+/* ---- 三态：done（走过）/ current（在这）/ pending（没到） ---- */
+.nodeDone .dot {
+  border-color: var(--mz-accent);
+  background: var(--mz-accent);
+}
+.nodeDone + .nodeDone::before,
+.nodeDone + .nodeCurrent::before {
+  background: var(--mz-accent);
+}
+.nodeDone .nodeLabel {
+  color: var(--mz-text-secondary);
+}
+
+.nodeCurrent .dot {
+  border-color: var(--mz-accent);
+  background: var(--mz-accent-soft);
+}
+.nodeCurrent .nodeLabel {
+  color: var(--mz-text-primary);
+  font-weight: var(--mz-fw-semibold);
+}
+
+.nodePending .dot {
+  /* 空井：还没到的节点画成凹陷的井口（inset 底 + strong 描边），
+   * 不用 quaternary 字色——四级字禁压 surface 面（tokens.css R35⑥）。 */
+  border-color: var(--mz-border-strong);
+  background: var(--mz-bg-inset);
+}
+.nodePending .nodeLabel {
+  color: var(--mz-text-tertiary);
+}
+
+/* 右端一句话：当前在哪一档（比八个小圆点更快读） */
+.stageNow {
+  flex: none;
+  font-size: var(--mz-chrome-type-meta);
+  color: var(--mz-text-secondary);
+  letter-spacing: var(--mz-tracking-cjk);
+  white-space: nowrap;
+}

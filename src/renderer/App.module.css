@@ -117,8 +117,56 @@
 .railModes {
   display: flex;
   flex-direction: column;
-  gap: var(--mz-space-1);
+  /* ★ P2-UI T2：这一列现在装的是 4 个组（13 条目 + 4 条组标签），
+   *   组间距走这里的 gap，组内距走 .railGroup 自己的 gap。 */
+  gap: var(--mz-space-2);
   flex: 1;
+  /* 窗口矮时（四组 IA 后内容变高）导航自身滚动，不许把 railFoot 顶出屏幕 */
+  overflow-y: auto;
+}
+
+/* ---- ★ P2-UI T2（DRD §4.1）：四组 IA 的组标签与「设计中」占位 ---- */
+.railGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+}
+/*
+ * 组标签是「面」不是「线」：四组的分隔靠一行 12px 的弱化字 + 组间 8px 留白，
+ * 不画分隔线（§UI ·R2 的「全应用只有一条线」纪律不因加组而破例）。
+ * 色用 text-tertiary 而不是 quaternary——rail 底是 surface，
+ * 四级字压在侧栏面上不过 AA（tokens.css R35⑥ 的禁令就是这个形状）。
+ */
+.railGroupLabel {
+  padding: var(--mz-space-1) var(--mz-space-2h) 0;
+  font-size: var(--mz-chrome-type-meta);
+  color: var(--mz-text-tertiary);
+  letter-spacing: var(--mz-tracking-wide);
+  white-space: nowrap;
+}
+.railSoon {
+  cursor: not-allowed;
+}
+/*
+ * soon 项的「设计中」tag：无边框底色的空心 chip——它是路标不是状态。
+ * 颜色同样避开 quaternary（surface 上的纪律见上）。
+ */
+.soonTag {
+  flex: none;
+  padding: 0 var(--mz-space-1);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-xs);
+  color: var(--mz-text-tertiary);
+  font-size: var(--mz-fs-2xs);
+  white-space: nowrap;
+}
+/*
+ * 收起形态（JS 收起态与紧凑档 CSS 强制收起态两套都要盖到）：组标签和 tag
+ * 跟着 railLabel 一起消失——56px 一列装不下任何字。
+ */
+.railCollapsed .railGroupLabel,
+.railCollapsed .soonTag {
+  display: none;
 }
 
 /**
@@ -750,6 +798,13 @@
     padding: var(--mz-space-2) 0;
   }
   .railLabel {
+    display: none;
+  }
+  /* ★ P2-UI T2：紧凑档=物理收起态，组标签与 soon tag 一起让位（与 .railLabel 同纪律） */
+  .railGroupLabel {
+    display: none;
+  }
+  .soonTag {
     display: none;
   }
   .mark {

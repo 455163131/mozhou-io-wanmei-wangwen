@@ -15,7 +15,7 @@ import type { LlmStatus } from '@shared/types/provider';
 import styles from './SettingsModal.module.css';
 
 const THEMES: Array<{ id: Theme; name: string }> = [
-  { id: 'ink', name: '深寂' },
+  { id: 'ink', name: '墨韵' },
   { id: 'paper', name: '素笺' },
 ];
 
@@ -144,7 +144,7 @@ export function SettingsModal({ status, onClose, onSaved }: Props): JSX.Element 
               </button>
             ))}
           </div>
-          <span className={styles.themeHint}>深寂给夜里日更，素笺是纸面原样。立即生效，重启后还在。</span>
+          <span className={styles.themeHint}>墨韵给夜里日更，素笺是纸面原样。立即生效，重启后还在。</span>
         </div>
 
         {!configured && (

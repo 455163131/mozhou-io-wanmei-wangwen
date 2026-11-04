@@ -219,7 +219,7 @@
   font-size: var(--mz-fs-sm);
   color: var(--mz-text-secondary);
   /* ★ 实测（截图）：不给 nowrap + flex:none，两个 CJK 字会被挤成竖排两行，
-   *   段控件里的「深寂」「素笺」同样上下堆叠——整行看起来像坏了。 */
+   *   段控件里的「墨韵」「素笺」同样上下堆叠——整行看起来像坏了。 */
   white-space: nowrap;
   flex: none;
 }

@@ -35,6 +35,7 @@ import { ExpertPanel } from './components/expert/ExpertPanel';
 import { FlavorPanel } from './components/flavor/FlavorPanel';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { CommandPalette } from './components/common/CommandPalette';
+import { PipelineBar } from './components/common/PipelineBar';
 import { PlanView } from './components/views/PlanView';
 import { LoreView } from './components/views/LoreView';
 import { ReviewView } from './components/views/ReviewView';
@@ -47,15 +48,78 @@ import styles from './App.module.css';
 type Mode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen';
 type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
 
-/** 模式导航（icon path 与品牌定稿的 SVG sprite 同源） */
-const MODES: { id: Mode; label: string; d: string }[] = [
-  { id: 'write', label: '写作', d: 'M4 20l1-4L16.5 4.5a2.1 2.1 0 013 3L8 19l-4 1z' },
-  { id: 'plan', label: '规划', d: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z' },
-  { id: 'lore', label: '设定', d: 'M4 19.5A2.5 2.5 0 016.5 17H20V4H6.5A2.5 2.5 0 004 6.5v13z' },
-  { id: 'review', label: '审稿', d: 'M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z' },
-  { id: 'dash', label: '仪表盘', d: 'M4 14a8 8 0 0116 0' },
-  // ★ T6：生成模式（P0 生成流水线的 UI 入口）。图标 = 简易闪电。
-  { id: 'gen', label: '生成', d: 'M13 2L5 13.5h5.5L9.5 22 19 10.5h-5.5L13 2z' },
+/**
+ * ★ P2-UI T2（DRD §4.1）：左导航从「六个并列按钮」重排为**四组 IA**。
+ *
+ *   创作=[写作坊 / 大纲管理 / 生成·导演台]   —— 产出正文的三个入口
+ *   资产=[世界观设定 / 人物记忆·设计中 / 伏笔台账·设计中 / 长期记忆·设计中]
+ *   灵感=[扫榜热榜 / 抽脑洞 / 拆书报告 / 选题库]（全部设计中）
+ *   输出=[统计账本 / 导出中心·设计中]
+ *
+ * 两类条目（判别联合，kind 是唯一分派点）：
+ *   - `mode`：可达的真页面，`id` 就是 Mode（B 组纪律：渲染里保留
+ *     `${styles.railBtn} ${mode === m.id ? styles.railOn : ''}` 与
+ *     `title={railCollapsed ? m.label : undefined}` 的逐字形态，回调参数名必须是 m）；
+ *   - `soon`：**disabled 占位按钮 + .soonTag「设计中」**。它是路标不是入口——
+ *     没有可执行动作，所以不进命令面板（shell-r1 A 组钉死），也不进 onRun 分派。
+ *
+ * 「审稿」不在四组导航里（R32 Phase-1 纪律），但 `mode:review` 保留在命令面板——
+ * 那是它的可达路径，A 组 palette↔onRun 双向清单不含 soon 项、含 review。
+ */
+type NavItem =
+  | { kind: 'mode'; id: Mode; label: string; d: string }
+  | { kind: 'soon'; id: string; label: string; d: string };
+
+/** 模式显示名（面包屑用）。与 NAV_GROUPS 的 label 同步，另含导航外的 review。 */
+const MODE_LABELS: Record<Mode, string> = {
+  write: '写作坊',
+  plan: '大纲管理',
+  lore: '世界观设定',
+  review: '审稿',
+  dash: '统计账本',
+  gen: '生成·导演台',
+};
+
+/** 导航条目（icon path 与品牌定稿的 SVG sprite 同源） */
+const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
+  {
+    id: 'create',
+    label: '创作',
+    items: [
+      { kind: 'mode', id: 'write', label: MODE_LABELS.write, d: 'M4 20l1-4L16.5 4.5a2.1 2.1 0 013 3L8 19l-4 1z' },
+      { kind: 'mode', id: 'plan', label: MODE_LABELS.plan, d: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z' },
+      // ★ T6：生成模式（P0 生成流水线的 UI 入口）。图标 = 简易闪电。
+      { kind: 'mode', id: 'gen', label: MODE_LABELS.gen, d: 'M13 2L5 13.5h5.5L9.5 22 19 10.5h-5.5L13 2z' },
+    ],
+  },
+  {
+    id: 'asset',
+    label: '资产',
+    items: [
+      { kind: 'mode', id: 'lore', label: MODE_LABELS.lore, d: 'M4 19.5A2.5 2.5 0 016.5 17H20V4H6.5A2.5 2.5 0 004 6.5v13z' },
+      { kind: 'soon', id: 'soon-memory', label: '人物记忆', d: 'M12 12a4 4 0 100-8 4 4 0 000 8M5 20a7 7 0 0114 0' },
+      { kind: 'soon', id: 'soon-foreshadow', label: '伏笔台账', d: 'M6 4h12v16l-6-4-6 4V4z' },
+      { kind: 'soon', id: 'soon-longterm', label: '长期记忆', d: 'M12 4l2.3 4.7 5.2.7-3.8 3.7.9 5.2-4.6-2.5-4.6 2.5.9-5.2L5.5 9.4l5.2-.7L12 4z' },
+    ],
+  },
+  {
+    id: 'inspire',
+    label: '灵感',
+    items: [
+      { kind: 'soon', id: 'soon-trends', label: '扫榜热榜', d: 'M5 20V10M12 20V4M19 20v-7' },
+      { kind: 'soon', id: 'soon-brainstorm', label: '抽脑洞', d: 'M9 18h6M10 21h4M12 3a6 6 0 00-4 10.5c.8.8 1.5 1.9 1.5 3H14.5c0-1.1.7-2.2 1.5-3A6 6 0 0012 3z' },
+      { kind: 'soon', id: 'soon-teardown', label: '拆书报告', d: 'M12 4v16M5 6a2 2 0 012-2h3v18H7a2 2 0 00-2 2V6m14 0a2 2 0 00-2-2h-3v18h3a2 2 0 012 2V6' },
+      { kind: 'soon', id: 'soon-topics', label: '选题库', d: 'M4 6h16M4 12h16M4 18h10' },
+    ],
+  },
+  {
+    id: 'output',
+    label: '输出',
+    items: [
+      { kind: 'mode', id: 'dash', label: MODE_LABELS.dash, d: 'M4 14a8 8 0 0116 0' },
+      { kind: 'soon', id: 'soon-export', label: '导出中心', d: 'M12 3v10m0 0l-3-3m3 3l3-3M5 19h14' },
+    ],
+  },
 ];
 
 const RAIL_TABS: { id: RailTab; label: string }[] = [
@@ -307,7 +371,7 @@ export function App(): JSX.Element {
   const modelLabel = llmStatus?.configured
     ? (llmStatus.settings?.model || llmStatus.uiState.kind)
     : '模型未配置';
-  const modeLabel = MODES.find((m) => m.id === mode)?.label ?? '';
+  const modeLabel = MODE_LABELS[mode];
   const current = chapters.find((c) => c.id === currentChapterId);
 
   /**
@@ -329,17 +393,35 @@ export function App(): JSX.Element {
       <nav className={styles.rail} aria-label="模式导航">
         <div className={styles.mark} title={APP_BRAND_NAME}><Mark /></div>
         <div className={styles.railModes}>
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              className={`${styles.railBtn} ${mode === m.id ? styles.railOn : ''}`}
-              onClick={() => setMode(m.id)}
-              aria-current={mode === m.id ? 'page' : undefined}
-              title={railCollapsed ? m.label : undefined}
-            >
-              <svg className={styles.railIco} viewBox="0 0 24 24"><path d={m.d} /></svg>
-              <span className={styles.railLabel}>{m.label}</span>
-            </button>
+          {NAV_GROUPS.map((g) => (
+            <div key={g.id} className={styles.railGroup}>
+              <div className={styles.railGroupLabel}>{g.label}</div>
+              {g.items.map((m) =>
+                m.kind === 'soon' ? (
+                  <button
+                    key={m.id}
+                    className={`${styles.railBtn} ${styles.railSoon}`}
+                    disabled
+                    title={`${m.label}（设计中）`}
+                  >
+                    <svg className={styles.railIco} viewBox="0 0 24 24"><path d={m.d} /></svg>
+                    <span className={styles.railLabel}>{m.label}</span>
+                    <span className={styles.soonTag}>设计中</span>
+                  </button>
+                ) : (
+                  <button
+                    key={m.id}
+                    className={`${styles.railBtn} ${mode === m.id ? styles.railOn : ''}`}
+                    onClick={() => setMode(m.id)}
+                    aria-current={mode === m.id ? 'page' : undefined}
+                    title={railCollapsed ? m.label : undefined}
+                  >
+                    <svg className={styles.railIco} viewBox="0 0 24 24"><path d={m.d} /></svg>
+                    <span className={styles.railLabel}>{m.label}</span>
+                  </button>
+                ),
+              )}
+            </div>
           ))}
         </div>
         <div className={styles.railFoot}>
@@ -422,6 +504,10 @@ export function App(): JSX.Element {
             <span className={styles.dismiss}>（点击关闭）</span>
           </div>
         )}
+
+        {/* ★ P2-UI T2（DRD §4.1）：八节点管线条，挂在 write/gen 模式工作区（.body）
+            顶部；专注模式连它一起收掉，其余模式（plan/lore/review/dash）不挂。 */}
+        {(mode === 'write' || mode === 'gen') && !focusMode && <PipelineBar />}
 
         <div className={styles.body}>
           {mode === 'write' ? (

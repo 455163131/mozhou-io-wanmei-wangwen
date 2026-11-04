@@ -121,6 +121,57 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
     expect(ghost, `onRun 里有清单外的分支：${ghost.join(', ')}`).toEqual([]);
   });
 
+  /**
+   * ★ P2-UI T2：id 集不再只靠「两张镜子对看」（palette↔onRun 自洽可以是两份
+   * 一起丢命令），这里逐字钉死 T2 定稿的 13 条：mode:* 六条保留（review 不在
+   * 四组导航里，但面板是它的可达路径）、soon 占位项**不进面板**（导航里只是
+   * disabled 的「设计中」按钮，点了没有动作，面板里就不许有它）。
+   */
+  it('★ T2 钉死清单：面板与分派逐字等于 id 集；soon 项不进面板', () => {
+    const EXPECTED = [
+      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen',
+      'panel:tree', 'panel:rail', 'panel:status',
+      'view:focus', 'view:rail-width',
+      'app:open', 'app:settings',
+    ].sort();
+    expect([...paletteIds()].sort(), '面板清单漂出了 T2 钉死集').toEqual(EXPECTED);
+    expect([...new Set(handledIds())].sort(), 'onRun 分派漂出了 T2 钉死集').toEqual(EXPECTED);
+    // 注释里会「提到」soon（口径说明），所以这条剥注释只看代码：面板代码里不许有 soon 项
+    expect(strip(paletteTsx), 'soon 占位项混进了命令面板（它没有可执行动作）').not.toMatch(/soon|设计中/);
+  });
+
+  it('★ T2 左导航四组 IA：NAV_GROUPS 分组渲染 + soon 项 disabled+「设计中」tag', () => {
+    expect(appTsx, '导航还是拉平的 MODES 清单').not.toMatch(/const MODES\b/);
+    expect(appTsx, '没有定义 NAV_GROUPS').toMatch(/const NAV_GROUPS\b/);
+    for (const g of ['创作', '资产', '灵感', '输出'])
+      expect(appTsx, `四组 IA 缺「${g}」组`).toContain(`label: '${g}'`);
+    expect(appTsx, 'soon 项没渲染成 disabled 按钮').toMatch(/kind === 'soon'[\s\S]{0,160}disabled/);
+    expect(appTsx, 'soon 项没有「设计中」tag').toMatch(/styles\.soonTag\}>设计中</);
+    // 两形态纪律锚（B 组的 title= / railLabel 断言依赖这套类名与回调参数名）
+    expect(appTsx, 'railBtn/railOn 选中态拼接纪律丢了').toMatch(
+      /\$\{styles\.railBtn\} \$\{mode === m\.id \? styles\.railOn/,
+    );
+    expect(appTsx, '收起态 title 补偿（B 组盯的 m.label 形态）丢了').toMatch(
+      /title=\{railCollapsed \? m\.label/,
+    );
+  });
+
+  it('★ T2 PipelineBar：八节点、状态从 useProjectStore 推导、挂 write/gen 的 .body 顶部', () => {
+    expect(appTsx, 'PipelineBar 没有被 import').toMatch(
+      /import\s*\{\s*PipelineBar\s*\}\s*from\s*'\.\/components\/common\/PipelineBar'/,
+    );
+    expect(appTsx, 'PipelineBar 没有挂在 write/gen 模式的 .body 顶部').toMatch(
+      /\(mode === 'write' \|\| mode === 'gen'\) && !focusMode && <PipelineBar \/>[\s\S]{0,80}<div className=\{styles\.body\}>/,
+    );
+    const bar = R('src/renderer/components/common/PipelineBar.tsx');
+    for (const n of ['灵感', '立项', '世界观', '骨架', '章纲', '正文', '质检', '定稿'])
+      expect(bar, `PipelineBar 缺节点「${n}」`).toContain(`'${n}'`);
+    expect(bar, 'PipelineBar 状态没有从 useProjectStore 推导').toMatch(/useProjectStore/);
+    expect(bar, 'PipelineBar 没有 done/current/pending 的段推导').toMatch(/function deriveStage/);
+    // 全令牌纪律由 theme-ink C 组 + design-tokens-usage A 组兜底，这里只钉文件在
+    expect(() => R('src/renderer/components/common/PipelineBar.module.css')).not.toThrow();
+  });
+
   it('★ 每个面板命令都在外壳里真挂上了快捷键（面板显示的键必须是真的）', () => {
     // 面板右侧写着 ⌘1/⌘2/⌘4，那绑定就必须在外壳的 keydown 里存在。
     // 这一条防的是「面板教了用户一个不存在的快捷键」——比不显示更糟。

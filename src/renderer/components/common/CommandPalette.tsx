@@ -53,15 +53,23 @@ interface Command {
 /**
  * 命令清单。这是**唯一**一份，外壳的 `onRun` 按 id 分派。
  * 刻意保持短：调研第 8 节的结论是「重做不是把选项删光」，但也不等于把
- * 每个按钮都搬进来 —— 面板里只放"用户在写作过程中会想切换的东西"。
+ * 每个按钮都搬进来 —— 面板里只放“用户在写作过程中会想切换的东西”。
+ *
+ * ★ P2-UI T2（四组 IA）同步口径：
+ *   - `mode:*` 六条**全保留**（含不在导航里的 审稿——面板是它的可达路径）；
+ *   - 左导航的 soon 占位项（人物记忆/伏笔台账/…）**不进面板**：
+ *     它们是 disabled 的「设计中」路标，没有可执行动作，进面板就是骗用户点；
+ *   - label 跟随新显示名（写作坊/大纲管理/…），alias 保留旧名关键词——
+ *     老用户搜「仪表盘」仍要能命中「统计账本」。清单与 onRun 的双向逐字
+ *     一致性由 tests/integration/shell-r1-wiring.test.ts A 组钉死。
  */
 const COMMANDS: Command[] = [
-  { id: 'mode:write', label: '切换到 写作', group: '模式', alias: 'write xiezuo', keys: '' },
-  { id: 'mode:plan', label: '切换到 规划', group: '模式', alias: 'plan guihua' },
-  { id: 'mode:lore', label: '切换到 设定', group: '模式', alias: 'lore sheding' },
+  { id: 'mode:write', label: '切换到 写作坊', group: '模式', alias: 'write xiezuo fang', keys: '' },
+  { id: 'mode:plan', label: '切换到 大纲管理', group: '模式', alias: 'plan guihua dagang' },
+  { id: 'mode:lore', label: '切换到 世界观设定', group: '模式', alias: 'lore sheding shijieguan' },
   { id: 'mode:review', label: '切换到 审稿', group: '模式', alias: 'review shengao' },
-  { id: 'mode:dash', label: '切换到 仪表盘', group: '模式', alias: 'dashboard yibiaopan' },
-  { id: 'mode:gen', label: '切换到 生成', group: '模式', alias: 'gen shengcheng' },
+  { id: 'mode:dash', label: '切换到 统计账本', group: '模式', alias: 'dashboard yibiaopan tongji' },
+  { id: 'mode:gen', label: '切换到 生成·导演台', group: '模式', alias: 'gen shengcheng daoyantai' },
 
   { id: 'panel:tree', label: '显示 / 隐藏 章节树', group: '面板', keys: '⌘1', alias: 'tree chapter zhangjieshu' },
   { id: 'panel:rail', label: '显示 / 隐藏 AI 面板', group: '面板', keys: '⌘2', alias: 'rail ai panel' },
@@ -108,10 +116,23 @@ function bumpUsage(id: string): void {
  *
  * 键集合必须与 `lib/theme.ts` 的 `Theme` 逐字相同——这里不 import 那个类型，
  * 而是让 TS 的结构检查在编译期盯着：多一个键就报错，少一个键也报错。
- * （当前只有 ink/paper 两套；R5 若加高对比皮肤，这里跟着加一格。） */
+ * （当前只有 ink/paper 两套；R5 若加高对比皮肤，这里跟着加一格。）
+ * ★ R35③：显示名与 SettingsModal 的 THEMES 同步——v3 起 ink 叫「墨韵」
+ *   （旧名「深寂」退役），paper 叫「素笺」。两处皮肤名不许各说一套。 */
 const THEME_LABEL: Record<Theme, string> = {
-  ink: '墨卷',
-  paper: '暖纸',
+  ink: '墨韵',
+  paper: '素笺',
+};
+
+/** 模式显示名（面板底栏「当前：」用）。与 App.tsx 的 MODE_LABELS 同步维护，
+ *  A 组管 id 的双向一致、名字这两处靠注释约定——加模式时两处一起改。 */
+const MODE_LABEL: Record<string, string> = {
+  write: '写作坊',
+  plan: '大纲管理',
+  lore: '世界观设定',
+  review: '审稿',
+  dash: '统计账本',
+  gen: '生成·导演台',
 };
 
 export function CommandPalette(props: CommandPaletteProps): JSX.Element {
@@ -285,7 +306,7 @@ export function CommandPalette(props: CommandPaletteProps): JSX.Element {
 
         {/* 底栏只放"当前状态 + 面板自己怎么用"，不放入口 —— 入口已经在上面了。 */}
         <div className={styles.foot}>
-          <span>当前：{mode === 'write' ? '写作' : mode === 'plan' ? '规划' : mode === 'lore' ? '设定' : mode === 'review' ? '审稿' : '仪表盘'}</span>
+          <span>当前：{MODE_LABEL[mode] ?? mode}</span>
           <span className={styles.footSep} />
           <span>主题 {themeLabel}</span>
           <span className={styles.footSep} />
