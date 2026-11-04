@@ -231,7 +231,16 @@
   box-shadow: none;
   font-weight: var(--mz-fw-semibold);
 }
-.railOn:hover {
+/**
+ * ★ §UI ·R37：裸 `.railOn:hover` 特异性和 global.css 的 `button:hover:not(:disabled)`
+ *   打不赢——(0,2,0) 对 (0,2,1)，hover 时底色被全局刷成 bg-hover，字色却还是
+ *   本规则的 text-inverse：ink 皮肤实测 1.25:1，选中行一悬停就近不可读。
+ *   补 `:not(:disabled)` 与全局同形后本规则 (0,3,1) 获胜，hover 走的仍是
+ *   accent-hover/text-inverse 这对（ink 11.5:1 / paper 6.2:1，现算见
+ *   p2ui-t4-smoke-fixes C 组）。写法对齐 SettingsModal / GenView 里早已挡住的
+ *   `.btnPrimary:hover:not(:disabled)`。
+ */
+.railOn:hover:not(:disabled) {
   background: var(--mz-accent-hover);
   color: var(--mz-text-inverse);
 }

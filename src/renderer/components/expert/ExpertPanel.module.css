@@ -40,6 +40,16 @@
   font-weight: 600;
 }
 
+/* ★ §UI ·R37：此前这里没有自己的 hover 规则，`button:hover:not(:disabled)`
+ *   （global.css，(0,2,1)）成了 hover 底色唯一来源——实底金/朱砂被刷成
+ *   bg-hover 而字色仍 text-inverse，ink 下 1.25:1 近不可读。补同形选择器
+ *   把 hover 态留在 accent 族（写法对齐 SettingsModal.module.css）。 */
+.btnPrimary:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+  border-color: var(--mz-accent-hover);
+  color: var(--mz-text-inverse);
+}
+
 .btnPrimary:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -69,6 +79,15 @@
   background: var(--mz-accent);
   color: var(--mz-text-inverse);
   border-color: var(--mz-accent);
+}
+
+/* ★ §UI ·R37：同 btnPrimary——选中 chip 是 <button>，裸 `.chip:hover` 的
+ *   (0,2,0) 与 `.chipOn`（无伪类，更低）都压不过全局 button:hover:not(:disabled)，
+ *   hover 时金底退成 bg-hover、墨字不动，同形不可读。提特异性留在 accent 族。 */
+.chipOn:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+  border-color: var(--mz-accent-hover);
+  color: var(--mz-text-inverse);
 }
 
 .section {

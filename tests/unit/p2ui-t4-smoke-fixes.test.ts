@@ -12,6 +12,12 @@
  *     1.1x:1，快速扫视时「没动笔的章」像没有点。截图复核成立，按 brief 口径
  *     升到 border-strong 档；钉的不是绝对值（暗底冷蓝灰本来就拉不开），而是
  *     「同面上必须比旧档更亮」这条可核验的关系，旧档一旦回来就判红。
+ *  C. §UI ·R37 hover 选中态特异性回补 —— global.css 的 `button:hover:not(:disabled)`
+ *     特异性 (0,2,1) 压过组件侧裸 `.xx:hover` (0,2,0)，选中态（实底 accent + 反色字）
+ *     hover 时底色被全局刷成 bg-hover、字色却仍是 text-inverse：ink 皮肤实测
+ *     1.25:1 近不可读（真机评审发现）。钉三处（.railOn / .btnPrimary / .chipOn）
+ *     的 hover 规则存在、选择器含 `:not(:disabled)`（或等效提特异性写法）、
+ *     hover 态仍走 accent 实底组合，并按 WCAG 现算 hover 生效对 >= 4.5:1。
  *
  * 比值一律 WCAG 2.1 现场算（与 theme-ink B 组 / p2ui-t3-reskin B 组同式），不抄结论。
  */
@@ -28,6 +34,7 @@ const strip = (src: string): string =>
 
 const appCss = read('../../src/renderer/App.module.css');
 const treeCss = read('../../src/renderer/components/chapter-tree/ChapterTree.module.css');
+const expertCss = read('../../src/renderer/components/expert/ExpertPanel.module.css');
 const tokensCss = read('../../src/renderer/styles/tokens.css');
 
 /** 取行首选择器第一条规则的花括号体（与 p2ui-t3-reskin 同读法） */
@@ -45,6 +52,29 @@ function ruleBody(css: string, selector: string): string {
     }
   }
   return '';
+}
+
+/** 收 css 里所有以 `base:hover…` 开头的规则（选择器头 + 花括号体），供 C 组逐条钉 */
+function hoverRules(css: string, base: string): Array<{ header: string; body: string }> {
+  const esc = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const out: Array<{ header: string; body: string }> = [];
+  const re = new RegExp(`^[ \\t]*(${esc}:hover[^{\\n]*)\\{`, 'gm');
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(css)) !== null) {
+    const open = m.index + m[0].length - 1;
+    let depth = 0;
+    for (let i = open; i < css.length; i++) {
+      if (css[i] === '{') depth++;
+      else if (css[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          out.push({ header: m[1].trim(), body: css.slice(open + 1, i) });
+          break;
+        }
+      }
+    }
+  }
+  return out;
 }
 
 function extractBlock(src: string, selector: string): string {
@@ -110,7 +140,9 @@ describe('A. 朱砂印「墨」mark（DRD §4.4 三色之第三色必须真落�
   });
 
   it('★ .mark 实底取朱砂印，不再蹭香槟金（截图上「整套 UI 只剩两色」的根因）', () => {
-    const mark = ruleBody(appCss, '.mark');
+    // 走 strip()：.mark 体内那段修订注释写满了「实底从香槟金改走朱砂印」，
+    // 不剥注释就是拿历史叙述判红（同文件头对 strip 的定义）。
+    const mark = ruleBody(strip(appCss), '.mark');
     expect(mark, 'App.module.css 缺 .mark 规则').not.toBe('');
     expect(mark).toMatch(/background:\s*var\(--mz-brand-seal\)/);
     expect(mark, '.mark 又回到金色实底').not.toMatch(/background:\s*var\(--mz-accent\)/);
@@ -129,7 +161,8 @@ describe('A. 朱砂印「墨」mark（DRD §4.4 三色之第三色必须真落�
 
 describe('B. 章节树 todo 空心点档位（T3 concern-2 的截图裁决）', () => {
   it('仍是空心（透明底），但描边升到 border-strong 档', () => {
-    const todo = ruleBody(treeCss, '.dotTodo');
+    // 同 A2：.dotTodo 体内的修订注释提过旧档 border-subtle，先剥再钉。
+    const todo = ruleBody(strip(treeCss), '.dotTodo');
     expect(todo, '缺 .dotTodo 规则').not.toBe('');
     expect(todo).toMatch(/background:\s*transparent/);
     expect(todo).toMatch(/border:[^;]*var\(--mz-border-strong\)/);
@@ -159,6 +192,66 @@ describe('B. 章节树 todo 空心点档位（T3 concern-2 的截图裁决）', 
     ] as const) {
       expect(strip(css), `${label} 出现裸 hex`).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
       expect(strip(css), `${label} 出现裸 rgba`).not.toMatch(/\brgba?\(/);
+    }
+  });
+});
+
+describe('C. §UI ·R37 hover 选中态特异性回补（全局 button:hover 不得洗掉实底 accent）', () => {
+  const HOVER_PIN = [
+    ['App.module.css', appCss, '.railOn'],
+    ['ExpertPanel.module.css', expertCss, '.btnPrimary'],
+    ['ExpertPanel.module.css', expertCss, '.chipOn'],
+  ] as const;
+
+  it('三处各有自己的 :hover 规则，且选择器头含 :not(:disabled)（压过 global.css (0,2,1)）', () => {
+    for (const [label, css, sel] of HOVER_PIN) {
+      const rules = hoverRules(strip(css), sel);
+      expect(rules.length, `${label} 缺 ${sel}:hover 本规则——hover 底色只剩全局 button:hover`).toBeGreaterThan(0);
+      for (const r of rules) {
+        expect(
+          r.header,
+          `${label} 「${r.header}」是裸 :hover，特异性 (0,2,0) 被 global.css 的 button:hover:not(:disabled) (0,2,1) 压过：底色退回 bg-hover 而字色仍 text-inverse，ink 实测 1.25:1`,
+        ).toContain(':not(:disabled)');
+      }
+    }
+  });
+
+  it('hover 态仍走自己的实底 accent 组合（bg=accent-hover / fg=text-inverse，不许退回 bg-hover）', () => {
+    for (const [label, css, sel] of HOVER_PIN) {
+      for (const r of hoverRules(strip(css), sel)) {
+        expect(r.body, `${label} ${r.header} 底色不是 accent 族`).toMatch(
+          /background:\s*var\(--mz-accent-hover\)/,
+        );
+        expect(r.body, `${label} ${r.header} 底色又退回全局的 bg-hover`).not.toMatch(
+          /background:\s*var\(--mz-bg-hover\)/,
+        );
+        expect(r.body, `${label} ${r.header} 字色不再是 text-inverse`).toMatch(
+          /color:\s*var\(--mz-text-inverse\)/,
+        );
+      }
+    }
+  });
+
+  it('★ 修后 hover 实际生效组合现算 >= 4.5:1（WCAG 正文档，两套皮肤；修前 ink 走 bg-hover 实测 1.25:1）', () => {
+    for (const [name, decl] of SKINS) {
+      const fg = decl.get('--mz-text-inverse') ?? '';
+      const bg = decl.get('--mz-accent-hover') ?? '';
+      const r = contrast(fg, bg);
+      expect(r, `${name}: text-inverse on accent-hover 解不出色值`).not.toBeNull();
+      const ratio = Math.round((r ?? 0) * 100) / 100;
+      expect(
+        ratio,
+        `${name}: hover 态墨字/近白字压 accent-hover 只有 ${ratio}:1（下限 4.5；退回 bg-hover 档时 ink 实测 1.25:1）`,
+      ).toBeGreaterThanOrEqual(4.5);
+      // 反向取证：bug 的成因对（text-inverse 压 bg-hover）确实不过线——钉住「赢的必须是 accent-hover 那对」。
+      const bugPair = contrast(fg, decl.get('--mz-bg-hover') ?? '');
+      expect(bugPair, `${name}: bg-hover 对照解不出色值`).not.toBeNull();
+      if (name === 'ink') {
+        expect(
+          Math.round((bugPair ?? 0) * 100) / 100,
+          `${name}: bg-hover 对不再近不可读？那这条反证就该改写`,
+        ).toBeLessThan(4.5);
+      }
     }
   });
 });

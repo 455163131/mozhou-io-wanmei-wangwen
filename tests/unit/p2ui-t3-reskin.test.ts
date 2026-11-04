@@ -5,7 +5,8 @@
  *     （done=sem-pass-fg / revised=sem-warn-fg / draft=text-quaternary /
  *     todo=空心）；颜色语义由 title 的文字兜底（读屏不猜颜色）。
  *     todo 那圈的档位由 T3 的 border-subtle 升到 T4 的 border-strong
- *     （真机截图裁决，见 p2ui-t4-smoke-fixes B 组），本文件只钉「空心」这一形状。
+ *     （真机截图裁决，见 p2ui-t4-smoke-fixes B 组），本文件钉「空心」形状，
+ *     并同批把描边档位一并精确钉到 border-strong（与 T4 文件双钉同一条）。
  *     红点（穿帮=health 命中章）留 Phase 2，不在此钉。
  *  B. R35-②b 并批 —— 「accent 当正文级字用」的五处（T1 评审点名）改走
  *     --mz-text-link。断言两层：类名级（color 取值必须是 text-link）与
@@ -132,7 +133,7 @@ describe('A. 章节树四色状态点', () => {
     expect(todo, 'todo 必须是空心（透明底 + 描边），不是第四种实色').toMatch(
       /background:\s*transparent/,
     );
-    // 档位本身（border-strong）由 p2ui-t4-smoke-fixes B 组钉；这里只钉「有描边」。
+    // 档位精确钉 border-strong（不是「只钉有描边」）——与 p2ui-t4-smoke-fixes B 组同一条双钉。
     expect(todo).toMatch(/border:[^;]*var\(--mz-border-strong\)/);
   });
 
