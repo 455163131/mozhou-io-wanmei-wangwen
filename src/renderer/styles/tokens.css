@@ -104,6 +104,15 @@
    *    bg     = weak tinted fill        (fg stays >= 4.4:1 on it)
    *    border = 1px stroke              (>= 3:1 vs canvas, non-text graphic)
    *    strong = saturated solid fill    (progress / active underline / filled badge)
+   *
+   *    ★ 例外台账（§UI ·终审 Important-1，2026-11-04）：paper 档
+   *    --mz-sem-warn-strong #B0761F 压 --mz-sem-ink #FFF9F6 现算 **3.69:1**——
+   *    过图形级 3:1、不过正文档 4.5:1。这是 v2 遗留的化石值（本节的 strong 契约
+   *    只承诺"其上文字一律用 sem-ink"，没承诺 4.5），全仓唯一实底使用者是
+   *    ConfirmDialog 的回滚确认键。本批**不动令牌**：动它要连带 ink 档与 4 处
+   *    状态语义重算，风险大于收益；改为在组件侧钉死「hover 保持实底不被全局
+   *    button:hover 洗成 bg-hover × sem-ink」（回归钉见 tests/unit/p2ui-t4-smoke-fixes.test.ts
+   *    C 组），把比值停在 3.69 这件事显式记账，等下一次令牌层重做时一并收。
    * ------------------------------------------------------------------------ */
   /* AI-trace  - 朱批：AI 痕迹即编辑的朱笔圈点（与主强调同源）*/
   --mz-sem-ai-fg:     #B5432F;
@@ -525,7 +534,7 @@
   --mz-ambient-b:    #0C1220;  /* body 右下氛围（同值：暗面只看得出"更沉"，分不出色相）*/
   --mz-selection-bg: #2A3558;  /* ::selection 墨蓝实底 */
   --mz-scrim:        #050810B8; /* 模态压暗罩：8 位 hex（带 α），比纯黑暖一档 */
-  --mz-wash-ai:      #2A1512;  /* 卡片渐变起点（PlanView .bookg）；R35④：旧值与 bg-surface 同值把渐变熨平了，改取朱砂暗晕档（= --mz-brand-seal-soft）保留淡洗意图 */
+  --mz-wash-ai:      var(--mz-brand-seal-soft);  /* 卡片渐变起点（PlanView .bookg）；R35④：旧值与 bg-surface 同值把渐变熨平了，改取朱砂暗晕档（= --mz-brand-seal-soft）保留淡洗意图。★ §UI ·终审 minor②：本行原样抄了一遍那个 hex（#2A1512），是"同值两处书写"的漂移源——改成引用同一档令牌，值不变（写法同 :root 的 --mz-editor-font-novel: var(--mz-font-serif)） */
 
   /* 2. TEXT（v3 七级：quaternary / placeholder 为本批新令牌，与 :root 成对）*/
   --mz-text-primary:    #E8E4DA; /* 宣白主字（canvas 上 14.2:1）*/

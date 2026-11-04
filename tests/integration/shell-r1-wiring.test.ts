@@ -87,6 +87,8 @@ const appCss = R('src/renderer/App.module.css');
 const paletteTsx = R('src/renderer/components/common/CommandPalette.tsx');
 const paletteCss = R('src/renderer/components/common/CommandPalette.module.css');
 const tokensCss = R('src/renderer/styles/tokens.css');
+/** ★ 终审 Important-3：模式显示名的唯一来源（三副本收成一处后，账记在这个文件上） */
+const modesTsx = R('src/shared/constants/modes.ts');
 
 /** 面板清单里声明的命令 id（`{ id: 'x:y', … }` 那一列） */
 const paletteIds = (): string[] =>
@@ -165,7 +167,70 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
     expect(appTsx, 'R36：审稿条目没挂四字内 label（MODE_LABELS.review）').toMatch(
       /id:\s*'review',\s*label:\s*MODE_LABELS\.review/,
     );
-    expect(appTsx, 'R36：MODE_LABELS.review 不是「审稿报告」').toMatch(/review:\s*'审稿报告'/);
+    expect(modesTsx, 'R36：MODE_LABELS.review 不是「审稿报告」（显示名唯一来源漂了）').toContain(
+      "review: '审稿报告'",
+    );
+  });
+
+  /**
+   * ★ §UI ·终审 Important-3（模式显示名三副本收成一处）。
+   * 修复前的形状：`App.tsx` 的 `MODE_LABELS`、`CommandPalette.tsx` 的 `MODE_LABEL`、
+   * 以及 COMMANDS 里六个 `切换到 X` 字面量——三处手写、靠注释约定「加模式时两处一起改」。
+   * 现在唯一来源是 `src/shared/constants/modes.ts`，这里双向钉：
+   *   正向：六个 mode id 的显示名在来源文件里逐字存在；
+   *   反向：外壳与面板**都只能引用**它，任何一侧再抄一份字面量就红。
+   */
+  it('★ 模式显示名只有一个来源（App / 面板都引用 shared，不再各自手写）', () => {
+    const MODE_KEYS = ['write', 'plan', 'lore', 'review', 'dash', 'gen'];
+    // ① 来源文件：六个键逐一存在
+    for (const k of MODE_KEYS) {
+      expect(modesTsx, `modes.ts 缺模式显示名 ${k}`).toMatch(new RegExp(`\\b${k}:\\s*'[^']+'`));
+    }
+    expect(modesTsx).toMatch(/export const MODE_LABELS:\s*Record<WorkMode,\s*string>/);
+    expect(modesTsx).toMatch(/export type WorkMode = 'write' \| 'plan' \| 'lore' \| 'review' \| 'dash' \| 'gen'/);
+
+    // ② 外壳：import 共享常量 + 不再本地声明 + 六条导航都挂共享名
+    expect(appTsx, "App.tsx 没有从 @shared/constants/modes 取 MODE_LABELS").toMatch(
+      /import\s*\{\s*MODE_LABELS,\s*type WorkMode\s*\}\s*from\s*'@shared\/constants\/modes'/,
+    );
+    expect(appTsx, 'App.tsx 里还留着一份本地 MODE_LABELS（第三副本的老形状回来了）').not.toMatch(
+      /const MODE_LABELS\b/,
+    );
+    expect(appTsx, 'App.tsx 的 Mode 类型没有走共享 WorkMode').toMatch(/type Mode = WorkMode/);
+    for (const k of MODE_KEYS) {
+      expect(appTsx, `NAV_GROUPS 里 ${k} 没有挂 MODE_LABELS.${k}`).toContain(`label: MODE_LABELS.${k}`);
+    }
+
+    // ③ 面板：命令名与底栏都指同一处，且本地副本必须消失
+    expect(paletteTsx, 'CommandPalette 没有 import 共享显示名').toMatch(
+      /import\s*\{\s*MODE_LABELS,\s*modeLabel\s*\}\s*from\s*'@shared\/constants\/modes'/,
+    );
+    expect(paletteTsx, 'CommandPalette 里还留着一份本地 MODE_LABEL（三份副本的第二份）').not.toMatch(
+      /const MODE_LABEL\b/,
+    );
+    for (const k of MODE_KEYS) {
+      expect(paletteTsx, `面板命令 mode:${k} 的 label 没有插值 MODE_LABELS.${k}`).toContain(
+        `\`切换到 \${MODE_LABELS.${k}}\``,
+      );
+    }
+    expect(paletteTsx, '面板底栏「当前：」没有走 modeLabel()').toMatch(/\{modeLabel\(mode\)\}/);
+
+    // ④ 反向哨兵：六个显示名字面量**只**允许出现在来源文件里（外加注释，故剥注释后再比）
+    const names = [...modesTsx.matchAll(/^\s*(\w+):\s*'([^']+)',$/gm)]
+      .filter((m) => MODE_KEYS.includes(m[1]))
+      .map((m) => m[2]);
+    expect(names.length, '从 modes.ts 解析出的显示名不足六条').toBe(6);
+    for (const name of names) {
+      for (const [label, src] of [
+        ['App.tsx', strip(appTsx)],
+        ['CommandPalette.tsx', strip(paletteTsx)],
+      ] as const) {
+        expect(
+          src.includes(`'${name}'`) || src.includes(`\`${name}\``) || src.includes(`'${name}`),
+          `${label} 里又出现一份「${name}」的手写字面量——显示名重新分裂了`,
+        ).toBe(false);
+      }
+    }
   });
 
   it('★ T2 PipelineBar：八节点、状态从 useProjectStore 推导、挂 write/gen 的 .body 顶部', () => {
@@ -176,10 +241,24 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
       /\(mode === 'write' \|\| mode === 'gen'\) && !focusMode && <PipelineBar \/>[\s\S]{0,80}<div className=\{styles\.body\}>/,
     );
     const bar = R('src/renderer/components/common/PipelineBar.tsx');
-    for (const n of ['灵感', '立项', '世界观', '骨架', '章纲', '正文', '质检', '定稿'])
-      expect(bar, `PipelineBar 缺节点「${n}」`).toContain(`'${n}'`);
+    // ★ 终审 Important-2③：八节点清单与 deriveStage 搬进纯模块 pipeline-stage.ts
+    //   （tests/** 归 DOM-free 的 tsconfig.node，`.tsx` 里的导出 import 不进来）。
+    //   接线纪律不变：组件仍必须从那里 import 并调用，两边合起来才算「管线条存在」。
+    const stage = R('src/renderer/components/common/pipeline-stage.ts');
+    expect(bar, 'PipelineBar 没有引用纯推导模块').toMatch(
+      /import\s*\{[^}]*deriveStage[^}]*\}\s*from\s*'\.\/pipeline-stage'/,
+    );
     expect(bar, 'PipelineBar 状态没有从 useProjectStore 推导').toMatch(/useProjectStore/);
-    expect(bar, 'PipelineBar 没有 done/current/pending 的段推导').toMatch(/function deriveStage/);
+    expect(bar, 'PipelineBar 没有调用 deriveStage').toMatch(/deriveStage\(\s*\{/);
+    expect(stage, 'deriveStage 不再是函数（推导层被改写或删了）').toMatch(
+      /export function deriveStage\(/,
+    );
+    for (const n of ['灵感', '立项', '世界观', '骨架', '章纲', '正文', '质检', '定稿'])
+      expect(stage, `八节点清单缺「${n}」`).toContain(`'${n}'`);
+    expect(
+      [...stage.matchAll(/return\s+(\d);/g)].map((m) => Number(m[1])).sort((a, b) => a - b),
+      'deriveStage 的出口档不再是 0/1/2/4/5/6/7 七档（3=骨架永不为 current）',
+    ).toEqual([0, 1, 2, 4, 5, 6, 7]);
     // 全令牌纪律由 theme-ink C 组 + design-tokens-usage A 组兜底，这里只钉文件在
     expect(() => R('src/renderer/components/common/PipelineBar.module.css')).not.toThrow();
   });

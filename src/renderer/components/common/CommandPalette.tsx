@@ -27,6 +27,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Theme } from '../../lib/theme';
+import { MODE_LABELS, modeLabel } from '@shared/constants/modes';
 import styles from './CommandPalette.module.css';
 
 export interface CommandPaletteProps {
@@ -63,14 +64,17 @@ interface Command {
  *   - label 跟随新显示名（写作坊/大纲管理/…），alias 保留旧名关键词——
  *     老用户搜「仪表盘」仍要能命中「统计账本」。清单与 onRun 的双向逐字
  *     一致性由 tests/integration/shell-r1-wiring.test.ts A 组钉死。
+ *   - ★ §UI ·终审 Important-3：`切换到 X` 的 X 不再手写，取自
+ *     `@shared/constants/modes` 的 MODE_LABELS（与外壳的 NAV_GROUPS / 面包屑同源）。
+ *     id 仍是逐字字面量——A 组按 `\{\s*id:\s*'…'` 抓清单，模板化的 id 会让它空转。
  */
 const COMMANDS: Command[] = [
-  { id: 'mode:write', label: '切换到 写作坊', group: '模式', alias: 'write xiezuo fang', keys: '' },
-  { id: 'mode:plan', label: '切换到 大纲管理', group: '模式', alias: 'plan guihua dagang' },
-  { id: 'mode:lore', label: '切换到 世界观设定', group: '模式', alias: 'lore sheding shijieguan' },
-  { id: 'mode:review', label: '切换到 审稿报告', group: '模式', alias: 'review shengao' },
-  { id: 'mode:dash', label: '切换到 统计账本', group: '模式', alias: 'dashboard yibiaopan tongji' },
-  { id: 'mode:gen', label: '切换到 生成·导演台', group: '模式', alias: 'gen shengcheng daoyantai' },
+  { id: 'mode:write', label: `切换到 ${MODE_LABELS.write}`, group: '模式', alias: 'write xiezuo fang', keys: '' },
+  { id: 'mode:plan', label: `切换到 ${MODE_LABELS.plan}`, group: '模式', alias: 'plan guihua dagang' },
+  { id: 'mode:lore', label: `切换到 ${MODE_LABELS.lore}`, group: '模式', alias: 'lore sheding shijieguan' },
+  { id: 'mode:review', label: `切换到 ${MODE_LABELS.review}`, group: '模式', alias: 'review shengao' },
+  { id: 'mode:dash', label: `切换到 ${MODE_LABELS.dash}`, group: '模式', alias: 'dashboard yibiaopan tongji' },
+  { id: 'mode:gen', label: `切换到 ${MODE_LABELS.gen}`, group: '模式', alias: 'gen shengcheng daoyantai' },
 
   { id: 'panel:tree', label: '显示 / 隐藏 章节树', group: '面板', keys: '⌘1', alias: 'tree chapter zhangjieshu' },
   { id: 'panel:rail', label: '显示 / 隐藏 AI 面板', group: '面板', keys: '⌘2', alias: 'rail ai panel' },
@@ -125,17 +129,10 @@ const THEME_LABEL: Record<Theme, string> = {
   paper: '素笺',
 };
 
-/** 模式显示名（面板底栏「当前：」用）。与 App.tsx 的 MODE_LABELS 同步维护，
- *  A 组管 id 的双向一致、名字这两处靠注释约定——加模式时两处一起改。 */
-const MODE_LABEL: Record<string, string> = {
-  write: '写作坊',
-  plan: '大纲管理',
-  lore: '世界观设定',
-  review: '审稿报告',
-  dash: '统计账本',
-  gen: '生成·导演台',
-};
-
+/** 模式显示名见 `@shared/constants/modes`（§UI ·终审 Important-3）。
+ *  这里以前是第三份手写副本（与 App.tsx 的 MODE_LABELS、本文件 COMMANDS 的 label
+ *  各抄一遍，靠注释约定同步）。现在三个出口同源：底栏走 `modeLabel()`——面板的
+ *  mode prop 是 string，认不出的 id 原样回显，不显示 undefined；命令名走 MODE_LABELS。 */
 export function CommandPalette(props: CommandPaletteProps): JSX.Element {
   const { theme, mode, railCollapsed, onClose, onRun } = props;
   const [query, setQuery] = useState('');
@@ -307,7 +304,7 @@ export function CommandPalette(props: CommandPaletteProps): JSX.Element {
 
         {/* 底栏只放"当前状态 + 面板自己怎么用"，不放入口 —— 入口已经在上面了。 */}
         <div className={styles.foot}>
-          <span>当前：{MODE_LABEL[mode] ?? mode}</span>
+          <span>当前：{modeLabel(mode)}</span>
           <span className={styles.footSep} />
           <span>主题 {themeLabel}</span>
           <span className={styles.footSep} />

@@ -99,6 +99,14 @@ select:disabled {
   background: var(--mz-bg-canvas);
   cursor: not-allowed;
 }
+/* ★ §UI ·R41（终审 minor③）：占位符颜色接线。`--mz-text-placeholder` 是 v3 建的
+ *   一档（R35① 已把它拉到 AA 正文级），但全仓零引用——于是所有 placeholder 都落在
+ *   浏览器默认灰上，两套皮肤共用同一个"不属于任何令牌"的灰（皮肤在这里断了一截，
+ *   与 option:checked 那条系统蓝是同一种病）。特异性 (0,0,1)，比组件侧
+ *   `.input::placeholder`（(0,1,1)）低，CommandPalette / LoreView 已有的自绘档不受影响。 */
+::placeholder {
+  color: var(--mz-text-placeholder);
+}
 /* 下拉展开后的选中项：不写这一条，操作系统拿系统蓝画它——那是全应用唯一一处蓝 */
 option:checked {
   background: var(--mz-accent-soft);

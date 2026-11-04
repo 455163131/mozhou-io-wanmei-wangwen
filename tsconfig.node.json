@@ -39,6 +39,9 @@
     "src/renderer/store/**/*.ts",
     "src/renderer/lib/theme.ts",
     "src/renderer/components/editor/inline-marks.ts",
+    // 同 inline-marks 的先例：管线条的 deriveStage 也是 DOM-free 的纯判定，
+    // 终审 Important-2③ 的七条行为用例要直接 import 它（.tsx 在本项目里进不来）。
+    "src/renderer/components/common/pipeline-stage.ts",
     "tests/**/*.ts",
     "electron.vite.config.ts"
   ],

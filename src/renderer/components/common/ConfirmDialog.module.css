@@ -55,3 +55,21 @@
   color: var(--mz-sem-ink);
   border-color: var(--mz-sem-warn-strong);
 }
+/**
+ * ★ §UI ·终审 Important-1：这颗确认键的宿主是 `<button>`（ConfirmDialog.tsx），
+ *   而 global.css 的 `button:hover:not(:disabled)`（(0,2,1)）是全应用 hover 底色
+ *   的唯一兜底来源——本文件此前**一条 :hover 都没有**，于是回滚确认键一悬停，
+ *   赭石实底就被全局刷成 `--mz-bg-hover`，字色却还是 .dangerBtn 的 `--mz-sem-ink`：
+ *   同一个 R37/R38 的形状（「实底 + 反色字」被 hover 洗成半不可读），只是族换成 warn。
+ *   修法同族同形：补 `:not(:disabled)` 让本规则到 (0,3,0)，且 hover 态**保持实底**
+ *   （三个声明都留在 warn-strong/sem-ink 档，不借 accent-hover 那套提亮——
+ *   确认框只有一层 hover，深浅两档在这里没有语义差别）。
+ *   回归钉：tests/unit/p2ui-t4-smoke-fixes.test.ts C 组（派生式候选集，本条自然入列）。
+ *   可读性台账：paper 档 sem-ink 压 sem-warn-strong 是 3.69:1（图形级过、正文档不过），
+ *   属 v2 化石值，本批**不动令牌**，理由记在 tokens.css §5 的例外台账。
+ */
+.dangerBtn:hover:not(:disabled) {
+  background: var(--mz-sem-warn-strong);
+  border-color: var(--mz-sem-warn-strong);
+  color: var(--mz-sem-ink);
+}

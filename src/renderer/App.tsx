@@ -18,7 +18,7 @@
  * 快捷键对齐 Ulysses 的 ⌘1–⌘4 心智模型：⌘1 章节树 / ⌘2 AI 侧栏 /
  * ⌘3 全收纳 / ⌘4 专注模式 / ⌘/ 统计底栏 / ⌘K 命令面板。
  *
- * 配色走「素笺·朱批」令牌（styles/tokens.css）。
+ * 配色走双皮肤令牌（styles/tokens.css：默认「墨韵」，另一套「素笺」）。
  * 现有面板（专家团 / 主编对谈 / 审查 / 体检 / 历史）全部挂进「写作」模式右栏。
  */
 import { useEffect, useState } from 'react';
@@ -43,9 +43,10 @@ import { DashboardView } from './components/views/DashboardView';
 import { GenView } from './components/views/GenView';
 import type { LlmStatus } from '@shared/types/provider';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
+import { MODE_LABELS, type WorkMode } from '@shared/constants/modes';
 import styles from './App.module.css';
 
-type Mode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen';
+type Mode = WorkMode;
 type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
 
 /**
@@ -66,20 +67,25 @@ type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
  * 「审稿」在 T2 定稿里暂不入四组导航（R32 Phase-1 纪律），但 `mode:review` 一直
  * 保留在命令面板与 onRun 分派里。**T3 R36 并批回补**：审稿是一级工作流不是二级
  * 功能，创作组补上「审稿报告」条目（shell-r1 A 组钉死清单的 id 集不变，仍 13 条）。
+ *
+ * ★ §UI ·终审 Important-3（R40 裁决）：**soon 标签一律 ≤4 字**。展开态一行里
+ *   soon 项比 mode 项多挂一颗「设计中」chip，标签预算只有四字（算术与补偿见
+ *   App.module.css 的 `.railSoon`，契约由 tests/unit/p2ui-t4-smoke-fixes.test.ts
+ *   D 组现算钉住）。现名 人物记忆/伏笔台账/长期记忆/扫榜热榜/抽脑洞/拆书报告/
+ *   选题库/导出中心 全在四字内，本批**不重命名**（改名会连带 title 提示与
+ *   DRD §4.1 的路标口径），截断改由 soon 行的 gap 补偿解决。
  */
 type NavItem =
   | { kind: 'mode'; id: Mode; label: string; d: string }
   | { kind: 'soon'; id: string; label: string; d: string };
 
-/** 模式显示名（面包屑用）。与 NAV_GROUPS 的 label 同步（R36 后 review 也进了导航）。 */
-const MODE_LABELS: Record<Mode, string> = {
-  write: '写作坊',
-  plan: '大纲管理',
-  lore: '世界观设定',
-  review: '审稿报告',
-  dash: '统计账本',
-  gen: '生成·导演台',
-};
+/**
+ * 模式显示名取自 `@shared/constants/modes`（唯一的显示名来源）。
+ * ★ §UI ·终审 Important-3：这里以前手写一份、命令面板再手写两份（`MODE_LABEL`
+ *   与 COMMANDS 的 `切换到 X`），三处靠注释约定同步。现在面包屑、NAV_GROUPS 的
+ *   label、面板底栏「当前：」、面板命令名全部指同一个常量——加模式只改一处。
+ *   双向钉在 tests/integration/shell-r1-wiring.test.ts A 组。
+ */
 
 /** 导航条目（icon path 与品牌定稿的 SVG sprite 同源） */
 const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
