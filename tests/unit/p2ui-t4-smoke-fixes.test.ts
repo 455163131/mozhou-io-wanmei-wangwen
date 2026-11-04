@@ -12,12 +12,16 @@
  *     1.1x:1，快速扫视时「没动笔的章」像没有点。截图复核成立，按 brief 口径
  *     升到 border-strong 档；钉的不是绝对值（暗底冷蓝灰本来就拉不开），而是
  *     「同面上必须比旧档更亮」这条可核验的关系，旧档一旦回来就判红。
- *  C. §UI ·R37 hover 选中态特异性回补 —— global.css 的 `button:hover:not(:disabled)`
- *     特异性 (0,2,1) 压过组件侧裸 `.xx:hover` (0,2,0)，选中态（实底 accent + 反色字）
- *     hover 时底色被全局刷成 bg-hover、字色却仍是 text-inverse：ink 皮肤实测
- *     1.25:1 近不可读（真机评审发现）。钉三处（.railOn / .btnPrimary / .chipOn）
- *     的 hover 规则存在、选择器含 `:not(:disabled)`（或等效提特异性写法）、
- *     hover 态仍走 accent 实底组合，并按 WCAG 现算 hover 生效对 >= 4.5:1。
+ *  C. §UI ·R37 hover 选中态特异性回补 + R38 扩面 —— global.css 的
+ *     `button:hover:not(:disabled)` 特异性 (0,2,1) 压过组件侧裸 `.xx:hover` (0,2,0)，
+ *     选中态（实底 accent + 反色字）hover 时底色被全局刷成 bg-hover、字色却仍是
+ *     text-inverse：ink 皮肤实测 1.25:1 近不可读（真机评审发现）。R37 只修了
+ *     railOn / ExpertPanel btnPrimary / ExpertPanel chipOn 三处，复评审按同族特征
+ *     全仓扫了一遍，又捞出三处一模一样的形状（FlavorPanel 的 .btnPrimary 与
+ *     选中态 .paraChip.paraOn、ReviewView 的 .btnPri），于是本组把口径从「三处」
+ *     扩到「六处」，并把匹配器放宽到认复合选择器头（`.paraChip.paraOn:hover` 这类
+ *     以前置类名提特异性的合法写法），断言按特异性真算而不是只认 `:not(:disabled)`
+ *     字面量。hover 态仍走 accent 实底组合，并按 WCAG 现算 hover 生效对 >= 4.5:1。
  *
  * 比值一律 WCAG 2.1 现场算（与 theme-ink B 组 / p2ui-t3-reskin B 组同式），不抄结论。
  */
@@ -35,6 +39,8 @@ const strip = (src: string): string =>
 const appCss = read('../../src/renderer/App.module.css');
 const treeCss = read('../../src/renderer/components/chapter-tree/ChapterTree.module.css');
 const expertCss = read('../../src/renderer/components/expert/ExpertPanel.module.css');
+const flavorCss = read('../../src/renderer/components/flavor/FlavorPanel.module.css');
+const reviewCss = read('../../src/renderer/components/views/ReviewView.module.css');
 const tokensCss = read('../../src/renderer/styles/tokens.css');
 
 /** 取行首选择器第一条规则的花括号体（与 p2ui-t3-reskin 同读法） */
@@ -54,11 +60,16 @@ function ruleBody(css: string, selector: string): string {
   return '';
 }
 
-/** 收 css 里所有以 `base:hover…` 开头的规则（选择器头 + 花括号体），供 C 组逐条钉 */
+/**
+ * 收 css 里所有**以 `base:hover…` 收尾**的规则（选择器头 + 花括号体），供 C 组逐条钉。
+ * ★ R38：`base:hover` 前面允许带前置类名/后代组合器——`.railCollapsed .railOn:hover`、
+ *   `.paraChip.paraOn:hover` 这类「靠复合选择器提特异性」的写法同样是合法修法，
+ *   只认行首裸 `base:hover` 会把它们当成「规则不存在」。
+ */
 function hoverRules(css: string, base: string): Array<{ header: string; body: string }> {
   const esc = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const out: Array<{ header: string; body: string }> = [];
-  const re = new RegExp(`^[ \\t]*(${esc}:hover[^{\\n]*)\\{`, 'gm');
+  const re = new RegExp(`^[ \\t]*([^\\{\\n]*${esc}:hover[^\\{\\n]*)\\{`, 'gm');
   let m: RegExpExecArray | null;
   while ((m = re.exec(css)) !== null) {
     const open = m.index + m[0].length - 1;
@@ -75,6 +86,27 @@ function hoverRules(css: string, base: string): Array<{ header: string; body: st
     }
   }
   return out;
+}
+
+/**
+ * 选择器头的特异性：CSS 的 (a,b,c) 三元组这里只取后两档 —— a（ID）在本项目
+ * 的 CSS Module 里恒 0，比大小用不上。b = 类 / 伪类 / 属性选择器，
+ * c = 类型选择器 / 伪元素。口径与规范一致：`:not()` 自身不贡献，括号里的
+ * 参数照计；`::before` 那类伪元素落 c 档。
+ */
+function specificity(header: string): [number, number] {
+  // 先拆 :not()：不拆的话 `:hover:not(:disabled)` 会把 `:not` 自己也数成一个伪类，
+  // 特异性被高估，本组的「压不过全局」就永远测不出红。
+  const s = header.replace(/::[\w-]+/g, ' ').replace(/:not\(([^)]*)\)/g, ' $1 ');
+  const b = (s.match(/\.[\w-]+|:[\w-]+|\[[^\]]*\]/g) ?? []).length;
+  const c = (s.replace(/\.[\w-]+|:[\w-]+|\[[^\]]*\]/g, ' ').match(/[a-zA-Z][\w-]*/g) ?? []).length;
+  return [b, c];
+}
+
+/** 与 global.css 的 `button:hover:not(:disabled)` = (0,2,1) 比：字典序大者获胜 */
+function beatsGlobalButtonHover(header: string): boolean {
+  const [b, c] = specificity(header);
+  return b > 2 || (b === 2 && c >= 1);
 }
 
 function extractBlock(src: string, selector: string): string {
@@ -196,22 +228,31 @@ describe('B. 章节树 todo 空心点档位（T3 concern-2 的截图裁决）', 
   });
 });
 
-describe('C. §UI ·R37 hover 选中态特异性回补（全局 button:hover 不得洗掉实底 accent）', () => {
+describe('C. §UI ·R37+R38 hover 选中态特异性回补（全局 button:hover 不得洗掉实底 accent）', () => {
+  /**
+   * 六处 = R37 三处（railOn / ExpertPanel btnPrimary / ExpertPanel chipOn）
+   * + R38 扩面三处（FlavorPanel btnPrimary / FlavorPanel 选中态 paraOn /
+   * ReviewView btnPri）。判据是同一条：**实底 accent + text-inverse 反色字**
+   * 的 `<button>` 且自己没有能打赢全局的 hover 规则 —— 扫下来只剩这三处。
+   */
   const HOVER_PIN = [
     ['App.module.css', appCss, '.railOn'],
     ['ExpertPanel.module.css', expertCss, '.btnPrimary'],
     ['ExpertPanel.module.css', expertCss, '.chipOn'],
+    ['FlavorPanel.module.css', flavorCss, '.btnPrimary'],
+    ['FlavorPanel.module.css', flavorCss, '.paraOn'],
+    ['ReviewView.module.css', reviewCss, '.btnPri'],
   ] as const;
 
-  it('三处各有自己的 :hover 规则，且选择器头含 :not(:disabled)（压过 global.css (0,2,1)）', () => {
+  it('六处各有自己的 :hover 规则，且选择器头压得过 global.css button:hover:not(:disabled) (0,2,1)', () => {
     for (const [label, css, sel] of HOVER_PIN) {
       const rules = hoverRules(strip(css), sel);
       expect(rules.length, `${label} 缺 ${sel}:hover 本规则——hover 底色只剩全局 button:hover`).toBeGreaterThan(0);
       for (const r of rules) {
         expect(
-          r.header,
-          `${label} 「${r.header}」是裸 :hover，特异性 (0,2,0) 被 global.css 的 button:hover:not(:disabled) (0,2,1) 压过：底色退回 bg-hover 而字色仍 text-inverse，ink 实测 1.25:1`,
-        ).toContain(':not(:disabled)');
+          beatsGlobalButtonHover(r.header),
+          `${label} 「${r.header}」特异性 ${specificity(r.header).join(',')} 压不过 global.css 的 button:hover:not(:disabled) (0,2,1)：底色退回 bg-hover 而字色仍 text-inverse，ink 实测 1.25:1`,
+        ).toBe(true);
       }
     }
   });

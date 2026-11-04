@@ -42,6 +42,18 @@
   cursor: pointer;
 }
 
+/* ★ §UI ·R38（R37 同族扩面）：`.btnPri` 是实底 accent + text-inverse 的 <button>，
+ *   而本文件原先一条 :hover 都没有 —— hover 底色只剩 global.css 的
+ *   `button:hover:not(:disabled)`（(0,2,1)）：accent 实底退成 bg-hover、反色字不动，
+ *   ink 皮肤实测 1.25:1，「开始审稿」这颗页面上唯一的实心 CTA 一悬停就近不可读。
+ *   补同形选择器（(0,3,0)）把 hover 留在 accent 族，写法对齐
+ *   SettingsModal / ExpertPanel。 */
+.btnPri:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+  border-color: var(--mz-accent-hover);
+  color: var(--mz-text-inverse);
+}
+
 .btnPri:disabled {
   opacity: 0.5;
   cursor: not-allowed;

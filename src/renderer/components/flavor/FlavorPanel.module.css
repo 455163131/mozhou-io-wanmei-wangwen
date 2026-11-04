@@ -44,6 +44,17 @@
   font-weight: 600;
 }
 
+/* ★ §UI ·R38（R37 同族扩面）：这里此前只有上面那条实底 accent + text-inverse，
+ *   没有自己的 hover 规则 —— global.css 的 `button:hover:not(:disabled)`（(0,2,1)）
+ *   就成了 hover 底色的唯一来源：实底被刷成 bg-hover，字色却还是反色档，
+ *   ink 皮肤实测 1.25:1，「一键自动改写」这颗主 CTA 一悬停就近不可读。
+ *   补同形选择器把 hover 留在 accent 族（写法对齐 ExpertPanel / SettingsModal）。 */
+.btnPrimary:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+  border-color: var(--mz-accent-hover);
+  color: var(--mz-text-inverse);
+}
+
 .btn:disabled,
 .btnPrimary:disabled {
   opacity: 0.5;
@@ -219,6 +230,18 @@
   background: var(--mz-accent);
   color: var(--mz-text-inverse);
   border-color: var(--mz-text-link);
+}
+
+/* ★ §UI ·R38（R37 同族扩面）：选中段 chip 也是 <button>，且永远与 .paraChip
+ *   同类名并用。裸 `.paraChip:hover`（(0,2,0)）只改描边，压不过全局
+ *   `button:hover:not(:disabled)`（(0,2,1)）——选中那颗一悬停金底退成 bg-hover、
+ *   反色字不动，同 btnPrimary 那 1.25:1。这里用复合头 `.paraChip.paraOn:hover`
+ *   配 `:not(:disabled)`（(0,4,0)）把 hover 留在 accent 族；
+ *   非选中的 .paraChip 本就是淡底 + 次级字，与全局同值，不动。 */
+.paraChip.paraOn:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+  border-color: var(--mz-accent-hover);
+  color: var(--mz-text-inverse);
 }
 
 .link {
