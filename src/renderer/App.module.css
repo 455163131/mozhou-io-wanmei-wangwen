@@ -97,7 +97,17 @@
   width: 32px;
   height: 32px;
   border-radius: var(--mz-radius-sm);
-  background: var(--mz-accent);
+  /**
+   * ★ P2-UI T4（视觉冒烟小修）：实底从香槟金改走**朱砂印**档。
+   *   DRD §4.4 的三色是「墨蓝 + 香槟金 + 朱砂印」，但 brand-seal 建好之后
+   *   没有任何组件引用它——真机截图上这颗品牌方印是金色的，整套界面因此
+   *   只剩两色，「印」的身份记号等于没落地。mark 是全应用唯一的品牌落款，
+   *   它就是那颗印章该待的位置。
+   *   字色仍走 text-inverse（暗面浓墨 / 纸面近白）：mark 是品牌图形不是正文，
+   *   按非文本对比度下限 3:1 核，两套皮肤现算分别为 ink 4.19:1、paper 4.27:1
+   *   （口径同 theme-ink B 组的 WCAG 公式，由 p2ui-t4-smoke-fixes A 组钉住）。
+   */
+  background: var(--mz-brand-seal);
   color: var(--mz-text-inverse);
   display: grid;
   place-items: center;

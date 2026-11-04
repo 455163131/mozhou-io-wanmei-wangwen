@@ -120,7 +120,16 @@
 .dotTodo {
   /* 空心：未动笔的章不该和「有字」的章抢视觉重量 */
   background: transparent;
-  border: var(--mz-bw-hairline) solid var(--mz-border-subtle);
+  /**
+   * ★ P2-UI T4（视觉冒烟小修）：描边由 border-subtle 升到 border-strong。
+   *   T3 报告 concern-2 记的就是这颗点——旧档压 bg-surface 只有 1.14:1，
+   *   真机截图复核成立：快速扫视时「没动笔」像「没有点」。
+   *   新档同面现算 ink 1.65:1 / paper 2.00:1（口径同 theme-ink B 组），
+   *   仍是最轻的一档（空心 + 无实色），只是终于看得见。暗底冷蓝灰本来就
+   *   拉不开，这是档位事实；要再往上就只有「实心底点」那条路（约 3:1），
+   *   那会改变四色点的语义分层，留 Phase 2 与红点一并议。
+   */
+  border: var(--mz-bw-hairline) solid var(--mz-border-strong);
 }
 .nodeTitle {
   flex: 1;

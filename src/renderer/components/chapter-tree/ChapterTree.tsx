@@ -23,7 +23,7 @@ import styles from './ChapterTree.module.css';
 
 /**
  * ★ P2-UI T3（墨韵国风）：状态字形（○◐◑●）换成**四色圆点**——
- *   done=pass 绿 / revised=warn 黄 / draft=quaternary 灰 / todo=border-subtle 空心。
+ *   done=pass 绿 / revised=warn 黄 / draft=quaternary 灰 / todo=border-strong 空心。
  *   颜色之外语义仍由 title 的文字兜底（STATUS_LABEL），读屏与色觉障碍都不靠猜点色。
  *   红点（穿帮 = health 命中章）留 Phase 2，这里不预埋假红。
  *   四键都走点取值（dotDone/dotRevised/dotDraft/dotTodo 四条规则都在同名

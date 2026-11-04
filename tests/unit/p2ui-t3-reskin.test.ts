@@ -3,7 +3,9 @@
  *
  *  A. 章节树四色状态点 —— STATUS_MARK 的 ○◐◑● 字形换成四色圆点
  *     （done=sem-pass-fg / revised=sem-warn-fg / draft=text-quaternary /
- *     todo=border-subtle 空心）；颜色语义由 title 的文字兜底（读屏不猜颜色）。
+ *     todo=空心）；颜色语义由 title 的文字兜底（读屏不猜颜色）。
+ *     todo 那圈的档位由 T3 的 border-subtle 升到 T4 的 border-strong
+ *     （真机截图裁决，见 p2ui-t4-smoke-fixes B 组），本文件只钉「空心」这一形状。
  *     红点（穿帮=health 命中章）留 Phase 2，不在此钉。
  *  B. R35-②b 并批 —— 「accent 当正文级字用」的五处（T1 评审点名）改走
  *     --mz-text-link。断言两层：类名级（color 取值必须是 text-link）与
@@ -122,15 +124,16 @@ describe('A. 章节树四色状态点', () => {
     }
   });
 
-  it('四色各归各的令牌：done=pass 绿 / revised=warn 黄 / draft=quaternary 灰 / todo=border-subtle 空心', () => {
+  it('四色各归各的令牌：done=pass 绿 / revised=warn 黄 / draft=quaternary 灰 / todo=空心', () => {
     expect(ruleBody(treeCss, '.dotDone')).toMatch(/background:\s*var\(--mz-sem-pass-fg\)/);
     expect(ruleBody(treeCss, '.dotRevised')).toMatch(/background:\s*var\(--mz-sem-warn-fg\)/);
     expect(ruleBody(treeCss, '.dotDraft')).toMatch(/background:\s*var\(--mz-text-quaternary\)/);
     const todo = ruleBody(treeCss, '.dotTodo');
-    expect(todo, 'todo 必须是空心（透明底 + border-subtle 描边），不是第四种实色').toMatch(
+    expect(todo, 'todo 必须是空心（透明底 + 描边），不是第四种实色').toMatch(
       /background:\s*transparent/,
     );
-    expect(todo).toMatch(/border:[^;]*var\(--mz-border-subtle\)/);
+    // 档位本身（border-strong）由 p2ui-t4-smoke-fixes B 组钉；这里只钉「有描边」。
+    expect(todo).toMatch(/border:[^;]*var\(--mz-border-strong\)/);
   });
 
   it('圆点本体是圆点：基座规则走 radius-full，不许长回 10px 字形框', () => {
