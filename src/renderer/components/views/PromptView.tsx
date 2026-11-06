@@ -21,8 +21,9 @@
  * detail.retryable===false 的空错也不画重试按钮（本层没有重试入口，改完再存
  * 就是重试）。
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { bridge, errorText, hasBridge } from '../../hooks/use-mz-bridge';
+import { createSequencer } from '../../lib/sequenced';
 import { useConfirm } from '../common/ConfirmDialog';
 import type { CraftSkillInfo, OverlayRole } from '@shared/types/ipc';
 import styles from './PromptView.module.css';
@@ -86,15 +87,26 @@ export function PromptView(): JSX.Element {
   const [hitText, setHitText] = useState('');
   const [hitIds, setHitIds] = useState<string[]>([]);
 
+  /**
+   * 请求序号守卫（终审 I-1）：见 lib/sequenced。角色切换是「切换即拉取」，
+   * 慢的旧响应后到会盖掉新表单、保存即串档。故每次动作领一个序号，
+   * await 回来后只有仍是最新的那一次才许落地——规则只有一条：**用户动作赢**。
+   */
+  const seqRef = useRef(createSequencer());
+
   const { confirm, node: confirmNode } = useConfirm();
 
-  /** 首帧：三行覆盖层摘要 + 技能表一起拉 */
+  /**
+   * 首帧：三行覆盖层摘要 + 技能表一起拉。
+   * ★ I-1：迟到的首帧不许盖掉用户已选角色——领号后判最新才回填。
+   */
   useEffect(() => {
     if (!hasBridge()) {
       setLoadError('preload 未加载成功 —— 覆盖层与技能通道不可用。');
       return;
     }
     void (async () => {
+      const seq = seqRef.current.next();
       try {
         const [concept, architect, writer, list] = await Promise.all([
           fetchRole('concept'),
@@ -102,27 +114,36 @@ export function PromptView(): JSX.Element {
           fetchRole('writer'),
           bridge().skills.list(),
         ]);
+        if (!seqRef.current.isCurrent(seq)) return;
         setStates({ concept, architect, writer });
         setSkills(list);
         setTempText(writer.temperature === null ? '' : String(writer.temperature));
         setAdditional(writer.additional);
       } catch (e) {
-        setLoadError(failText(e));
+        if (seqRef.current.isCurrent(seq)) setLoadError(failText(e));
       }
     })();
   }, []);
 
-  /** 选中角色：拉该角色最新覆盖层并回填表单（warnings 随 get 直报） */
+  /**
+   * 选中角色：拉该角色最新覆盖层并回填表单（warnings 随 get 直报）。
+   * ★ I-1：先领号——选中标题立即更新不滞后，但表单回填要等 await 回来后确认
+   *   "我还是最新一次"才落地，否则慢的旧角色响应会盖掉用户刚点的选择。
+   *   起手清 loadError：用户动作即消除上一次的加载红字（P2-A T4 minor 移交）。
+   */
   const openRole = useCallback(async (role: OverlayRole): Promise<void> => {
+    const seq = seqRef.current.next();
     setSelected(role);
     setFieldError(null);
+    setLoadError(null);
     try {
       const st = await fetchRole(role);
+      if (!seqRef.current.isCurrent(seq)) return;
       setStates((prev) => ({ ...prev, [role]: st }));
       setTempText(st.temperature === null ? '' : String(st.temperature));
       setAdditional(st.additional);
     } catch (e) {
-      setLoadError(failText(e));
+      if (seqRef.current.isCurrent(seq)) setLoadError(failText(e));
     }
   }, []);
 

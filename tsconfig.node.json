@@ -42,6 +42,10 @@
     // 同 inline-marks 的先例：管线条的 deriveStage 也是 DOM-free 的纯判定，
     // 终审 Important-2③ 的七条行为用例要直接 import 它（.tsx 在本项目里进不来）。
     "src/renderer/components/common/pipeline-stage.ts",
+    // 同理，sequenced.ts（请求序号守卫，终审 I-1）是纯状态机、零 DOM，
+    // P2-B 首批工单的 tests/unit/sequenced.test.ts 直接 import 它跑行为断言；
+    // composite 项目要求被引用的实现文件出现在 include 里，否则 TS6307。
+    "src/renderer/lib/sequenced.ts",
     "tests/**/*.ts",
     "electron.vite.config.ts"
   ],
