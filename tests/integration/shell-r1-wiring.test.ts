@@ -134,10 +134,12 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
    * 它不占数字快捷键——⌘1–⌘4 的 Ulysses 心智模型纪律不变。
    * ★ P2-B T4：资产组「伏笔台账」从 soon 占位转正为真 mode，id 集 14→15
    * （mode:foreshadow，同样不占数字快捷键）。
+   * ★ P2-B T6：资产组「人物记忆」从 soon 占位转正为真 mode，id 集 15→16
+   * （mode:characters，同样不占数字快捷键；soon-memory 行原地替换后 soon 剩 6 条）。
    */
   it('★ T2 钉死清单：面板与分派逐字等于 id 集；soon 项不进面板', () => {
     const EXPECTED = [
-      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen', 'mode:prompt', 'mode:foreshadow',
+      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen', 'mode:prompt', 'mode:foreshadow', 'mode:characters',
       'panel:tree', 'panel:rail', 'panel:status',
       'view:focus', 'view:rail-width',
       'app:open', 'app:settings',
@@ -197,6 +199,27 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
   });
 
   /**
+   * ★ P2-B T6：CharacterView（人物记忆）存在性——与上面 PromptView 哨兵同规：
+   * 组件文件、App 接线（import + modeHost 渲染点 + 资产组 soon-memory 原地转正）、
+   * 面板 id（已在钉死清单里）。
+   */
+  it('★ P2-B T6：CharacterView 被 App import、在 modeHost 渲染、资产组挂实项（soon-memory 转正）', () => {
+    expect(() => R('src/renderer/components/views/CharacterView.tsx')).not.toThrow();
+    expect(() => R('src/renderer/components/views/CharacterView.module.css')).not.toThrow();
+    expect(appTsx, 'CharacterView 没有被 import').toMatch(
+      /import\s*\{\s*CharacterView\s*\}\s*from\s*'\.\/components\/views\/CharacterView'/,
+    );
+    expect(appTsx, 'CharacterView 没有渲染点（modeHost 里缺 mode===characters 分支）').toMatch(
+      /mode === 'characters' && <CharacterView \/>/,
+    );
+    expect(appTsx, "资产组里 soon-memory 没转正为 id 'characters' 的 mode 实项").toMatch(
+      /kind:\s*'mode',\s*id:\s*'characters',\s*label:\s*MODE_LABELS\.characters/,
+    );
+    expect(appTsx, 'soon-memory 占位还留着（转正要原地替换，不许双入口）').not.toMatch(/'soon-memory'/);
+    expect(paletteIds(), '命令面板缺 mode:characters').toContain('mode:characters');
+  });
+
+  /**
    * ★ §UI ·终审 Important-3（模式显示名三副本收成一处）。
    * 修复前的形状：`App.tsx` 的 `MODE_LABELS`、`CommandPalette.tsx` 的 `MODE_LABEL`、
    * 以及 COMMANDS 里六个 `切换到 X` 字面量——三处手写、靠注释约定「加模式时两处一起改」。
@@ -205,18 +228,18 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
    *   反向：外壳与面板**都只能引用**它，任何一侧再抄一份字面量就红。
    */
   it('★ 模式显示名只有一个来源（App / 面板都引用 shared，不再各自手写）', () => {
-    // ★ P2-B T4：伏笔台账转正，键集 7→8。
-    const MODE_KEYS = ['write', 'plan', 'lore', 'review', 'dash', 'gen', 'prompt', 'foreshadow'];
-    // ① 来源文件：八个键逐一存在
+    // ★ P2-B T4：伏笔台账转正，键集 7→8。★ P2-B T6：人物记忆转正，键集 8→9。
+    const MODE_KEYS = ['write', 'plan', 'lore', 'review', 'dash', 'gen', 'prompt', 'foreshadow', 'characters'];
+    // ① 来源文件：九个键逐一存在
     for (const k of MODE_KEYS) {
       expect(modesTsx, `modes.ts 缺模式显示名 ${k}`).toMatch(new RegExp(`\\b${k}:\\s*'[^']+'`));
     }
     expect(modesTsx).toMatch(/export const MODE_LABELS:\s*Record<WorkMode,\s*string>/);
     expect(modesTsx).toMatch(
-      /export type WorkMode = 'write' \| 'plan' \| 'lore' \| 'review' \| 'dash' \| 'gen' \| 'prompt' \| 'foreshadow'/,
+      /export type WorkMode = 'write' \| 'plan' \| 'lore' \| 'review' \| 'dash' \| 'gen' \| 'prompt' \| 'foreshadow' \| 'characters'/,
     );
 
-    // ② 外壳：import 共享常量 + 不再本地声明 + 八条导航都挂共享名
+    // ② 外壳：import 共享常量 + 不再本地声明 + 九条导航都挂共享名
     expect(appTsx, "App.tsx 没有从 @shared/constants/modes 取 MODE_LABELS").toMatch(
       /import\s*\{\s*MODE_LABELS,\s*type WorkMode\s*\}\s*from\s*'@shared\/constants\/modes'/,
     );
@@ -246,7 +269,7 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
     const names = [...modesTsx.matchAll(/^\s*(\w+):\s*'([^']+)',$/gm)]
       .filter((m) => MODE_KEYS.includes(m[1]))
       .map((m) => m[2]);
-    expect(names.length, '从 modes.ts 解析出的显示名不足八条').toBe(8);
+    expect(names.length, '从 modes.ts 解析出的显示名不足九条').toBe(9);
     for (const name of names) {
       for (const [label, src] of [
         ['App.tsx', strip(appTsx)],

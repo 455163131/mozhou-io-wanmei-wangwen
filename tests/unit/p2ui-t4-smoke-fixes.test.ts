@@ -257,6 +257,9 @@ const SOLID_BUTTON_CENSUS = [
   'components/flavor/FlavorPanel.module.css#btnPrimary',
   'components/flavor/FlavorPanel.module.css#paraOn',
   'components/settings/SettingsModal.module.css#btnPrimary',
+  // ★ P2-B T6：人物记忆页新建人物 CTA（金实底 × accent-ink 反色字，与 ForeshadowView/
+  //   GenView/PromptView 同族同档，hover 生效对 accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
+  'components/views/CharacterView.module.css#btnPrimary',
   // ★ P2-B T4：伏笔台账手工登记 CTA（金实底 × accent-ink 反色字，与 GenView/PromptView
   //   同族同档，hover 生效对 accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
   'components/views/ForeshadowView.module.css#btnPrimary',
@@ -859,8 +862,9 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
   }
 
   it('soon 占位项确实存在，且标签逐条 ≤4 字（R40 裁决的契约）', () => {
-    // ★ P2-B T4：伏笔台账转正为真 mode，soon 行 8→7（下限 6 的防呆哨保留）。
-    expect(SOON.length, '★ P2-B T4 后 NAV_GROUPS 的 soon 行应为 7 条').toBe(7);
+    // ★ P2-B T4：伏笔台账转正，soon 行 8→7；★ P2-B T6：人物记忆转正，soon 行 7→6
+    // （下限 6 的防呆哨保留——它现在恰好卡在真值上，再有人删 soon 行就红）。
+    expect(SOON.length, '★ P2-B T6 后 NAV_GROUPS 的 soon 行应为 6 条').toBe(6);
     expect(SOON.length, 'NAV_GROUPS 里一个 soon 项都没扫到，这条断言空转').toBeGreaterThanOrEqual(6);
     for (const s of SOON) {
       const n = [...s.label].length;

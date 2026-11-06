@@ -43,6 +43,7 @@ import { DashboardView } from './components/views/DashboardView';
 import { GenView } from './components/views/GenView';
 import { PromptView } from './components/views/PromptView';
 import { ForeshadowView } from './components/views/ForeshadowView';
+import { CharacterView } from './components/views/CharacterView';
 import type { LlmStatus } from '@shared/types/provider';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
 import { MODE_LABELS, type WorkMode } from '@shared/constants/modes';
@@ -55,7 +56,7 @@ type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
  * ★ P2-UI T2（DRD §4.1）：左导航从「六个并列按钮」重排为**四组 IA**。
  *
  *   创作=[写作坊 / 大纲管理 / 生成·导演台 / 审稿报告(R36 回补)]  —— 产出与定稿的入口
- *   资产=[世界观设定 / 人物记忆·设计中 / 伏笔台账(P2-B T4 转正) / 长期记忆·设计中]
+ *   资产=[世界观设定 / 人物记忆(P2-B T6 转正) / 伏笔台账(P2-B T4 转正) / 长期记忆·设计中]
  *   灵感=[扫榜热榜 / 抽脑洞 / 拆书报告 / 选题库]（全部设计中）
  *   输出=[统计账本 / 导出中心·设计中]
  *   系统=[提示词与技能]（★ P2-A T4 新增第 5 组，一条实项，不占数字快捷键）
@@ -100,8 +101,8 @@ type NavItem =
  *   与 COMMANDS 的 `切换到 X`），三处靠注释约定同步。现在面包屑、NAV_GROUPS 的
  *   label、面板底栏「当前：」、面板命令名全部指同一个常量——加模式只改一处。
  *   双向钉在 tests/integration/shell-r1-wiring.test.ts A 组。
- *   （★ P2-B T4：伏笔台账转正为真 mode 后，soon 行剩 7 条：
- *   人物记忆/长期记忆/扫榜热榜/抽脑洞/拆书报告/选题库/导出中心。）
+ *   （★ P2-B T4 伏笔台账转正后 soon 行剩 7 条；★ P2-B T6 人物记忆再转正，
+ *   剩 6 条：长期记忆/扫榜热榜/抽脑洞/拆书报告/选题库/导出中心。）
  */
 
 /** 导航条目（icon path 与品牌定稿的 SVG sprite 同源） */
@@ -124,7 +125,8 @@ const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
     label: '资产',
     items: [
       { kind: 'mode', id: 'lore', label: MODE_LABELS.lore, d: 'M4 19.5A2.5 2.5 0 016.5 17H20V4H6.5A2.5 2.5 0 004 6.5v13z' },
-      { kind: 'soon', id: 'soon-memory', label: '人物记忆', d: 'M12 12a4 4 0 100-8 4 4 0 000 8M5 20a7 7 0 0114 0' },
+      // ★ P2-B T6：人物记忆从 soon 占位转正为真 mode（icon path 原样保留）。
+      { kind: 'mode', id: 'characters', label: MODE_LABELS.characters, d: 'M12 12a4 4 0 100-8 4 4 0 000 8M5 20a7 7 0 0114 0' },
       // ★ P2-B T4：伏笔台账从 soon 占位转正为真 mode（icon path 原样保留）。
       { kind: 'mode', id: 'foreshadow', label: MODE_LABELS.foreshadow, d: 'M6 4h12v16l-6-4-6 4V4z' },
       { kind: 'soon', id: 'soon-longterm', label: '长期记忆', d: 'M12 4l2.3 4.7 5.2.7-3.8 3.7.9 5.2-4.6-2.5-4.6 2.5.9-5.2L5.5 9.4l5.2-.7L12 4z' },
@@ -579,6 +581,7 @@ export function App(): JSX.Element {
               {mode === 'gen' && <GenView />}
               {mode === 'prompt' && <PromptView />}
               {mode === 'foreshadow' && <ForeshadowView />}
+              {mode === 'characters' && <CharacterView />}
             </main>
           )}
         </div>
@@ -619,7 +622,7 @@ export function App(): JSX.Element {
             switch (id) {
               case 'mode:write': case 'mode:plan': case 'mode:lore':
               case 'mode:review': case 'mode:dash': case 'mode:gen': case 'mode:prompt':
-              case 'mode:foreshadow':
+              case 'mode:foreshadow': case 'mode:characters':
                 setMode(id.slice(5) as Mode);
                 break;
               case 'panel:tree':

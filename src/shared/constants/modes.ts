@@ -16,9 +16,10 @@
  * import 另一侧都会形成组件间的横向依赖（外壳 ↔ 面板本来是父子关系）。
  */
 
-/** 八种工作模式（id 与命令面板的 `mode:*` 命令、App 的 onRun 分派逐字同源；
- *  ★ P2-B T4：资产组的「伏笔台账」从 soon 占位转正为真 mode） */
-export type WorkMode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen' | 'prompt' | 'foreshadow';
+/** 九种工作模式（id 与命令面板的 `mode:*` 命令、App 的 onRun 分派逐字同源；
+ *  ★ P2-B T4：资产组的「伏笔台账」从 soon 占位转正为真 mode；
+ *  ★ P2-B T6：资产组的「人物记忆」同样原地转正） */
+export type WorkMode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen' | 'prompt' | 'foreshadow' | 'characters';
 
 /**
  * 显示名。四字档是展开态导航的宽度账（`--mz-layout-rail-expanded-w` 184px 里
@@ -36,6 +37,8 @@ export const MODE_LABELS: Record<WorkMode, string> = {
   prompt: '提示词与技能',
   // ★ P2-B T4：伏笔台账页（四字档，同 soon 时期的路标名，导航行原地转正）。
   foreshadow: '伏笔台账',
+  // ★ P2-B T6：人物记忆页（四字档，同 soon 时期的路标名，导航行原地转正）。
+  characters: '人物记忆',
 };
 
 /**
