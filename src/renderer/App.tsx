@@ -7,8 +7,8 @@
  *  1. **左侧导航展开态带文字标签**。此前是 56px 纯图标，每个按钮只有 SVG 和
  *     11.5px 的两字标签，而 NN/g 的定量研究实测「桌面端隐藏式导航使用率仅 27%，
  *     可见导航 48%」，且桌面大屏上省下的横向空间「不足以证明隐藏它的成本」。
- *     现在 rail 有展开（168px，图标 + 四字标签）与收起（56px，纯图标 + hover
- *     tooltip 带快捷键）两态，并记住用户选择。
+ *     现在 rail 有展开（184px，图标 + 四字标签；R41 由 168 加宽，台账见 `.railSoon`）
+ *     与收起（56px，纯图标 + hover tooltip 带快捷键）两态，并记住用户选择。
  *  2. **三栏可一键坍缩**。Ulysses 的 Hide Toolbar 是本次调研里最值得抄的一条：
  *     三栏是对的，错的是「三栏且永远占满」。`⌘3` 把章节树与 AI 侧栏同时收成
  *     零宽，写作时只剩正文；`⌘4` 再叠一层全屏。
@@ -73,7 +73,14 @@ type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
  *   App.module.css 的 `.railSoon`，契约由 tests/unit/p2ui-t4-smoke-fixes.test.ts
  *   D 组现算钉住）。现名 人物记忆/伏笔台账/长期记忆/扫榜热榜/抽脑洞/拆书报告/
  *   选题库/导出中心 全在四字内，本批**不重命名**（改名会连带 title 提示与
- *   DRD §4.1 的路标口径），截断改由 soon 行的 gap 补偿解决。
+ *   DRD §4.1 的路标口径）。
+ * ★ §UI ·R41（真机实锤后的二次裁决）：R40 的 gap 补偿在 168px 档只买到 1.64px
+ *   账面余量，打包版墨韵皮肤真机上六个四字项仍被截成三字 + 省略号 —— 那笔是
+ *   全仓最薄的承重账（R38 复评审预警过）。裁决换成**加宽展开档**：
+ *   `--mz-layout-rail-expanded-w` 168 → 184，soon 行余量按令牌重算为 **17.64px**
+ *   （扣掉 `.railModes` 滚动时 10px 滚动条预留的最坏档仍有 **7.64px**）。
+ *   gap 那条补偿保留（仍买 4px），但**契约不放宽**：184 档下五字标签账面放得下、
+ *   最坏档放不下，所以 ≤4 字继续有效，防文案漂移。
  */
 type NavItem =
   | { kind: 'mode'; id: Mode; label: string; d: string }
@@ -98,7 +105,7 @@ const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
       // ★ T6：生成模式（P0 生成流水线的 UI 入口）。图标 = 简易闪电。
       { kind: 'mode', id: 'gen', label: MODE_LABELS.gen, d: 'M13 2L5 13.5h5.5L9.5 22 19 10.5h-5.5L13 2z' },
       // ★ T3 R36：审稿报告回补进创作组（写作→审稿是一级工作流，不该只剩面板入口）。
-      //   图标 = 审阅放大镜；label 四字内（R1 展开态 168px 的标签账）。
+      //   图标 = 审阅放大镜；label 四字内（R41 展开态 184px 的标签账）。
       { kind: 'mode', id: 'review', label: MODE_LABELS.review, d: 'M11 4a6 6 0 100 12 6 6 0 000-12M20 20l-4.5-4.5' },
     ],
   },

@@ -20,7 +20,7 @@
 export type WorkMode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen';
 
 /**
- * 显示名。四字档是展开态导航的宽度账（`--mz-layout-rail-expanded-w` 168px 里
+ * 显示名。四字档是展开态导航的宽度账（`--mz-layout-rail-expanded-w` 184px 里
  * 图标 + 标签 + 内边距的余额，见 App.module.css `.railLabel`），不许随手加长；
  * `生成·导演台` 是唯一的六字例外，它没有「设计中」tag，所以拿得到整行余量。
  */

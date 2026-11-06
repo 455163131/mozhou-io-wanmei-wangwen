@@ -25,10 +25,14 @@
  *     所以平局＝输。派生后 ConfirmDialog 的 `.dangerBtn`（终审 Important-1 那颗
  *     回滚确认键）自然入列，候选全量 10 处（原 6 处 + dangerBtn + R37 之前就各自
  *     挡住的 AgentPanel .runBtn / SettingsModal .btnPrimary / GenView .btnPrimary）。
- *  D. §UI ·终审 Important-3（R40）+ Minor③（R41）—— soon 占位项在展开态被省略号
- *     截断：一行里 mode 项没有「设计中」chip、soon 项有，所以 soon 的标签预算少一颗
+ *  D. §UI ·终审 Important-3（R40）+ Minor③（R41）+ R41 加宽复核——soon 占位项在展开态
+ *     被省略号截断：一行里 mode 项没有「设计中」chip、soon 项有，所以 soon 的标签预算少一颗
  *     chip 的宽度；四字标签需要的宽度**恰好**比预算大 2px，于是 `button:hover` 那次
- *     没查出来的账在这里现算。同批钉：模式显示名三副本收成一处、占位符颜色接线。
+ *     没查出来的账在这里现算。★ R41 的实测结论：R40 只靠收 gap 买到 1.64px 账面余量，
+ *     打包版墨韵皮肤真机（SimSun 字宽 + 显示缩放逐边取整 + 导航列滚动条预留）照样截断
+ *     ——所以 D 组现在按**加宽后的 184px** 重算，并同时卡两档余量（账面 / 扣滚动条的
+ *     最坏档），下限 6px。两条负对照分别钉住「加宽」和「gap 补偿」各自承重的那一笔。
+ *     同批钉：模式显示名三副本收成一处、占位符颜色接线。
  *
  * 比值一律 WCAG 2.1 现场算（与 theme-ink B 组 / p2ui-t3-reskin B 组同式），不抄结论。
  */
@@ -520,7 +524,7 @@ describe('C. §UI ·R37+R38+终审 Important-2 hover 覆盖（候选集从 CSS �
   });
 });
 
-describe('D. §UI ·终审 Important-3（R40 soon 行宽度账）+ Minor③（R41 占位符接线）', () => {
+describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档 184px）+ Minor③（R41 占位符接线）', () => {
   /** tokens 取值解析：`Npx` / `Nem` / `var(--x)` 链（布局与间距令牌都在 :root，两套皮肤共用） */
   function tokenNum(name: string, seen = 0): number {
     const raw = paper.get(name);
@@ -576,34 +580,73 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账）+ Minor③（R4
   const CHIP = /styles\.soonTag\}>([^<]+)</.exec(appTsx)?.[1] ?? '';
 
   /**
-   * soon 行的几何账（全部从令牌 + 规则现读，没有一个手抄的数）。
-   * `budget(gap)` = 展开态轨宽 − rail 左右内边距 − 行左右内边距 − 图标 − chip − 两道 gap。
+   * `.railModes` 一滚动就要从栏宽里扣走的整条滚动条宽（现读 global.css 的
+   * ::-webkit-scrollbar，不是抄的数）。
+   * ★ §UI ·R41：这笔预留就是 R40「账面还剩 1.64px、真机照样截断」的没进账吃掉项。
    */
-  function soonRow(): {
-    budget: (gap: number) => number;
-    need: (chars: number) => number;
-    widest: number;
-    gapSoon: number;
-    gapMode: number;
-  } {
+  const scrollbarW = (() => {
+    const g = strip(readCss('styles/global.css'));
+    const m = /::-webkit-scrollbar\s*\{[^}]*?\bwidth:\s*([\d.]+)px/.exec(g);
+    expect(
+      m,
+      'global.css 的 ::-webkit-scrollbar 宽度读不到：soon 行的「最坏档」失去了输入',
+    ).not.toBeNull();
+    return Number(m?.[1]);
+  })();
+
+  /**
+   * §UI ·R40 的**历史档**展开宽（168px）。它不是当前值，只是负对照的锚点：
+   * 用它复现真机截断，才能证明「加宽 184」这一笔是承重的，而不是顺手加的装饰。
+   * 当前令牌若被改回 168，负对照①会把这条一起判红。
+   */
+  const PRE_R41_RAIL_W = 168;
+
+  /**
+   * 余量下限 6px。★ R41 从 R40 的「装得下就行」提上来的依据：Windows 显示缩放
+   * （125 %／150 %）下这条横排里每一个盒子的四条边都要各自取整到设备像素，实测
+   * 吃掉的就是 2px 量级；再叠上滚动条预留与 SimSun 的 1em 字宽，1.64px 的账面
+   * 余量在真机上等于零。6px 是「最坏档也还剩得下一整条取整误差」的档。
+   */
+  const SLACK_MIN = 6;
+
+  /**
+   * soon 行的几何账（全部从令牌 + 规则现读，没有一个手抄的数）。
+   * `budget(gap, reserve)` = 轨宽 − rail 左右内边距 − 行左右内边距 − 图标 − chip
+   *                        − 两道 gap −（可选）滚动条预留。
+   *
+   * ★ R41 的两处口径修订（真机实锤逼出来的，不是放宽）：
+   *   ① chip 的字宽逐字带 letter-spacing——`.soonTag` 从 `.railBtn` 继承了
+   *      --mz-tracking-cjk，R40 只按 3×--mz-fs-2xs 算，账面少算了 0.345px；
+   *   ② 增加 reserve 一档，把「导航列滚动」当作 soon 行的**可达状态**来算最坏档，
+   *      而不是等偶然撞上（`.railModes` 写的就是 overflow-y: auto）。
+   */
+  function soonRow(railW: number = tokenNum('--mz-layout-rail-expanded-w')) {
     const inner =
-      tokenNum('--mz-layout-rail-expanded-w') -
+      railW -
       2 * lenOf(railBody, 'padding') -
       2 * lenOf(btnBody, 'padding');
+    const labelFs = tokenNum('--mz-chrome-type-body');
+    const tracking = tokenNum('--mz-tracking-cjk');
     const chipW =
-      [...CHIP].length * tokenNum('--mz-fs-2xs') +
+      [...CHIP].length * tokenNum('--mz-fs-2xs') * (1 + tracking) +
       2 * lenOf(tagBody, 'padding') +
       2 * lenOf(tagBody, 'border', 'first');
     const fixed = inner - lenOf(icoBody, 'width') - chipW;
-    const labelFs = tokenNum('--mz-chrome-type-body');
-    const tracking = tokenNum('--mz-tracking-cjk');
     return {
-      budget: (gap: number): number => fixed - 2 * gap,
+      budget: (gap: number, reserve = 0): number => fixed - 2 * gap - reserve,
       need: (chars: number): number => chars * labelFs * (1 + tracking),
       widest: Math.max(...SOON.map((s) => [...s.label].length)),
       gapSoon: lenOf(soonBody, 'gap'),
       gapMode: lenOf(btnBody, 'gap'),
+      railW,
     };
+  }
+
+  /** 现档的两个余量：账面（静态）与最坏（扣掉滚动条预留） */
+  function slackAt(railW: number): { ideal: number; worst: number } {
+    const { budget, need, widest, gapSoon } = soonRow(railW);
+    const n = need(widest);
+    return { ideal: budget(gapSoon) - n, worst: budget(gapSoon, scrollbarW) - n };
   }
 
   it('soon 占位项确实存在，且标签逐条 ≤4 字（R40 裁决的契约）', () => {
@@ -615,24 +658,100 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账）+ Minor③（R4
     expect(CHIP, 'soon 项没有「设计中」chip（D 组的宽度账就没有对手了）').not.toBe('');
   });
 
-  it('★ soon 行宽度账现算：标签 + 图标 + chip + 两道 gap 必须装进展开态轨宽', () => {
-    const { budget, need, widest, gapSoon } = soonRow();
+  it('★ soon 行宽度账现算：标签 + 图标 + chip + 两道 gap 装进展开态轨宽，且余量 >= 6px（双档）', () => {
+    const { budget, need, widest, gapSoon, railW } = soonRow();
+    const n = need(widest);
+    const { ideal, worst } = slackAt(railW);
     expect(
-      need(widest),
-      `${widest} 字 soon 标签要 ${need(widest).toFixed(1)}px，但 soon 行只剩 ${budget(gapSoon).toFixed(1)}px：` +
+      n,
+      `${widest} 字 soon 标签要 ${n.toFixed(2)}px，但 soon 行账面只剩 ${budget(gapSoon).toFixed(2)}px：` +
         `「${SOON.find((s) => [...s.label].length === widest)?.label}」会被 .railLabel 的 ellipsis 截掉`,
     ).toBeLessThanOrEqual(budget(gapSoon));
+    expect(
+      ideal,
+      `账面余量 ${ideal.toFixed(2)}px < ${SLACK_MIN}px 下限——R40 就是栽在 1.64px 这种脆账上`,
+    ).toBeGreaterThanOrEqual(SLACK_MIN);
+    expect(
+      worst,
+      `最坏档（含 ${scrollbarW}px 滚动条预留）余量 ${worst.toFixed(2)}px < ${SLACK_MIN}px 下限：` +
+        `导航列一滚动，「${SOON.find((s) => [...s.label].length === widest)?.label}」又会回到真机截断那一档`,
+    ).toBeGreaterThanOrEqual(SLACK_MIN);
   });
 
-  it('★ 负对照：把 mode 行的 gap 用在 soon 行上就是截断本身（证明 .railSoon 那条 gap 是承重的）', () => {
-    const { budget, need, widest, gapSoon, gapMode } = soonRow();
+  it('★ 负对照①（加宽是承重的）：轨宽退回 R40 的 168px 档就复现真机截断', () => {
+    const expanded = tokenNum('--mz-layout-rail-expanded-w');
+    expect(
+      expanded,
+      `--mz-layout-rail-expanded-w 是 ${expanded}px，没比历史档 ${PRE_R41_RAIL_W}px 宽——R41 的加宽没落地`,
+    ).toBeGreaterThan(PRE_R41_RAIL_W);
+    const old = slackAt(PRE_R41_RAIL_W);
+    const now = slackAt(expanded);
+    // 旧档：账面余量低于新下限（R40 报的「全仓最薄承重账」），最坏档直接爆成负数
+    expect(
+      old.ideal,
+      `168px 档的账面余量变成了 ${old.ideal.toFixed(2)}px，不再 < ${SLACK_MIN}px —— 真机截断的成因该重写`,
+    ).toBeLessThan(SLACK_MIN);
+    expect(
+      old.worst,
+      `168px 档的最坏余量不再是负的？那 R41 的截断实锤就没有账面对手了，这条负对照该改写`,
+    ).toBeLessThan(0);
+    // 新档买到的预算必须正好等于加宽的增量（+16px），不多不少——防止「顺手加宽」没账
+    expect(now.ideal - old.ideal, '加宽增量与令牌差不一致').toBeCloseTo(expanded - PRE_R41_RAIL_W, 6);
+  });
+
+  it('★ 负对照②（soon 行的 gap 补偿仍在买预算）：撤成 mode 行的 gap 就不达标 / 旧档直接爆账', () => {
+    const { budget, need, widest, gapSoon, gapMode, railW } = soonRow();
+    const old = soonRow(PRE_R41_RAIL_W);
     expect(gapSoon, 'soon 行与 mode 行的 gap 一样，那 soon 的补偿没写进去').not.toBe(gapMode);
     expect(
-      need(widest) > budget(gapMode),
-      `用 mode 行的 gap(${gapMode}) 算，soon 行预算 ${budget(gapMode).toFixed(1)}px 仍装得下 ${widest} 字标签` +
-        `（${need(widest).toFixed(1)}px）——那 R40 报的截断就不成立了，这条负对照该改写`,
-    ).toBe(true);
+      budget(gapSoon) - budget(gapMode),
+      '.railSoon 的 gap 补偿不再等于两道 gap 的差（规则被改了就要重算账）',
+    ).toBeCloseTo(2 * (gapMode - gapSoon), 6);
+    // 旧档：撤掉 gap 收紧，四字标签连账面都装不下 —— R40 报的截断本身就是这么算出来的
+    expect(
+      old.need(old.widest),
+      `168px 档用 mode 行的 gap(${old.gapMode}) 还剩 ${old.budget(old.gapMode).toFixed(2)}px，` +
+        `装得下 ${old.widest} 字标签（${old.need(old.widest).toFixed(2)}px）——那 R40 的截断就不成立了`,
+    ).toBeGreaterThan(old.budget(old.gapMode));
+    // 新档：撤掉 gap 后不至于当场截断，但最坏档余量掉到 6px 下限以下 —— 这条规则仍然承重
+    const slackWithoutGapFix = budget(gapMode, scrollbarW) - need(widest);
+    expect(
+      slackWithoutGapFix,
+      `在 ${railW}px 档撤掉 soon 行的 gap 补偿后最坏余量还有 ${slackWithoutGapFix.toFixed(2)}px，` +
+        `不再低于 ${SLACK_MIN}px —— .railSoon 那条 gap 变成装饰了，要么改规则要么改这条台账`,
+    ).toBeLessThan(SLACK_MIN);
     expect(budget(gapSoon)).toBeGreaterThan(budget(gapMode));
+  });
+
+  it('★ 契约不放宽的依据：184 档下五字标签账面放得下、最坏档放不下', () => {
+    const { budget, need, gapSoon, railW } = soonRow();
+    expect(
+      need(5),
+      `五字标签在 ${railW}px 档的账面预算里放不下（${need(5).toFixed(2)} > ${budget(gapSoon).toFixed(2)}）——` +
+        `≤4 字的契约理由变了，得重看是不是该收一档文案或再加宽`,
+    ).toBeLessThanOrEqual(budget(gapSoon));
+    expect(
+      need(5),
+      '五字标签在滚动条档也放得下了：那条 ≤4 字的契约就只剩「文案别漂」一个理由，这里要重判',
+    ).toBeGreaterThan(budget(gapSoon, scrollbarW));
+  });
+
+  it('★ 加宽只落在展开档：收起态与 <1360 紧凑档仍指回 56px 令牌', () => {
+    const collapsed = ruleBody(css, '.railCollapsed .rail');
+    expect(collapsed, '缺 .railCollapsed .rail 规则').not.toBe('');
+    expect(collapsed ?? '', '收起态跟着一起飞了').toMatch(/width:\s*var\(--mz-layout-rail-w\)/);
+    expect(tokenNum('--mz-layout-rail-w'), '收起档 56px 被顺手改了（1280 最窄账的输入）').toBe(56);
+    // 紧凑档里的 .rail 是缩写的，ruleBody 只认行首，这里按块体找（同 layout-flex-wiring D 组：
+    // 文件里有两条 max-width 断点，取真正收栏宽的那一条，别拿 4 行的边框规则去量）
+    const blocks = [...css.matchAll(/@media\s*\(max-width:\s*\d+px\)\s*\{([\s\S]*?)\n\}/g)].map(
+      (m) => m[1],
+    );
+    const blk = blocks.find((b) => b.includes('--mz-layout-tree-min-w'));
+    expect(blk, '找不到 <1360 的紧凑档断点（收栏宽那一条）').not.toBeUndefined();
+    const bp = blk as string;
+    expect(bp, '紧凑档没把 rail 压回收起宽').toMatch(/\.rail\s*\{[^}]*width:\s*var\(--mz-layout-rail-w\)/);
+    expect(bp, '紧凑档没隐藏标签').toMatch(/\.railLabel\s*\{[^}]*display:\s*none/);
+    expect(bp, '紧凑档没隐藏 chip').toMatch(/\.soonTag\s*\{[^}]*display:\s*none/);
   });
 
   it('R41：global.css 把 --mz-text-placeholder 接到了 ::placeholder 上（令牌不再是死档）', () => {
