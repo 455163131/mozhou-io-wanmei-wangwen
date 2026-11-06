@@ -56,11 +56,11 @@ interface Command {
  * 刻意保持短：调研第 8 节的结论是「重做不是把选项删光」，但也不等于把
  * 每个按钮都搬进来 —— 面板里只放“用户在写作过程中会想切换的东西”。
  *
- * ★ P2-UI T2（四组 IA）同步口径（P2-A T4 起为五组、14 条）：
- *   - `mode:*` 七条**全保留**（R36 后审稿进了创作组导航、P2-A T4 后提示词与技能
- *     进了系统组——面板条目与 id 集双向同步于 shell-r1 A 组钉死清单，现 14 条；
+ * ★ P2-UI T2（四组 IA）同步口径（P2-A T4 起为五组、14 条；★ P2-B T4 起 15 条）：
+ *   - `mode:*` 八条**全保留**（R36 后审稿进了创作组导航、P2-A T4 后提示词与技能
+ *     进了系统组、P2-B T4 后伏笔台账转正——面板条目与 id 集双向同步于 shell-r1 A 组钉死清单，现 15 条；
  *     面板仍是它们的⌘K 快路）；
- *   - 左导航的 soon 占位项（人物记忆/伏笔台账/…）**不进面板**：
+ *   - 左导航的 soon 占位项（人物记忆/长期记忆/…）**不进面板**：
  *     它们是 disabled 的「设计中」路标，没有可执行动作，进面板就是骗用户点；
  *   - label 跟随新显示名（写作坊/大纲管理/…），alias 保留旧名关键词——
  *     老用户搜「仪表盘」仍要能命中「统计账本」。清单与 onRun 的双向逐字
@@ -79,6 +79,9 @@ const COMMANDS: Command[] = [
   // ★ P2-A T4：系统组实项进面板（id 集 13→14 与 shell-r1 A 组双向同步）。
   //   不占数字快捷键——⌘1–⌘4 纪律不变，keys 留空。
   { id: 'mode:prompt', label: `切换到 ${MODE_LABELS.prompt}`, group: '模式', alias: 'prompt skills 提示词 技能 覆盖层 tishici' },
+  // ★ P2-B T4：伏笔台账转正为真 mode，进面板（id 集 14→15 与 shell-r1 A 组双向同步）。
+  //   不占数字快捷键，keys 留空（⌘1–⌘4 纪律同 mode:prompt）。
+  { id: 'mode:foreshadow', label: `切换到 ${MODE_LABELS.foreshadow}`, group: '模式', alias: 'foreshadow ledger 伏笔 台账 fubi taizhang' },
 
   { id: 'panel:tree', label: '显示 / 隐藏 章节树', group: '面板', keys: '⌘1', alias: 'tree chapter zhangjieshu' },
   { id: 'panel:rail', label: '显示 / 隐藏 AI 面板', group: '面板', keys: '⌘2', alias: 'rail ai panel' },

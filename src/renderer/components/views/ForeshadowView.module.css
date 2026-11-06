@@ -1,0 +1,437 @@
+/**
+ * 伏笔台账页样式（P2-B T4）。
+ * 布局照原型 05-foreshadow.html（chart-wrap / ledger-grid / filter-item / evi-block / modal），
+ * 但颜色、字号、圆角、间距一律只走 --mz- 前缀的令牌——wiring 测试与 theme-ink C 组
+ * 都钉死这里不许出现裸色；design-tokens-usage A 组钉死刻度属性不许裸 px。
+ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-4);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2h);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-h3);
+  color: var(--mz-text-primary);
+}
+
+.sub {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.err {
+  color: var(--mz-sem-err-fg);
+  font-size: var(--mz-fs-xs);
+  margin: 0;
+}
+
+.empty {
+  background: var(--mz-bg-inset);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-4);
+  color: var(--mz-text-tertiary);
+  font-size: var(--mz-fs-sm);
+  line-height: 1.8;
+  margin: 0;
+}
+
+.note {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+  line-height: 1.8;
+  margin: 0;
+}
+
+/* ── 双栏：主列（图+表）+ 右栏（筛选+证据）── */
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 264px;
+  gap: var(--mz-space-4);
+  align-items: start;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-4);
+  min-width: 0;
+}
+
+.card {
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-4);
+}
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+  margin: 0 0 var(--mz-space-3);
+}
+
+.cardTitle {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-chrome-type-title);
+  color: var(--mz-text-primary);
+  font-weight: var(--mz-fw-semibold);
+  margin: 0;
+}
+
+/* ── 债务趋势 SVG 柱（debtSeries 的纯渲染）── */
+
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.bar {
+  fill: var(--mz-accent);
+}
+
+.axis {
+  stroke: var(--mz-chart-axis);
+  stroke-width: 1;
+}
+
+.chLabel {
+  fill: var(--mz-chart-label);
+  font-size: var(--mz-fs-2xs);
+  font-family: var(--mz-font-numeric);
+}
+
+/* ── 台账表格 ── */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--mz-fs-xs);
+}
+
+.table th {
+  text-align: left;
+  color: var(--mz-text-tertiary);
+  font-weight: var(--mz-fw-medium);
+  padding: var(--mz-space-half) var(--mz-space-2);
+  border-bottom: 1px solid var(--mz-border-subtle);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--mz-space-half) var(--mz-space-2);
+  border-bottom: 1px solid var(--mz-border-faint);
+  color: var(--mz-text-body);
+  vertical-align: top;
+}
+
+.monoCell {
+  font-family: var(--mz-font-numeric);
+  white-space: nowrap;
+}
+
+.chainCell {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-secondary);
+  line-height: 1.7;
+}
+
+.unreg {
+  color: var(--mz-text-disabled);
+  font-size: var(--mz-fs-2xs);
+}
+
+.statusCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mz-space-1);
+  white-space: nowrap;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--mz-radius-full);
+  display: inline-block;
+  flex: none;
+}
+
+.dotRed {
+  background: var(--mz-sem-err-strong);
+}
+
+.dotYellow {
+  background: var(--mz-sem-warn-strong);
+}
+
+.dotGreen {
+  background: var(--mz-sem-pass-strong);
+}
+
+.tagGold {
+  background: var(--mz-accent-soft);
+  color: var(--mz-text-link);
+  border: 1px solid var(--mz-border-accent);
+  border-radius: var(--mz-radius-xs);
+  padding: 0 var(--mz-space-1);
+  font-family: var(--mz-font-numeric);
+}
+
+.tagCyan {
+  background: var(--mz-bg-subtle);
+  color: var(--mz-text-primary);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-xs);
+  padding: 0 var(--mz-space-1);
+  font-family: var(--mz-font-numeric);
+}
+
+.tagGray {
+  background: var(--mz-bg-inset);
+  color: var(--mz-text-tertiary);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-xs);
+  padding: 0 var(--mz-space-1);
+  font-family: var(--mz-font-numeric);
+}
+
+.ops {
+  display: inline-flex;
+  gap: var(--mz-space-1);
+  flex-wrap: wrap;
+}
+
+/* ── 按钮三档（btn/btnPrimary 形状与 GenView 同族；btnDanger 只描边不实底）── */
+
+.btn {
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-primary);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  /* 主 CTA = 金底深字（ink 档香槟金 × 深墨字，与 GenView/PromptView 同档） */
+  border: 1px solid var(--mz-accent);
+  background: var(--mz-accent);
+  color: var(--mz-accent-ink);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+  font-weight: var(--mz-fw-semibold);
+}
+
+/* 特异性 (0,3,1) 严格压过 global.css 的 button:hover:not(:disabled) (0,2,1)，
+   hover 仍走实底档——p2ui-t4-smoke-fixes C 组台账里的 ForeshadowView#btnPrimary */
+.btnPrimary:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+  border-color: var(--mz-accent-hover);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnDanger {
+  border: 1px solid var(--mz-sem-err-border);
+  background: transparent;
+  color: var(--mz-sem-err-fg);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+
+.btnDanger:hover:not(:disabled) {
+  border-color: var(--mz-sem-err-fg);
+}
+
+/* ── 右栏状态筛选（原型 filter-item 轨）── */
+
+.filterItem {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  width: 100%;
+  text-align: left;
+  padding: var(--mz-space-1) var(--mz-space-2);
+  border: none;
+  background: transparent;
+  color: var(--mz-text-secondary);
+  font-size: var(--mz-fs-sm);
+  cursor: pointer;
+  border-radius: var(--mz-radius-sm);
+}
+
+.filterItem:hover {
+  color: var(--mz-text-primary);
+}
+
+.filterOn {
+  background: var(--mz-accent-soft);
+  color: var(--mz-text-primary);
+}
+
+.count {
+  margin-left: auto;
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-quaternary);
+  font-family: var(--mz-font-numeric);
+}
+
+/* ── 证据面板（原型 evi-block）── */
+
+.eviList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-3);
+}
+
+.eviTitle {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-sm);
+  color: var(--mz-text-primary);
+}
+
+.eviBlock {
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-3);
+}
+
+.loc {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-link);
+  letter-spacing: var(--mz-tracking-wide);
+  font-family: var(--mz-font-numeric);
+}
+
+.locMiss {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-sem-err-fg);
+  letter-spacing: var(--mz-tracking-wide);
+}
+
+.quote {
+  margin: var(--mz-space-2) 0 0;
+  font-family: var(--mz-font-serif);
+  font-size: var(--mz-fs-sm);
+  line-height: 2;
+  color: var(--mz-text-body);
+  background: var(--mz-accent-soft);
+  border: 1px solid var(--mz-border-accent);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-2) var(--mz-space-3);
+}
+
+.miss {
+  margin-top: var(--mz-space-2);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+}
+
+.chainText {
+  margin: var(--mz-space-2) 0 0;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+  line-height: 1.8;
+}
+
+/* ── 模态（登记 / 编辑 / 回收章选择）── */
+
+.mask {
+  position: fixed;
+  inset: 0;
+  background: var(--mz-scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--mz-z-modal);
+}
+
+.modal {
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-strong);
+  border-radius: var(--mz-radius-lg);
+  box-shadow: var(--mz-shadow-xl);
+  width: min(560px, 92vw);
+}
+
+.modalHead {
+  padding: var(--mz-space-3) var(--mz-space-4);
+  border-bottom: 1px solid var(--mz-border-subtle);
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-chrome-type-title);
+  color: var(--mz-text-primary);
+}
+
+.modalBody {
+  padding: var(--mz-space-4);
+}
+
+.formCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-3);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--mz-space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+}
+
+.fieldLabel {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--mz-space-2h);
+}
+
+@media (max-width: 1120px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

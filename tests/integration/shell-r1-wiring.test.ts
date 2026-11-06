@@ -125,17 +125,19 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
 
   /**
    * ★ P2-UI T2：id 集不再只靠「两张镜子对看」（palette↔onRun 自洽可以是两份
-   * 一起丢命令），这里逐字钉死 T2 定稿的 13 条：mode:* 六条保留、soon 占位项
+   * 一起丢命令），这里逐字钉死 T2 定稿的清单：mode:* 全保留、soon 占位项
    * **不进面板**（导航里只是 disabled 的「设计中」按钮，点了没有动作，面板里就
    * 不许有它）。
    * ★ T3 R36 并批：审稿回补进 NAV_GROUPS 创作组（一级入口重新出现）后，
    * mode:review 仍只此一条 id——「审稿报告」是 label，不是新命令；id 集维持 13。
-   * ★ P2-A T4：系统组「提示词与技能」实项进导航与面板，id 集 13→14（mode:prompt）。
+   * ★ P2-A T4：系统组实项进导航与面板，id 集 13→14（mode:prompt）。
    * 它不占数字快捷键——⌘1–⌘4 的 Ulysses 心智模型纪律不变。
+   * ★ P2-B T4：资产组「伏笔台账」从 soon 占位转正为真 mode，id 集 14→15
+   * （mode:foreshadow，同样不占数字快捷键）。
    */
   it('★ T2 钉死清单：面板与分派逐字等于 id 集；soon 项不进面板', () => {
     const EXPECTED = [
-      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen', 'mode:prompt',
+      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen', 'mode:prompt', 'mode:foreshadow',
       'panel:tree', 'panel:rail', 'panel:status',
       'view:focus', 'view:rail-width',
       'app:open', 'app:settings',
@@ -203,17 +205,18 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
    *   反向：外壳与面板**都只能引用**它，任何一侧再抄一份字面量就红。
    */
   it('★ 模式显示名只有一个来源（App / 面板都引用 shared，不再各自手写）', () => {
-    const MODE_KEYS = ['write', 'plan', 'lore', 'review', 'dash', 'gen', 'prompt'];
-    // ① 来源文件：七个键逐一存在
+    // ★ P2-B T4：伏笔台账转正，键集 7→8。
+    const MODE_KEYS = ['write', 'plan', 'lore', 'review', 'dash', 'gen', 'prompt', 'foreshadow'];
+    // ① 来源文件：八个键逐一存在
     for (const k of MODE_KEYS) {
       expect(modesTsx, `modes.ts 缺模式显示名 ${k}`).toMatch(new RegExp(`\\b${k}:\\s*'[^']+'`));
     }
     expect(modesTsx).toMatch(/export const MODE_LABELS:\s*Record<WorkMode,\s*string>/);
     expect(modesTsx).toMatch(
-      /export type WorkMode = 'write' \| 'plan' \| 'lore' \| 'review' \| 'dash' \| 'gen' \| 'prompt'/,
+      /export type WorkMode = 'write' \| 'plan' \| 'lore' \| 'review' \| 'dash' \| 'gen' \| 'prompt' \| 'foreshadow'/,
     );
 
-    // ② 外壳：import 共享常量 + 不再本地声明 + 七条导航都挂共享名
+    // ② 外壳：import 共享常量 + 不再本地声明 + 八条导航都挂共享名
     expect(appTsx, "App.tsx 没有从 @shared/constants/modes 取 MODE_LABELS").toMatch(
       /import\s*\{\s*MODE_LABELS,\s*type WorkMode\s*\}\s*from\s*'@shared\/constants\/modes'/,
     );
@@ -243,7 +246,7 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
     const names = [...modesTsx.matchAll(/^\s*(\w+):\s*'([^']+)',$/gm)]
       .filter((m) => MODE_KEYS.includes(m[1]))
       .map((m) => m[2]);
-    expect(names.length, '从 modes.ts 解析出的显示名不足七条').toBe(7);
+    expect(names.length, '从 modes.ts 解析出的显示名不足八条').toBe(8);
     for (const name of names) {
       for (const [label, src] of [
         ['App.tsx', strip(appTsx)],

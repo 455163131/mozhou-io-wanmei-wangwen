@@ -16,7 +16,7 @@ import type {
 } from './project';
 import type { ChapterAnalysis, HealthReport, IssueLocation, LocatedIssue, RuleInfo } from './health';
 import type { ChangeSet, ToolSpec } from './tool';
-import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, LedgerCounts } from './ledger';
+import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, LedgerCounts, Foreshadow } from './ledger';
 import type { Checkpoint, RollbackResult } from './checkpoint';
 import type { RunState, RunBudget, TerminationReason, RunStats, StepRecord } from './agent';
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
@@ -176,7 +176,9 @@ export interface IpcInvokeMap {
   'health:locate-chapter': { req: { chapterId: string }; res: LocatedIssue[] };
   'health:rules': { req: { layer?: string }; res: RuleInfo[] };
 
-  'ledger:query': { req: LedgerQuery; res: { conflicts: LedgerConflict[]; characters: CharacterProfile[] } };
+  /** ★P2-B T4：res 补 foreshadows——伏笔台账页（mode:foreshadow）要读同一本账，
+   *  不新开平行通道；kind 过滤语义不变（conflicts 按 kind 筛，characters/foreshadows 全量回）。 */
+  'ledger:query': { req: LedgerQuery; res: { conflicts: LedgerConflict[]; characters: CharacterProfile[]; foreshadows: Foreshadow[] } };
   'ledger:upsert': { req: { entries: LedgerEntries }; res: LedgerCounts };
   // ── 手改通道（★P2-B T3：Agent 与作者共写一本账）───────────────────
   /**

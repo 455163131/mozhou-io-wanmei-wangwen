@@ -395,10 +395,12 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
 
   // ── ledger ──
   handle('ledger:query', (p, s) => {
-    if (!s.project) return { conflicts: [], characters: [] };
+    // ★P2-B T4：补 foreshadows 一路（伏笔台账页的取数通道，不新开平行 IPC）
+    if (!s.project) return { conflicts: [], characters: [], foreshadows: [] };
     return {
       characters: s.characters(s.project.id, p.subject),
       conflicts: s.conflicts(s.project.id, p.kind === 'all' ? undefined : p.kind),
+      foreshadows: s.foreshadows(s.project.id),
     };
   }, services);
 
