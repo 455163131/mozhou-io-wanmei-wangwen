@@ -23,7 +23,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { bridge, errorText, hasBridge } from '../../hooks/use-mz-bridge';
-import { createSequencer } from '../../lib/sequenced';
+import { createSequencer, type Sequencer } from '../../lib/sequenced';
 import { useConfirm } from '../common/ConfirmDialog';
 import type { CraftSkillInfo, OverlayRole } from '@shared/types/ipc';
 import styles from './PromptView.module.css';
@@ -91,8 +91,11 @@ export function PromptView(): JSX.Element {
    * 请求序号守卫（终审 I-1）：见 lib/sequenced。角色切换是「切换即拉取」，
    * 慢的旧响应后到会盖掉新表单、保存即串档。故每次动作领一个序号，
    * await 回来后只有仍是最新的那一次才许落地——规则只有一条：**用户动作赢**。
+   * 惰性初始化（Fix round1 minor）：useRef 直接传工厂会每渲染调用一次，
+   * 改为占位 + 首渲染补齐；类型仍为 Sequencer，闭包内取用无需二次判空。
    */
-  const seqRef = useRef(createSequencer());
+  const seqRef = useRef<Sequencer>(null!);
+  if (!seqRef.current) seqRef.current = createSequencer();
 
   const { confirm, node: confirmNode } = useConfirm();
 
@@ -195,7 +198,12 @@ export function PromptView(): JSX.Element {
     }
   }
 
-  /** 恢复默认 = 删覆盖层文件（文件机制，T1 口径）；危险动作必须二次确认 */
+  /**
+   * 恢复默认 = 删覆盖层文件（文件机制，T1 口径）；危险动作必须二次确认。
+   * ★ Fix round1（I-1 同族）：确认与 remove/fetch 在途期间角色行并不禁点，
+   *   迟到的恢复会把新选角色的表单清空、后续保存即写空串。故确认即领号，
+   *   await 回来后判最新才许做无条件表单写；按键位写 setStates 本身 slot-safe 保留。
+   */
   async function onRestoreDefault(): Promise<void> {
     const label = EDIT_ROLES.find((r) => r.role === selected)?.label ?? selected;
     const ok = await confirm({
@@ -206,16 +214,18 @@ export function PromptView(): JSX.Element {
       danger: true,
     });
     if (!ok) return;
+    const seq = seqRef.current.next();
     setBusy(true);
     try {
       await bridge().overlay.remove(selected);
       const st = await fetchRole(selected);
       setStates((prev) => ({ ...prev, [selected]: st }));
+      if (!seqRef.current.isCurrent(seq)) return;
       setTempText('');
       setAdditional('');
       setFieldError(null);
     } catch (e) {
-      setFieldError(failText(e));
+      if (seqRef.current.isCurrent(seq)) setFieldError(failText(e));
     } finally {
       setBusy(false);
     }
