@@ -14,7 +14,7 @@
  */
 import type { Database } from 'better-sqlite3';
 import { MzError } from '@shared/types/ipc';
-import type { CharacterProfile, Foreshadow, NumberAnchor, TimelineEvent } from '@shared/types/ledger';
+import type { CharState, CharacterProfile, Foreshadow, NumberAnchor, TimelineEvent } from '@shared/types/ledger';
 
 const FORESHADOW_STATUSES: readonly Foreshadow['status'][] = ['resolved', 'suspected', 'unresolved'];
 
@@ -247,7 +247,10 @@ export class LedgerRepo {
    *   updatedAt 顺手刷新（列与 payload 同步），让"最近手改过"在排序里可见。
    */
   patch(projectId: string, kind: PatchableKind, id: string, patch: Record<string, unknown>): void {
-    if (!LEDGER_TABLES[kind]) throw new MzError('E_INVALID_ARGS', `台账手改不支持类别「${String(kind)}」`);
+    // ★P2-B T5 收 T3 minor-1：LEDGER_TABLES 是普通对象，真值判断会放行
+    // 'constructor' 这类原型链键（拿到的是 Object 构造器，SQL 拼接当场炸库错误）——
+    // 守卫只认自有属性。
+    if (!Object.hasOwn(LEDGER_TABLES, kind)) throw new MzError('E_INVALID_ARGS', `台账手改不支持类别「${String(kind)}」`);
     if (typeof id !== 'string' || id.trim() === '') throw new MzError('E_INVALID_ARGS', `${kind}的 id 为空`);
     if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
       throw new MzError('E_INVALID_ARGS', 'patch 必须是要改的字段对象');
@@ -322,12 +325,106 @@ export class LedgerRepo {
   /**
    * 删一条账。DELETE 带 project_id 定位（canon:remove 同款）：跨项目 id 直接
    * 落空返回 false，不给"拿 A 书 id 删 B 书条目"留任何缝。不存在不抛——
-   * 删除是幂等收尾。★ character 连带删 ledger_char_states 由 Task 5 补（该表现在还不存在）。
+   * 删除是幂等收尾。
+   * ★P2-B T5 两处收口（T3 留的债在此还清）：
+   * · 非法 kind 不再静默 false，与 patch 同口径抛 E_INVALID_ARGS——"删不动"
+   *   （幂等，回 false）和"根本没这类账"（调用方 bug，该炸）是两回事。
+   *   仍用 Object.hasOwn 挡原型链键（同 patch minor-1）。
+   * · character 连带删其 ledger_char_states：人物卡删了，"TA 在各章的处境"
+   *   成了无主快照——留在库里 stateList 还能查出来，矩阵页会渲染出一列
+   *   点不开的人物。两条 DELETE 一个事务：半删（卡没了快照还在）正是
+   *   本文件开头"半张人物卡比没登记更糟"同款事故。
    */
   remove(projectId: string, kind: LedgerKind, id: string): boolean {
+    if (!Object.hasOwn(LEDGER_TABLES, kind)) {
+      throw new MzError('E_INVALID_ARGS', `台账删除不支持类别「${String(kind)}」`);
+    }
     const table = LEDGER_TABLES[kind];
-    if (!table || typeof id !== 'string' || id.trim() === '') return false;
-    const info = this.db.prepare(`DELETE FROM ${table} WHERE id = ? AND project_id = ?`).run(id, projectId);
-    return info.changes > 0;
+    if (typeof id !== 'string' || id.trim() === '') return false;
+    if (kind !== 'character') {
+      const info = this.db.prepare(`DELETE FROM ${table} WHERE id = ? AND project_id = ?`).run(id, projectId);
+      return info.changes > 0;
+    }
+    const del = this.db.prepare(`DELETE FROM ${table} WHERE id = ? AND project_id = ?`);
+    const delStates = this.db.prepare('DELETE FROM ledger_char_states WHERE character_id = ? AND project_id = ?');
+    // ★ 顺序是先删快照再删卡：ledger_char_states 的 FK 指向 ledger_characters，
+    //   pragma 开着时反着来会当场炸 SQLITE_CONSTRAINT（迁移 v9 的 drop 顺序同款坑）。
+    return this.db
+      .transaction(() => {
+        delStates.run(id, projectId);
+        const info = del.run(id, projectId);
+        return info.changes > 0;
+      })
+      .call(this.db);
+  }
+
+  // ── 章×人物状态矩阵（★P2-B T5：v15 ledger_char_states）──
+
+  /**
+   * 写一章×一人的状态快照（upsert 收敛，结构键 UNIQUE(character_id, chapter_no)）。
+   * · id 只在**新行**时生成：ON CONFLICT 不碰 id——T6 矩阵页拿 id 做 React key，
+   *   同格重写换 id 会让 UI 整格重挂载、编辑焦点被吞；
+   * · snapshot 先 trim，空即拒（口径同 canon:add）——空快照在矩阵里既显示不了
+   *   处境，又会把"这一章 TA 没状态"和"存了个空"混成同一件事；
+   * · 章号必须 ≥1 的整数：章号是从 1 起算的故事序（同 pipeline:write-draft
+   *   Carry-2 口径），0/负/小数进库后矩阵列头就歪了；
+   * · characterId 必须属于本项目：直接复用 assertIdNotTakenByOtherProject——
+   *   与人物卡登记同一条闸，不给"给别书人物记状态"留缝。表对 ledger_characters
+   *   有 FK（pragma 开着时 SQLite 兜底），这条闸负责给出人话错误。
+   */
+  stateSet(projectId: string, characterId: string, chapterNo: number, snapshot: string): CharState {
+    if (typeof snapshot !== 'string' || snapshot.trim() === '') {
+      throw new MzError('E_INVALID_ARGS', '状态快照不能为空：空快照既回看不了处境，也分不清"没状态"和"存了个空"');
+    }
+    if (!Number.isInteger(chapterNo) || chapterNo < 1) {
+      throw new MzError('E_INVALID_ARGS', `章号非法：${String(chapterNo)}——章号是从 1 起算的整数，矩阵按它排列`);
+    }
+    if (typeof characterId !== 'string' || characterId.trim() === '') {
+      throw new MzError('E_INVALID_ARGS', 'characterId 为空：快照挂不上人物就成了无主数据');
+    }
+    this.assertIdNotTakenByOtherProject('ledger_characters', characterId, projectId, '人物卡');
+    const id = `cs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    this.db
+      .prepare(
+        'INSERT INTO ledger_char_states(id, character_id, project_id, chapter_no, snapshot, created_at) VALUES(?,?,?,?,?,?) ' +
+          'ON CONFLICT(character_id, chapter_no) DO UPDATE SET snapshot=excluded.snapshot',
+      )
+      .run(id, characterId, projectId, chapterNo, snapshot.trim(), Date.now());
+    // 回读而不是回显入参：id 可能被冲突收敛成旧行主键，返回值必须是库里真实那一行
+    const row = this.db
+      .prepare('SELECT id, character_id, project_id, chapter_no, snapshot FROM ledger_char_states WHERE character_id = ? AND chapter_no = ?')
+      .get(characterId, chapterNo) as {
+      id: string;
+      character_id: string;
+      project_id: string;
+      chapter_no: number;
+      snapshot: string;
+    };
+    return { id: row.id, characterId: row.character_id, projectId: row.project_id, chapterNo: row.chapter_no, snapshot: row.snapshot };
+  }
+
+  /**
+   * 项目内全部快照，按章号升序（rowid 兜同毫秒写入的次序，canon:list 同款口径）。
+   * T6 矩阵页按章×人渲染，序在库侧定死，渲染层不再二次排序。
+   */
+  stateList(projectId: string): CharState[] {
+    const rows = this.db
+      .prepare(
+        'SELECT id, character_id, project_id, chapter_no, snapshot FROM ledger_char_states WHERE project_id = ? ORDER BY chapter_no ASC, rowid ASC',
+      )
+      .all(projectId) as Array<{
+      id: string;
+      character_id: string;
+      project_id: string;
+      chapter_no: number;
+      snapshot: string;
+    }>;
+    return rows.map((r) => ({
+      id: r.id,
+      characterId: r.character_id,
+      projectId: r.project_id,
+      chapterNo: r.chapter_no,
+      snapshot: r.snapshot,
+    }));
   }
 }

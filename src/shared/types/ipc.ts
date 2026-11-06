@@ -16,7 +16,7 @@ import type {
 } from './project';
 import type { ChapterAnalysis, HealthReport, IssueLocation, LocatedIssue, RuleInfo } from './health';
 import type { ChangeSet, ToolSpec } from './tool';
-import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, LedgerCounts, Foreshadow } from './ledger';
+import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, LedgerCounts, Foreshadow, CharState } from './ledger';
 import type { Checkpoint, RollbackResult } from './checkpoint';
 import type { RunState, RunBudget, TerminationReason, RunStats, StepRecord } from './agent';
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
@@ -195,6 +195,12 @@ export interface IpcInvokeMap {
     req: { kind: 'character' | 'foreshadow' | 'number' | 'timeline'; id: string };
     res: { ok: boolean };
   };
+
+  // ── 章×人物状态矩阵（★P2-B T5：v15 ledger_char_states 的读写入口）────────
+  /** 项目全部快照，按章号升序（序在库侧定死）。req {projectId} 照 canon:list 口径：必须等于当前打开项目 */
+  'charstate:list': { req: { projectId: string }; res: CharState[] };
+  /** 写一章×一人快照（同人同章 upsert 覆盖，不增行）；projectId 由主进程从当前项目派生，不经界面传 */
+  'charstate:set': { req: { characterId: string; chapterNo: number; snapshot: string }; res: CharState };
 
   'tool:list': { req: void; res: ToolSpec[] };
   'tool:preview': { req: ToolPreviewPayload; res: ChangeSet };
@@ -562,6 +568,9 @@ export const IPC_CHANNELS = [
   // 手改通道（★P2-B T3）
   'ledger:patch',
   'ledger:remove',
+  // 章×人物状态矩阵（★P2-B T5）
+  'charstate:list',
+  'charstate:set',
   'tool:list',
   'tool:preview',
   'tool:execute',

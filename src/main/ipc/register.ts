@@ -445,6 +445,37 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     return { ok: s.ledgerRepo.remove(s.project.id, p.kind, p.id) };
   }, services);
 
+  /**
+   * ★P2-B T5 状态矩阵通道。业务口径（trim/判空、章号正整数、跨人物拒绝）
+   * 全在 LedgerRepo.stateSet，handler 只做边界：
+   * · set 的 projectId 从 s.project 派生——同 ledger:upsert 守卫口径，当前项目
+   *   没打开就 E_INVALID_ARGS「未打开项目」；repo 的非 MzError 抛错（如人物卡
+   *   不属于本项目的 Plain Error）压平成 E_INVALID_ARGS（upsert 修复批同款），
+   *   MzError 本身原样出去（压平会把"快照为空"说成别的）。
+   * · list 的 req {projectId} 照 canon:list：必须等于当前打开项目——
+   *   不许拿 A 书的 id 读 B 书的状态矩阵。
+   */
+  handle('charstate:list', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    if (typeof p.projectId !== 'string' || !p.projectId) {
+      throw new MzError('E_INVALID_ARGS', 'charstate:list 需要 { projectId: 非空字符串 }');
+    }
+    if (p.projectId !== s.project.id) {
+      throw new MzError('E_INVALID_ARGS', `projectId 与当前打开的项目不一致：传入 ${p.projectId}，当前 ${s.project.id}`);
+    }
+    return s.ledgerRepo.stateList(p.projectId);
+  }, services);
+
+  handle('charstate:set', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    try {
+      return s.ledgerRepo.stateSet(s.project.id, p.characterId, p.chapterNo, p.snapshot);
+    } catch (e) {
+      if (e instanceof MzError) throw e;
+      throw new MzError('E_INVALID_ARGS', e instanceof Error ? e.message : String(e));
+    }
+  }, services);
+
   // ── tool ──
   handle('tool:list', (_p, s) => s.registry.list(), services);
 

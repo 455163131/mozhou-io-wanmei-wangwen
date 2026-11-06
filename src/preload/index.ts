@@ -108,6 +108,13 @@ const bridge: MzBridge = {
     remove: (req) => invoke('ledger:remove', req),
   },
 
+  // ── 章×人物状态矩阵（★P2-B T5）──
+  charstate: {
+    list: (projectId) => invoke('charstate:list', { projectId }),
+    // req 原样转发（trim/章号/跨项目校验全在主进程 repo，桥不加工）
+    set: (req) => invoke('charstate:set', req),
+  },
+
   tool: {
     list: () => invoke('tool:list'),
     preview: (toolName, args) => invoke('tool:preview', { toolName, args }),

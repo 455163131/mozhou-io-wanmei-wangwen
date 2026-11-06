@@ -86,6 +86,14 @@ export interface MzBridge {
     remove(req: IpcInvokeMap['ledger:remove']['req']): Promise<IpcInvokeMap['ledger:remove']['res']>;
   };
 
+  // ── 章×人物状态矩阵（★P2-B T5）：v15 快照的读写入口 ──
+  charstate: {
+    /** 项目全部快照（章号升序）；projectId 必须等于当前打开项目（canon:list 同款守卫） */
+    list(projectId: string): Promise<IpcInvokeMap['charstate:list']['res']>;
+    /** 写一格（同人同章覆盖）；空快照/非法章号 → E_INVALID_ARGS */
+    set(req: IpcInvokeMap['charstate:set']['req']): Promise<IpcInvokeMap['charstate:set']['res']>;
+  };
+
   // 工具
   tool: {
     list(): Promise<IpcInvokeMap['tool:list']['res']>;
@@ -252,6 +260,9 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   // 手改通道（★P2-B T3）
   'ledger:patch',
   'ledger:remove',
+  // 章×人物状态矩阵（★P2-B T5）
+  'charstate:list',
+  'charstate:set',
   'tool:list',
   'tool:preview',
   'tool:execute',

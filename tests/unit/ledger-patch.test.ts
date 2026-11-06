@@ -13,6 +13,7 @@ import { describe, it, expect } from 'vitest';
 import Database from 'better-sqlite3';
 import { migrate } from '@main/db/migrate';
 import { LedgerRepo } from '@main/db/repos/ledger-repo';
+import { MzError } from '@shared/types/ipc';
 
 const P = 'p1';
 const mk = () => {
@@ -59,11 +60,39 @@ describe('LedgerRepo.patch', () => {
 });
 
 describe('LedgerRepo.remove', () => {
-  it('删 character 连带删其 ledger_char_states 由 Task 5 补；本波先删本体行', () => {
+  it('删 character 本体行（连带删其 ledger_char_states 的验证在 charstate-repo.test.ts，T5 已闭合）', () => {
     const r = mk();
     r.upsertCharacters(P, [{ id: 'ch1', name: '林晚', role: '女主', age: '26', note: '', refs: [], updatedAt: 1 }]);
     expect(r.remove(P, 'character', 'ch1')).toBe(true);
     expect(r.characters(P)).toHaveLength(0);
     expect(r.remove(P, 'character', 'ch1')).toBe(false);
+  });
+  // ★P2-B T5 收 T3 minor-2：非法 kind 与 patch 同口径抛 MzError，不再静默 false——
+  // "删不动"和"不支持这类"是两回事，压成 false 会把调用方的 bug 吞掉。
+  it('非法 kind 抛 E_INVALID_ARGS（与 patch 对齐；handler 层校验维持原样）', () => {
+    const r = mk();
+    expect(() => r.remove(P, 'bogus' as never, 'x')).toThrowError(/E_INVALID_ARGS|不支持/);
+    try {
+      r.remove(P, 'constructor' as never, 'x');
+      expect.unreachable('原型链上的键不该被当成合法 kind');
+    } catch (e) {
+      expect((e as MzError).code).toBe('E_INVALID_ARGS');
+    }
+  });
+});
+
+describe('LedgerRepo.patch 的 kind 守卫', () => {
+  // ★P2-B T5 收 T3 minor-1：LEDGER_TABLES 是普通对象，`LEDGER_TABLES[kind]` 对
+  // 'constructor' 返回 Object 构造器——真值判断会放行。守卫必须用 Object.hasOwn。
+  it('原型链键（constructor 等）不是合法 kind：抛 E_INVALID_ARGS 而不是拼进 SQL', () => {
+    const r = mk();
+    for (const bad of ['constructor', 'toString', '__proto__']) {
+      try {
+        r.patch(P, bad as never, 'x', { name: 'y' });
+        expect.unreachable(`kind=${bad} 不该过守卫`);
+      } catch (e) {
+        expect((e as MzError).code).toBe('E_INVALID_ARGS');
+      }
+    }
   });
 });

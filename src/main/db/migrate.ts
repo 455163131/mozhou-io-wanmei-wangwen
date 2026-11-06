@@ -526,6 +526,41 @@ export const MIGRATIONS: Migration[] = [
       db.exec(`ALTER TABLE projects ADD COLUMN language TEXT NOT NULL DEFAULT 'zh';`);
     },
   },
+  {
+    version: 15,
+    name: 'add_ledger_char_states',
+    /**
+     * ★ P2-B T5：章×人物状态矩阵（"第 N 章时 TA 是什么处境"可回看）。
+     *   为什么开新表而不是塞进 ledger_characters.payload：人物卡只有**当下态**，
+     *   改一次覆盖一次；快照是"每章一条、不许被后续章节冲掉"的新事实——
+     *   与「伏笔台账不建平行账」是同一条裁决的两面：新事实才开新表，
+     *   旧事实加列不加表。
+     *   UNIQUE(character_id, chapter_no) 是**结构键**（同人同章一条，重写=upsert
+     *   收敛），不是对既有列的校验收紧——迁移"只增不改"纪律照旧成立。
+     *   不加 CHECK：口径同 v14，坏值由应用层（LedgerRepo.stateSet）拦。
+     *   FK 指向 ledger_characters(id)：写法镜像 v13 的 project_canon
+     *   （FOREIGN KEY(...) REFERENCES ...），是否实际执行取决于 PRAGMA foreign_keys
+     *   ——better-sqlite3 默认开着它，与全库其余外键同命运，不特殊化。
+     *   project_id 列仍保留 + 建索引：本仓 ledger_* 对 projects 靠约定不建出向 FK，
+     *   项目隔离一律以 project_id 定位（与 assertIdNotTakenByOtherProject 同口径），
+     *   stateList 走 (project_id, chapter_no) 正是矩阵页的取数形状。
+     */
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS ledger_char_states (
+          id            TEXT PRIMARY KEY,
+          character_id  TEXT NOT NULL,
+          project_id    TEXT NOT NULL,
+          chapter_no    INTEGER NOT NULL,
+          snapshot      TEXT NOT NULL,
+          created_at    INTEGER NOT NULL,
+          UNIQUE(character_id, chapter_no),
+          FOREIGN KEY(character_id) REFERENCES ledger_characters(id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_ledger_cs_project ON ledger_char_states(project_id, chapter_no);
+      `);
+    },
+  },
 ];
 
 export function migrate(db: Database): void {
