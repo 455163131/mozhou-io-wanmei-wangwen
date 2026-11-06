@@ -22,6 +22,40 @@ export interface CharacterProfile {
   /** 每个属性都带出处 */
   refs: SourceRef[];
   updatedAt: number;
+  // ── 手录字段（P2-B）：Agent 旧行缺省 → UI 空态，全部可选，不破坏既有登记载荷 ──
+  // 为什么不用 refs 覆盖：这些是作者主观设定，原文里往往根本没有对应句子，
+  // 强行让 Agent 从正文"推断"会编造证据；留给作者手录，UI 只显示真实有的。
+  /** 人物当前目标（手录） */
+  goals?: string;
+  /** 性格概括（手录） */
+  personality?: string;
+  /** 语声/口吻特征，供对白一致性校验参考（手录） */
+  voice?: string;
+  /** 外貌描述（手录） */
+  appearance?: string;
+  /** 人物弧线：从哪走向哪（手录） */
+  arc?: string;
+  /** 已知情报清单（手录）；与 notKnows 配对做"穿帮"检查 */
+  knows?: string[];
+  /** 不应知道的信息（手录）：TA 说出这些即为穿帮 */
+  notKnows?: string[];
+  /** 人物关系：to 引用同项目内其它 CharacterProfile 的 id（手录） */
+  relations?: { to: string; label: string; chapter?: number }[];
+}
+
+/**
+ * 人物状态快照（P2-B，Task 5 的 repo/IPC 按此形状逐字复用）。
+ * 每章写完后可为人物存一份状态；snapshot 为序列化后的状态文本，
+ * 让"当时 TA 是什么处境"可回看，而不是被后续章节覆盖。
+ */
+export interface CharState {
+  id: string;
+  /** 归属人物（CharacterProfile.id） */
+  characterId: string;
+  projectId: string;
+  /** 故事章号 */
+  chapterNo: number;
+  snapshot: string;
 }
 
 export interface NumberAnchor {
@@ -54,6 +88,15 @@ export interface Foreshadow {
   /** 回收位置；null = 尚未回收 */
   resolvedAt: SourceRef | null;
   status: 'resolved' | 'suspected' | 'unresolved';
+  // ── 手录字段（P2-B）：Agent 旧行缺省 → UI 空态，全部可选 ──
+  // 为什么 weight 缺省按 B：债务曲线不能因为旧行没权重就炸账或虚增，
+  // B 是中性档（ledger-metrics.WEIGHT_VALUE 取不到时同理兜底）。
+  /** 伏笔名（手录；Agent 旧行只有 plantedQuote，无名可显示空态） */
+  name?: string;
+  /** 重要性分档（手录）：A 主线级 / B 普通 / C 点缀，参与债务加权 */
+  weight?: 'A' | 'B' | 'C';
+  /** 所属伏笔链（手录）：把多条伏笔串成一线，供链条视图分组 */
+  chain?: string;
 }
 
 export type ConflictKind = 'character' | 'number' | 'timeline' | 'foreshadow';
