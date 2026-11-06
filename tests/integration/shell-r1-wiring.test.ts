@@ -130,10 +130,12 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
    * 不许有它）。
    * ★ T3 R36 并批：审稿回补进 NAV_GROUPS 创作组（一级入口重新出现）后，
    * mode:review 仍只此一条 id——「审稿报告」是 label，不是新命令；id 集维持 13。
+   * ★ P2-A T4：系统组「提示词与技能」实项进导航与面板，id 集 13→14（mode:prompt）。
+   * 它不占数字快捷键——⌘1–⌘4 的 Ulysses 心智模型纪律不变。
    */
   it('★ T2 钉死清单：面板与分派逐字等于 id 集；soon 项不进面板', () => {
     const EXPECTED = [
-      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen',
+      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen', 'mode:prompt',
       'panel:tree', 'panel:rail', 'panel:status',
       'view:focus', 'view:rail-width',
       'app:open', 'app:settings',
@@ -144,11 +146,11 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
     expect(strip(paletteTsx), 'soon 占位项混进了命令面板（它没有可执行动作）').not.toMatch(/soon|设计中/);
   });
 
-  it('★ T2 左导航四组 IA：NAV_GROUPS 分组渲染 + soon 项 disabled+「设计中」tag', () => {
+  it('★ T2 左导航四组 IA（P2-A T4 起为五组）：NAV_GROUPS 分组渲染 + soon 项 disabled+「设计中」tag', () => {
     expect(appTsx, '导航还是拉平的 MODES 清单').not.toMatch(/const MODES\b/);
     expect(appTsx, '没有定义 NAV_GROUPS').toMatch(/const NAV_GROUPS\b/);
-    for (const g of ['创作', '资产', '灵感', '输出'])
-      expect(appTsx, `四组 IA 缺「${g}」组`).toContain(`label: '${g}'`);
+    for (const g of ['创作', '资产', '灵感', '输出', '系统'])
+      expect(appTsx, `分组 IA 缺「${g}」组`).toContain(`label: '${g}'`);
     expect(appTsx, 'soon 项没渲染成 disabled 按钮').toMatch(/kind === 'soon'[\s\S]{0,160}disabled/);
     expect(appTsx, 'soon 项没有「设计中」tag').toMatch(/styles\.soonTag\}>设计中</);
     // 两形态纪律锚（B 组的 title= / railLabel 断言依赖这套类名与回调参数名）
@@ -173,23 +175,45 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
   });
 
   /**
+   * ★ P2-A T4：PromptView（提示词与技能）存在性——组件文件、App 接线（import +
+   * modeHost 渲染点 + NAV_GROUPS 系统组实项）、面板 id（已在钉死清单里）。
+   * 这是 §4 第 17/19/24/26/27 条那类「画好了没人调」的正面哨兵。
+   */
+  it('★ P2-A T4：PromptView 被 App import、在 modeHost 渲染、系统组挂实项', () => {
+    expect(() => R('src/renderer/components/views/PromptView.tsx')).not.toThrow();
+    expect(() => R('src/renderer/components/views/PromptView.module.css')).not.toThrow();
+    expect(appTsx, 'PromptView 没有被 import').toMatch(
+      /import\s*\{\s*PromptView\s*\}\s*from\s*'\.\/components\/views\/PromptView'/,
+    );
+    expect(appTsx, 'PromptView 没有渲染点（modeHost 里缺 mode===prompt 分支）').toMatch(
+      /mode === 'prompt' && <PromptView \/>/,
+    );
+    expect(appTsx, "NAV_GROUPS 系统组里没有 id 'prompt' 的 mode 实项").toMatch(
+      /kind:\s*'mode',\s*id:\s*'prompt',\s*label:\s*MODE_LABELS\.prompt/,
+    );
+    expect(paletteIds(), '命令面板缺 mode:prompt').toContain('mode:prompt');
+  });
+
+  /**
    * ★ §UI ·终审 Important-3（模式显示名三副本收成一处）。
    * 修复前的形状：`App.tsx` 的 `MODE_LABELS`、`CommandPalette.tsx` 的 `MODE_LABEL`、
    * 以及 COMMANDS 里六个 `切换到 X` 字面量——三处手写、靠注释约定「加模式时两处一起改」。
    * 现在唯一来源是 `src/shared/constants/modes.ts`，这里双向钉：
-   *   正向：六个 mode id 的显示名在来源文件里逐字存在；
+   *   正向：七个 mode id 的显示名在来源文件里逐字存在；
    *   反向：外壳与面板**都只能引用**它，任何一侧再抄一份字面量就红。
    */
   it('★ 模式显示名只有一个来源（App / 面板都引用 shared，不再各自手写）', () => {
-    const MODE_KEYS = ['write', 'plan', 'lore', 'review', 'dash', 'gen'];
-    // ① 来源文件：六个键逐一存在
+    const MODE_KEYS = ['write', 'plan', 'lore', 'review', 'dash', 'gen', 'prompt'];
+    // ① 来源文件：七个键逐一存在
     for (const k of MODE_KEYS) {
       expect(modesTsx, `modes.ts 缺模式显示名 ${k}`).toMatch(new RegExp(`\\b${k}:\\s*'[^']+'`));
     }
     expect(modesTsx).toMatch(/export const MODE_LABELS:\s*Record<WorkMode,\s*string>/);
-    expect(modesTsx).toMatch(/export type WorkMode = 'write' \| 'plan' \| 'lore' \| 'review' \| 'dash' \| 'gen'/);
+    expect(modesTsx).toMatch(
+      /export type WorkMode = 'write' \| 'plan' \| 'lore' \| 'review' \| 'dash' \| 'gen' \| 'prompt'/,
+    );
 
-    // ② 外壳：import 共享常量 + 不再本地声明 + 六条导航都挂共享名
+    // ② 外壳：import 共享常量 + 不再本地声明 + 七条导航都挂共享名
     expect(appTsx, "App.tsx 没有从 @shared/constants/modes 取 MODE_LABELS").toMatch(
       /import\s*\{\s*MODE_LABELS,\s*type WorkMode\s*\}\s*from\s*'@shared\/constants\/modes'/,
     );
@@ -215,11 +239,11 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
     }
     expect(paletteTsx, '面板底栏「当前：」没有走 modeLabel()').toMatch(/\{modeLabel\(mode\)\}/);
 
-    // ④ 反向哨兵：六个显示名字面量**只**允许出现在来源文件里（外加注释，故剥注释后再比）
+    // ④ 反向哨兵：显示名字面量**只**允许出现在来源文件里（外加注释，故剥注释后再比）
     const names = [...modesTsx.matchAll(/^\s*(\w+):\s*'([^']+)',$/gm)]
       .filter((m) => MODE_KEYS.includes(m[1]))
       .map((m) => m[2]);
-    expect(names.length, '从 modes.ts 解析出的显示名不足六条').toBe(6);
+    expect(names.length, '从 modes.ts 解析出的显示名不足七条').toBe(7);
     for (const name of names) {
       for (const [label, src] of [
         ['App.tsx', strip(appTsx)],

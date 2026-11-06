@@ -1,0 +1,312 @@
+/* 提示词与技能（P2-A T4）。只用 tokens.css 既有变量：零裸色、零裸 px 档位
+ * （字号/圆角/间距全走 --mz-* 令牌，几何值如 min-height 除外）。
+ * 卡片形状沿用 GenView 的「底色分层 + 描边卡面」口径。 */
+.wrap {
+  flex: 1;
+  overflow: auto;
+  padding: var(--mz-space-5) var(--mz-space-5) var(--mz-space-6);
+}
+
+.section {
+  margin-bottom: var(--mz-space-5);
+}
+
+/* chrome 标题衬线（--mz-chrome-font-title）——系统区页头与其余视图同族 */
+.sectionTitle {
+  margin: 0 0 var(--mz-space-2);
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-h3);
+  font-weight: var(--mz-fw-semibold);
+  color: var(--mz-text-primary);
+}
+
+.sectionHint {
+  margin: 0 0 var(--mz-space-3);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+}
+
+/* ── ① 角色覆盖层列表 ─────────────────────────────────────────────── */
+.roleList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-2);
+  max-width: 36em;
+}
+
+.roleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  width: 100%;
+  padding: var(--mz-space-2) var(--mz-space-3);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-sm);
+  background: var(--mz-bg-elevated);
+  color: var(--mz-text-primary);
+  font-size: var(--mz-fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.roleOn {
+  border-color: var(--mz-accent);
+  background: var(--mz-accent-soft);
+}
+
+.roleName {
+  font-weight: var(--mz-fw-medium);
+}
+
+.badgeDone {
+  padding: var(--mz-space-1);
+  border-radius: var(--mz-radius-xs);
+  background: var(--mz-accent-soft);
+  border: 1px solid var(--mz-border-accent);
+  color: var(--mz-text-link);
+  font-size: var(--mz-fs-2xs);
+}
+
+.badgeDefault {
+  padding: var(--mz-space-1);
+  border-radius: var(--mz-radius-xs);
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-subtle);
+  color: var(--mz-text-secondary);
+  font-size: var(--mz-fs-2xs);
+}
+
+.badgeTemp {
+  margin-left: auto;
+  color: var(--mz-text-tertiary);
+  font-size: var(--mz-fs-2xs);
+}
+
+/* soon 六角色：说明态不是死按钮——div + aria-disabled，文字保持可读，
+ * 无 disabled 属性（那会把子树移出无障碍树，注记文本反而读不到）。 */
+.roleSoon {
+  background: var(--mz-bg-surface);
+  border-color: var(--mz-border-subtle);
+  color: var(--mz-text-disabled);
+  cursor: default;
+}
+
+.soonNote {
+  margin-left: auto;
+  color: var(--mz-text-disabled);
+  font-size: var(--mz-fs-2xs);
+}
+
+/* ── ② 编辑区 ─────────────────────────────────────────────────────── */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-3);
+  padding: var(--mz-space-4);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-md);
+  background: var(--mz-bg-elevated);
+  max-width: 48em;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+}
+
+.fieldLabel {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+}
+
+.input {
+  width: 100%;
+  font-size: var(--mz-fs-sm);
+  border-radius: var(--mz-radius-sm);
+}
+
+.textarea {
+  min-height: 6em;
+  width: 100%;
+  font-size: var(--mz-fs-sm);
+  line-height: var(--mz-lh-body);
+  border-radius: var(--mz-radius-sm);
+  resize: vertical;
+}
+
+.errText {
+  margin: 0;
+  color: var(--mz-sem-err-fg);
+  font-size: var(--mz-fs-xs);
+}
+
+/* warnings 黄字逐条（overlay:get 直报真因，不静默吞） */
+.warnLine {
+  margin: 0;
+  padding: var(--mz-space-2) var(--mz-space-3);
+  border: 1px solid var(--mz-sem-warn-border);
+  border-radius: var(--mz-radius-sm);
+  background: var(--mz-sem-warn-bg);
+  color: var(--mz-sem-warn-fg);
+  font-size: var(--mz-fs-xs);
+}
+
+.hintLine {
+  margin: 0;
+  padding: var(--mz-space-2) var(--mz-space-3);
+  border-radius: var(--mz-radius-sm);
+  background: var(--mz-bg-inset);
+  color: var(--mz-text-secondary);
+  font-size: var(--mz-fs-xs);
+}
+
+.failBar {
+  margin: 0 0 var(--mz-space-3);
+  padding: var(--mz-space-2) var(--mz-space-3);
+  border: 1px solid var(--mz-sem-err-border);
+  border-radius: var(--mz-radius-sm);
+  background: var(--mz-sem-err-bg);
+  color: var(--mz-sem-err-fg);
+  font-size: var(--mz-fs-xs);
+}
+
+.actions {
+  display: flex;
+  gap: var(--mz-space-2);
+}
+
+/* 金 CTA（保存） */
+.btnPrimary {
+  padding: var(--mz-space-2) var(--mz-space-4);
+  border: none;
+  border-radius: var(--mz-radius-sm);
+  background: var(--mz-accent);
+  color: var(--mz-accent-ink);
+  font-size: var(--mz-fs-sm);
+  cursor: pointer;
+}
+
+/* 同形 hover 覆盖（p2ui-t4 C 组：global.css button:hover:not(:disabled) (0,2,1)
+ * 最后加载会洗掉实底，组件侧必须严格压过——写法与 GenView .btnPrimary 同族）。 */
+.btnPrimary:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+}
+
+.btnPrimary:disabled {
+  background: var(--mz-bg-inset);
+  color: var(--mz-text-disabled);
+  cursor: default;
+}
+
+.btnGhost {
+  padding: var(--mz-space-2) var(--mz-space-4);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-sm);
+  background: transparent;
+  color: var(--mz-text-primary);
+  font-size: var(--mz-fs-sm);
+  cursor: pointer;
+}
+
+.btnGhost:disabled {
+  color: var(--mz-text-disabled);
+  border-color: var(--mz-border-subtle);
+  cursor: default;
+}
+
+/* ── ③ craft-skills 六卡 + 命中预览 ───────────────────────────────── */
+.hitRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--mz-space-3);
+  margin-bottom: var(--mz-space-3);
+}
+
+.hitInput {
+  flex: 1;
+  max-width: 36em;
+}
+
+.hitList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mz-space-1);
+  align-items: center;
+}
+
+.hitItem {
+  padding: var(--mz-space-1);
+  border-radius: var(--mz-radius-xs);
+  background: var(--mz-accent-soft);
+  border: 1px solid var(--mz-border-accent);
+  color: var(--mz-text-link);
+  font-size: var(--mz-fs-2xs);
+}
+
+.hitEmpty {
+  color: var(--mz-text-tertiary);
+  font-size: var(--mz-fs-2xs);
+}
+
+.skillsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--mz-space-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-2);
+  padding: var(--mz-space-3) var(--mz-space-4);
+  border: 1px solid var(--mz-border-default);
+  border-radius: var(--mz-radius-md);
+  background: var(--mz-bg-elevated);
+}
+
+/* 命中卡金描边：写在 .card 之后，同特异性后者胜（级联口径见 App 的 .railBtn.railSoon 教训） */
+.cardHit {
+  border-color: var(--mz-accent);
+}
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mz-space-2);
+}
+
+.cardTitle {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-body);
+  font-weight: var(--mz-fw-semibold);
+  color: var(--mz-text-primary);
+}
+
+.cardRoles {
+  margin-left: auto;
+  color: var(--mz-text-secondary);
+  font-size: var(--mz-fs-2xs);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mz-space-1);
+}
+
+.chip {
+  padding: var(--mz-space-1);
+  border-radius: var(--mz-radius-xs);
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-subtle);
+  color: var(--mz-text-secondary);
+  font-size: var(--mz-fs-2xs);
+}
+
+.cardBody {
+  margin: 0;
+  color: var(--mz-text-body);
+  font-size: var(--mz-fs-xs);
+  line-height: var(--mz-lh-sm);
+}

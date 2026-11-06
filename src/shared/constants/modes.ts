@@ -16,13 +16,14 @@
  * import 另一侧都会形成组件间的横向依赖（外壳 ↔ 面板本来是父子关系）。
  */
 
-/** 六种工作模式（id 与命令面板的 `mode:*` 命令、App 的 onRun 分派逐字同源） */
-export type WorkMode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen';
+/** 七种工作模式（id 与命令面板的 `mode:*` 命令、App 的 onRun 分派逐字同源） */
+export type WorkMode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen' | 'prompt';
 
 /**
  * 显示名。四字档是展开态导航的宽度账（`--mz-layout-rail-expanded-w` 184px 里
  * 图标 + 标签 + 内边距的余额，见 App.module.css `.railLabel`），不许随手加长；
- * `生成·导演台` 是唯一的六字例外，它没有「设计中」tag，所以拿得到整行余量。
+ * `生成·导演台` 与 `提示词与技能` 是仅有的两个六字例外——它们都是无「设计中」
+ * chip 的真 mode 行，拿得到整行余量（R41 的 184px 档最坏余额 7.64px 按六字算过）。
  */
 export const MODE_LABELS: Record<WorkMode, string> = {
   write: '写作坊',
@@ -31,6 +32,7 @@ export const MODE_LABELS: Record<WorkMode, string> = {
   review: '审稿报告',
   dash: '统计账本',
   gen: '生成·导演台',
+  prompt: '提示词与技能',
 };
 
 /**

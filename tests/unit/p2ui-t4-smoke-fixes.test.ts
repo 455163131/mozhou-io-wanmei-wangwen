@@ -258,6 +258,9 @@ const SOLID_BUTTON_CENSUS = [
   'components/flavor/FlavorPanel.module.css#paraOn',
   'components/settings/SettingsModal.module.css#btnPrimary',
   'components/views/GenView.module.css#btnPrimary',
+  // ★ P2-A T4：PromptView 保存 CTA（金实底 × accent-ink 反色字，hover 生效对与
+  //   GenView 同档——accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
+  'components/views/PromptView.module.css#btnPrimary',
   'components/views/ReviewView.module.css#btnPri',
 ];
 

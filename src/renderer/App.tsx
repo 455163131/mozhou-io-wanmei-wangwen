@@ -41,6 +41,7 @@ import { LoreView } from './components/views/LoreView';
 import { ReviewView } from './components/views/ReviewView';
 import { DashboardView } from './components/views/DashboardView';
 import { GenView } from './components/views/GenView';
+import { PromptView } from './components/views/PromptView';
 import type { LlmStatus } from '@shared/types/provider';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
 import { MODE_LABELS, type WorkMode } from '@shared/constants/modes';
@@ -56,6 +57,7 @@ type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
  *   资产=[世界观设定 / 人物记忆·设计中 / 伏笔台账·设计中 / 长期记忆·设计中]
  *   灵感=[扫榜热榜 / 抽脑洞 / 拆书报告 / 选题库]（全部设计中）
  *   输出=[统计账本 / 导出中心·设计中]
+ *   系统=[提示词与技能]（★ P2-A T4 新增第 5 组，一条实项，不占数字快捷键）
  *
  * 两类条目（判别联合，kind 是唯一分派点）：
  *   - `mode`：可达的真页面，`id` 就是 Mode（B 组纪律：渲染里保留
@@ -140,6 +142,16 @@ const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
     items: [
       { kind: 'mode', id: 'dash', label: MODE_LABELS.dash, d: 'M4 14a8 8 0 0116 0' },
       { kind: 'soon', id: 'soon-export', label: '导出中心', d: 'M12 3v10m0 0l-3-3m3 3l3-3M5 19h14' },
+    ],
+  },
+  // ★ P2-A T4（DRD §4.1 系统组）：输出组之后的第 5 组，一条实项「提示词与技能」。
+  //   六字 label 无 chip（与 生成·导演台 同档，R41 184px 余额按六字算过）。
+  //   不占数字快捷键——⌘1–⌘4 的 Ulysses 心智模型纪律不动，入口走导航与 ⌘K 面板。
+  {
+    id: 'system',
+    label: '系统',
+    items: [
+      { kind: 'mode', id: 'prompt', label: MODE_LABELS.prompt, d: 'M4 8h8M17 8h3M4 16h3M12 16h8M14 5v6M7 13v6' },
     ],
   },
 ];
@@ -561,6 +573,7 @@ export function App(): JSX.Element {
               {mode === 'review' && <ReviewView />}
               {mode === 'dash' && <DashboardView />}
               {mode === 'gen' && <GenView />}
+              {mode === 'prompt' && <PromptView />}
             </main>
           )}
         </div>
@@ -600,7 +613,7 @@ export function App(): JSX.Element {
           onRun={(id) => {
             switch (id) {
               case 'mode:write': case 'mode:plan': case 'mode:lore':
-              case 'mode:review': case 'mode:dash': case 'mode:gen':
+              case 'mode:review': case 'mode:dash': case 'mode:gen': case 'mode:prompt':
                 setMode(id.slice(5) as Mode);
                 break;
               case 'panel:tree':

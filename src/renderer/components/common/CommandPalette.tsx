@@ -56,9 +56,10 @@ interface Command {
  * 刻意保持短：调研第 8 节的结论是「重做不是把选项删光」，但也不等于把
  * 每个按钮都搬进来 —— 面板里只放“用户在写作过程中会想切换的东西”。
  *
- * ★ P2-UI T2（四组 IA）同步口径：
- *   - `mode:*` 六条**全保留**（R36 后审稿也进了创作组导航——面板条目与 id 集不变，
- *     仍是 13 条；面板仍是它的⌘K 快路）；
+ * ★ P2-UI T2（四组 IA）同步口径（P2-A T4 起为五组、14 条）：
+ *   - `mode:*` 七条**全保留**（R36 后审稿进了创作组导航、P2-A T4 后提示词与技能
+ *     进了系统组——面板条目与 id 集双向同步于 shell-r1 A 组钉死清单，现 14 条；
+ *     面板仍是它们的⌘K 快路）；
  *   - 左导航的 soon 占位项（人物记忆/伏笔台账/…）**不进面板**：
  *     它们是 disabled 的「设计中」路标，没有可执行动作，进面板就是骗用户点；
  *   - label 跟随新显示名（写作坊/大纲管理/…），alias 保留旧名关键词——
@@ -75,6 +76,9 @@ const COMMANDS: Command[] = [
   { id: 'mode:review', label: `切换到 ${MODE_LABELS.review}`, group: '模式', alias: 'review shengao' },
   { id: 'mode:dash', label: `切换到 ${MODE_LABELS.dash}`, group: '模式', alias: 'dashboard yibiaopan tongji' },
   { id: 'mode:gen', label: `切换到 ${MODE_LABELS.gen}`, group: '模式', alias: 'gen shengcheng daoyantai' },
+  // ★ P2-A T4：系统组实项进面板（id 集 13→14 与 shell-r1 A 组双向同步）。
+  //   不占数字快捷键——⌘1–⌘4 纪律不变，keys 留空。
+  { id: 'mode:prompt', label: `切换到 ${MODE_LABELS.prompt}`, group: '模式', alias: 'prompt skills 提示词 技能 覆盖层 tishici' },
 
   { id: 'panel:tree', label: '显示 / 隐藏 章节树', group: '面板', keys: '⌘1', alias: 'tree chapter zhangjieshu' },
   { id: 'panel:rail', label: '显示 / 隐藏 AI 面板', group: '面板', keys: '⌘2', alias: 'rail ai panel' },
