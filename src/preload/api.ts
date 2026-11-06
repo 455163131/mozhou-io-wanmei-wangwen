@@ -11,7 +11,13 @@
  *   - 渲染层拿不到 db.query（schema 一变渲染层就崩）
  *   - 任何文件写入都走 project.*，主进程强制在项目根目录内做路径规范化
  */
-import type { IpcInvokeMap, IpcPushMap, IpcChannel, IpcPushChannel } from '@shared/types/ipc';
+import type {
+  IpcInvokeMap,
+  IpcPushMap,
+  IpcChannel,
+  IpcPushChannel,
+  OverlayRole,
+} from '@shared/types/ipc';
 import type { LedgerEntries, LedgerQuery } from '@shared/types/ledger';
 import type { DraftStatus } from '@shared/types/pipeline';
 
@@ -184,6 +190,30 @@ export interface MzBridge {
     /** 不存在返回 {ok:false} 而不抛 */
     remove(projectId: string, id: string): Promise<IpcInvokeMap['canon:remove']['res']>;
   };
+
+  // ── 提示词覆盖层（P2-A T3）：内置基线 + 覆盖层，删文件即恢复默认 ──
+  overlay: {
+    /** 读角色覆盖层。文件不存在 = 默认态；template = 默认模板（「恢复默认」预览用） */
+    get(role: OverlayRole): Promise<IpcInvokeMap['overlay:get']['res']>;
+    /** 保存。temperature=null = 沿用内置；非 0~2 → E_INVALID_ARGS（retryable:false） */
+    save(
+      role: OverlayRole,
+      temperature: number | null,
+      additional: string,
+    ): Promise<IpcInvokeMap['overlay:save']['res']>;
+    /** 删文件恢复默认。existed=false = 文件本来就不在（幂等） */
+    remove(role: OverlayRole): Promise<IpcInvokeMap['overlay:remove']['res']>;
+  };
+
+  // ── 工艺技能表（P2-A T3）：浏览 + 命中预览（纯判定与装配器同一内核）──
+  skills: {
+    list(): Promise<IpcInvokeMap['skills:list']['res']>;
+    /** 命中预览：role 只开放 writer/architect，其余 E_INVALID_ARGS */
+    match(
+      text: string,
+      role: IpcInvokeMap['skills:match']['req']['role'],
+    ): Promise<IpcInvokeMap['skills:match']['res']>;
+  };
 }
 
 /** 全部 invoke 通道（与 shared/types/ipc.ts 同源，禁止手写字符串） */
@@ -263,6 +293,12 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'canon:list',
   'canon:add',
   'canon:remove',
+  // 提示词覆盖层与工艺技能表（P2-A T3）
+  'overlay:get',
+  'overlay:save',
+  'overlay:remove',
+  'skills:list',
+  'skills:match',
 ];
 
 /** 全部订阅通道 */

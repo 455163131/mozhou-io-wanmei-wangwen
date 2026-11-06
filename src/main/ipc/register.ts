@@ -38,6 +38,8 @@ import { applyLocalRewrites, diffReports, needsAgent } from '../flavor/rewrite';
 import * as pipelineIpc from '../pipeline/ipc';
 // ── 世界观铁律 canon（P1-A T2）：业务语义全在 pipeline/canon-ipc.ts，这里只登记通道 ──
 import * as canonIpc from '../pipeline/canon-ipc';
+// ── 提示词覆盖层与技能表（P2-A T3）：业务语义全在 pipeline/overlay-ipc.ts，这里只登记通道 ──
+import * as overlayIpc from '../pipeline/overlay-ipc';
 
 type Handler<K extends IpcChannel> = (
   payload: IpcInvokeMap[K]['req'],
@@ -654,6 +656,16 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   handle('canon:list', (p, s) => canonIpc.listCanon(s, p), services);
   handle('canon:add', (p, s) => canonIpc.addCanon(s, p), services);
   handle('canon:remove', (p, s) => canonIpc.removeCanon(s, p), services);
+
+  // ── 提示词覆盖层与工艺技能表（P2-A T3）──
+  // 业务口径（角色白名单、温度 0~2、幂等删除、命中预览）全在 overlay-ipc.ts，
+  // 这里一行式委托。dataDir 用 `app.getPath('userData')`——与 services.ts 注入
+  // PipelineDeps.getOverlay 的路径同一来源，读写与生成链永远看同一份文件。
+  handle('overlay:get', (p) => overlayIpc.overlayGet(app.getPath('userData'), p), services);
+  handle('overlay:save', (p) => overlayIpc.overlaySave(app.getPath('userData'), p), services);
+  handle('overlay:remove', (p) => overlayIpc.overlayRemove(app.getPath('userData'), p), services);
+  handle('skills:list', () => overlayIpc.skillsList(), services);
+  handle('skills:match', (p) => overlayIpc.skillsMatch(p), services);
 }
 
 // ══════════════════════════════════════════════════════════════════════

@@ -184,6 +184,17 @@ const bridge: MzBridge = {
     add: (projectId, text) => invoke('canon:add', { projectId, text }),
     remove: (projectId, id) => invoke('canon:remove', { projectId, id }),
   },
+
+  // ── 提示词覆盖层与工艺技能表（P2-A T3）──
+  overlay: {
+    get: (role) => invoke('overlay:get', { role }),
+    save: (role, temperature, additional) => invoke('overlay:save', { role, temperature, additional }),
+    remove: (role) => invoke('overlay:remove', { role }),
+  },
+  skills: {
+    list: () => invoke('skills:list'),
+    match: (text, role) => invoke('skills:match', { text, role }),
+  },
 };
 
 contextBridge.exposeInMainWorld('mz', bridge);

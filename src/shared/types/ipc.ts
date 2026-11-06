@@ -319,6 +319,69 @@ export interface IpcInvokeMap {
   'canon:add': { req: { projectId: string; text: string }; res: CanonEntry };
   /** 删除铁律。不存在返回 {ok:false} 而不抛（删除是幂等的收尾动作） */
   'canon:remove': { req: { projectId: string; id: string }; res: { ok: boolean } };
+
+  // ── 提示词覆盖层与工艺技能表（P2-A T3：五通道）─────────────────────
+  /**
+   * 读角色覆盖层。文件不存在 = 默认态（exists:false，overlay:null，零 warning）。
+   * template = serializeOverlay 生成的**默认模板**（温度留空、附加要求为空），
+   * 供 UI「恢复默认」预览——它与当前存的覆盖层内容无关。
+   */
+  'overlay:get': { req: { role: OverlayRole }; res: OverlayGetResult };
+  /**
+   * 保存覆盖层。temperature=null = 沿用内置（合法态）；给了数值必须是 0~2，
+   * 否则 E_INVALID_ARGS + detail {retryable:false}（与 canon 边界同口径）。
+   */
+  'overlay:save': {
+    req: { role: OverlayRole; temperature: number | null; additional: string };
+    res: { ok: true };
+  };
+  /** 删除覆盖层文件 = 恢复默认。existed=false 表示文件本来就不存在（幂等） */
+  'overlay:remove': { req: { role: OverlayRole }; res: { existed: boolean } };
+  /** craft-skills 全量（注册序即返回序，渲染层直接浏览六卡） */
+  'skills:list': { req: void; res: CraftSkillInfo[] };
+  /**
+   * 命中预览：纯函数直暴露（渲染层输入框实时调）。role 只开放
+   * 'writer' | 'architect'——polisher 零技能、concept 不适用触发词匹配，
+   * 传别的 → E_INVALID_ARGS（R42：不开假入口）。
+   */
+  'skills:match': {
+    req: { text: string; role: 'writer' | 'architect' };
+    res: { ids: string[]; titles: string[] };
+  };
+}
+
+/**
+ * 覆盖层开放角色。与 @main/pipeline/overlay.PromptOverlayRole **结构同一**——
+ * shared 不 import main（分层纪律），同名口径靠 register.ts 的 Handler 类型
+ * 在编译期钉死：两处任一侧漂移，三 typecheck 立红。
+ */
+export type OverlayRole = 'concept' | 'architect' | 'writer';
+
+/** 覆盖层解析结果 DTO（同上映射：与 main 侧 PromptOverlay 结构同一） */
+export interface PromptOverlayInfo {
+  role: OverlayRole;
+  /** null = 沿用程序内置温度 */
+  temperature: number | null;
+  additional: string;
+}
+
+/** overlay:get 响应 */
+export interface OverlayGetResult {
+  exists: boolean;
+  overlay: PromptOverlayInfo | null;
+  /** 加载侧真因告警（缺段/温度非法/读盘失败），UI 黄字直报，不静默吞 */
+  warnings: string[];
+  /** 默认模板文本（serializeOverlay 生成），供「恢复默认」预览 */
+  template: string;
+}
+
+/** craft-skills 单卡 DTO（与 @main/pipeline/craft-skills.CraftSkill 结构同一） */
+export interface CraftSkillInfo {
+  id: string;
+  title: string;
+  triggers: string[];
+  roles: ('writer' | 'architect' | 'polisher')[];
+  body: string;
 }
 
 /** 当前生效的 AI 味基线摘要（渲染层展示用；不含完整分位数） */
@@ -527,6 +590,12 @@ export const IPC_CHANNELS = [
   'canon:list',
   'canon:add',
   'canon:remove',
+  // 提示词覆盖层与工艺技能表（P2-A T3）
+  'overlay:get',
+  'overlay:save',
+  'overlay:remove',
+  'skills:list',
+  'skills:match',
 ] as const;
 
 export type IpcChannel = keyof IpcInvokeMap;

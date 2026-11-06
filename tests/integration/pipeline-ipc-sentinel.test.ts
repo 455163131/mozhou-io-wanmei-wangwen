@@ -6,7 +6,7 @@
 // 「逻辑对、契约散在四处漏一处」（§5 坑 3），所以每一处都钉死。
 // B/C/D 组走真 SQLite 内存库：六通道行为、adopt 语义（正文入正稿唯一入口）、
 // Carry-1/Carry-2、R11 budget 注入、R10 v12 迁移与 projects 参数真列。
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -14,7 +14,9 @@ import { join } from 'node:path';
 //   index.ts / register.ts），哨兵同步钉死，防「契约散在四处漏一处」。
 // ★ P1-A T2：canon 三通道（canon:list/canon:add/canon:remove）入列，总 10 通道——
 //   世界观铁律的管理通道同样受四处齐改铁律约束。
-const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove'];
+// ★ P2-A T3：覆盖层与技能表五通道（overlay:get/save/remove、skills:list/match）入列，
+//   总 15 通道——覆盖层是文件不是表，但通道契约同样四处齐改，一个都不许漏。
+const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove', 'overlay:get', 'overlay:save', 'overlay:remove', 'skills:list', 'skills:match'];
 const FILES = ['src/shared/types/ipc.ts', 'src/preload/api.ts', 'src/preload/index.ts', 'src/main/ipc/register.ts'];
 
 describe('pipeline IPC 四处契约哨兵', () => {
@@ -47,6 +49,18 @@ import {
 import { MzError } from '@shared/types/ipc';
 import type { ToolContext } from '@shared/types/tool';
 import type { OutlineOut, PipelineCtx } from '@shared/types/pipeline';
+// ★ P2-A T3：覆盖层与技能表五通道的业务实现（register.ts 只做一行式委托，
+//   行为用例直调这些函数——与 B/C/D 组"测 ipc 业务函数、不 mock ipcMain"同款口径）。
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import {
+  overlayGet,
+  overlaySave,
+  overlayRemove,
+  skillsList,
+  skillsMatch,
+} from '@main/pipeline/overlay-ipc';
+import { CRAFT_SKILLS } from '@main/pipeline/craft-skills';
 
 const CONCEPT_JSON = JSON.stringify({ titles: ['雾隐山海', '玉佩三千年', '山海崩'], logline: '时间秘境换回一座城', synopsis: '梗概'.repeat(20), goldenFinger: '玉佩秘境 3000:3，代价是被遗忘', hooks: ['h1', 'h2', 'h3', 'h4', 'h5'] });
 const OUTLINE_JSON = JSON.stringify({ volumes: [{ title: '第一卷', goal: '出山+灭世伏笔', targetChapters: 30 }], chapterPlan: [{ title: '雾中拾玉', hook: '玉佩里传出心跳声' }] });
@@ -422,5 +436,116 @@ describe('D. R10 数据契约补真（v12 迁移 + projects 参数真列）', ()
     // 非法值被拒
     expect(() => projects.setPipelineParams(pid, { chapterWords: -1 })).toThrow();
     expect(() => projects.setPipelineParams(pid, { chapterWords: 1.5 })).toThrow();
+  });
+});
+
+/* ── F 组：P2-A T3 覆盖层与技能表五通道行为 ─────────────────────── */
+
+describe('F. P2-A T3 覆盖层与技能表五通道（行为）', () => {
+  // 覆盖层是文件不是表：行为用例喂真 tmp 数据目录（mkdtemp），用完即删。
+  const dirs: string[] = [];
+  async function tmpDataDir(): Promise<string> {
+    const d = await mkdtemp(join(tmpdir(), 'mz-overlay-sentinel-'));
+    dirs.push(d);
+    return d;
+  }
+  afterEach(async () => {
+    while (dirs.length > 0) {
+      const d = dirs.shift();
+      if (d) await rm(d, { recursive: true, force: true });
+    }
+  });
+
+  it('overlay:save → overlay:get 往返（温度与附加要求逐字回读；template 是默认模板而非当前内容）', async () => {
+    const dir = await tmpDataDir();
+    await expect(
+      overlaySave(dir, { role: 'writer', temperature: 0.4, additional: '多写动作，少写心理。' }),
+    ).resolves.toEqual({ ok: true });
+    const r = await overlayGet(dir, { role: 'writer' });
+    expect(r.exists).toBe(true);
+    expect(r.overlay).toEqual({ role: 'writer', temperature: 0.4, additional: '多写动作，少写心理。' });
+    expect(r.warnings).toEqual([]);
+    // template = serializeOverlay 生成的默认模板（UI「恢复默认」预览用）：温度留空、附加要求为空
+    expect(r.template).toContain('温度：');
+    expect(r.template).toContain('## 附加要求');
+    expect(r.template).not.toContain('多写动作');
+  });
+
+  it('overlay:remove → existed:true，再 get exists:false（默认态零告警）；再删 existed:false（幂等）', async () => {
+    const dir = await tmpDataDir();
+    await overlaySave(dir, { role: 'concept', temperature: null, additional: 'x' });
+    await expect(overlayRemove(dir, { role: 'concept' })).resolves.toEqual({ existed: true });
+    const r = await overlayGet(dir, { role: 'concept' });
+    expect(r).toMatchObject({ exists: false, overlay: null, warnings: [] });
+    await expect(overlayRemove(dir, { role: 'concept' })).resolves.toEqual({ existed: false });
+  });
+
+  it('★ 按角色分派钉（carry T2 minor-2）：save writer 后 get concept 的 overlay 仍是 null', async () => {
+    const dir = await tmpDataDir();
+    await overlaySave(dir, { role: 'writer', temperature: 0.2, additional: '只给写手的附加要求' });
+    const concept = await overlayGet(dir, { role: 'concept' });
+    expect(concept.exists).toBe(false);
+    expect(concept.overlay).toBeNull();
+    const architect = await overlayGet(dir, { role: 'architect' });
+    expect(architect.overlay).toBeNull();
+    // 写手自己的角色仍在——钉的是"按角色分派"而不是"全局生效"
+    const writer = await overlayGet(dir, { role: 'writer' });
+    expect(writer.overlay?.additional).toBe('只给写手的附加要求');
+  });
+
+  it('overlay:save 温度非法 → E_INVALID_ARGS 且 retryable:false；null=沿用内置是合法态', async () => {
+    const dir = await tmpDataDir();
+    for (const bad of [2.5, -0.1, NaN, Infinity]) {
+      const e = await overlaySave(dir, { role: 'writer', temperature: bad, additional: '' }).catch((x) => x);
+      expect(e, `temperature=${bad} 应被拒`).toBeInstanceOf(MzError);
+      expect(e.code).toBe('E_INVALID_ARGS');
+      expect((e.detail as { retryable: boolean }).retryable).toBe(false);
+    }
+    await expect(overlaySave(dir, { role: 'writer', temperature: null, additional: 'y' })).resolves.toEqual({ ok: true });
+  });
+
+  it('覆盖层只开 concept/architect/writer：非法角色 → E_INVALID_ARGS', async () => {
+    const dir = await tmpDataDir();
+    for (const bad of ['polisher', 'editor', '']) {
+      const e = await overlayGet(dir, { role: bad as never }).catch((x) => x);
+      expect(e, `role=${bad} 应被拒`).toBeInstanceOf(MzError);
+      expect(e.code).toBe('E_INVALID_ARGS');
+      expect((e.detail as { retryable: boolean }).retryable).toBe(false);
+    }
+    await expect(overlayRemove(dir, { role: 'polisher' as never })).rejects.toMatchObject({ code: 'E_INVALID_ARGS' });
+    await expect(
+      overlaySave(dir, { role: 'polisher' as never, temperature: null, additional: '' }),
+    ).rejects.toMatchObject({ code: 'E_INVALID_ARGS' });
+  });
+
+  it('skills:list = CRAFT_SKILLS 注册序全量', () => {
+    const list = skillsList();
+    expect(list).toHaveLength(6);
+    expect(list.map((s) => s.id)).toEqual(CRAFT_SKILLS.map((s) => s.id));
+  });
+
+  it('skills:match 命中/零命中/角色隔离；非法角色 → E_INVALID_ARGS', () => {
+    const hit = skillsMatch({ text: '这一章结尾要留钩子', role: 'writer' });
+    expect(hit.ids).toEqual(['chapter-hook']);
+    expect(hit.titles).toEqual(['章末钩子三件套']);
+    expect(skillsMatch({ text: '今天天气不错', role: 'writer' })).toEqual({ ids: [], titles: [] });
+    // 角色隔离：chapter-hook 只属写手，架构师同样触发词零命中
+    expect(skillsMatch({ text: '钩子', role: 'architect' }).ids).toEqual([]);
+    // 架构师命中：卷纲触发 causal-outline
+    expect(skillsMatch({ text: '先排卷纲', role: 'architect' }).ids).toEqual(['causal-outline']);
+    for (const bad of ['concept', 'polisher', 'bogus']) {
+      // skills:match 是同步纯函数：非法角色直接抛 MzError（不是 reject）
+      const e = (() => {
+        try {
+          skillsMatch({ text: 'x', role: bad as never });
+          return null;
+        } catch (err) {
+          return err as MzError;
+        }
+      })();
+      expect(e, `role=${bad} 应被拒`).toBeInstanceOf(MzError);
+      expect(e!.code).toBe('E_INVALID_ARGS');
+      expect((e!.detail as { retryable: boolean }).retryable).toBe(false);
+    }
   });
 });
