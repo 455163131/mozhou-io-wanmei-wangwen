@@ -124,6 +124,67 @@ describe('A. 宽度账算术（本文件的核心：把数字读出来算，不�
     const fixed = railW + pxToken(tokensCss, 'mz-layout-tree-max-w') + pxToken(tokensCss, 'mz-layout-rail-max-w');
     expect(winDefault - fixed, '默认窗口下编辑器容不下理想行长').toBeGreaterThanOrEqual(34 * edPx);
   });
+
+  /**
+   * ★ §UI ·R42 的第四条：展开档（184px）的编辑器宽度**从没进过账**。
+   *
+   * 上面 A2 那条逐档扫描在满栏分支里取的是 `--mz-layout-rail-w`（56px 收起档令牌），
+   * 也就是说它算的是「JS 收起态 + 满栏两栏」那一格；R41 把展开档从 168 加宽到 184
+   * 时，这一档的外壳下游账没人重算过（tokens.css §9b 与 App.module.css 的注释都只说
+   * 「1280 落在紧凑档，展开宽只对 ≥1360 负责」，但没人把 ≥1360 那一档真算一遍）。
+   * 本条把这笔无人账钉成算术：展开档最窄可达窗口 = 断点 +1 = 1360，
+   * 编辑器宽 = 1360 − 184 − 260(章节树基准) − 360(AI 栏基准) = **556px**，
+   * 对理想行长 34em × --mz-editor-size-novel(16px) = **544px** 余 **12px**。
+   * 12px 是**棘轮下限**（同 A 组其它用例「不能刚刚好」的口径：现账就是下限，
+   * 往下挪必须显式改数并在 tokens.css §9b 写理由）——这笔账此前从没被任何测试量过，
+   * 所以下限取当下的真值，而不是某个更松的整数。
+   */
+  it('★ A4 无人账：≥1360 的展开档（rail 184）里编辑器仍容得下理想行长 34em', () => {
+    const railExpanded = pxToken(tokensCss, 'mz-layout-rail-expanded-w');
+    const treeMax = pxToken(tokensCss, 'mz-layout-tree-max-w');
+    const railMax = pxToken(tokensCss, 'mz-layout-rail-max-w');
+    const ideal = 34 * edPx;
+    // 展开档的最窄可达窗口由窄窗断点决定：@media (max-width: 1359px) 之外才算展开态
+    const bps = [...appCss.matchAll(/@media\s*\(max-width:\s*(\d+)px\)/g)].map((m) => Number(m[1]));
+    expect(bps.length, '没有宽度断点：展开档在下限全程生效，这条账的口径要重定').toBeGreaterThan(0);
+    const narrowestExpanded = Math.max(...bps) + 1;
+    expect(
+      narrowestExpanded,
+      `断点 ${Math.max(...bps)}px 不大于 minWidth ${winMin}px：展开档在下限内永不出现`,
+    ).toBeGreaterThan(winMin);
+
+    const editor = narrowestExpanded - railExpanded - treeMax - railMax;
+    expect(
+      editor,
+      `win=${narrowestExpanded}（展开档最窄）时编辑器只剩 ${editor}px < 理想行长 ${ideal}px ` +
+        `（${railExpanded}+${treeMax}+${railMax}）——正文会溢出容器，margin-inline:auto 退化成贴边`,
+    ).toBeGreaterThanOrEqual(ideal);
+    expect(
+      editor - ideal,
+      `展开档最窄窗口的居中余量只剩 ${(editor - ideal).toFixed(0)}px，低于棘轮下限 12px：` +
+        '要么加宽的是别的档，要么正文下限动了；改数前请在 tokens.css §9b 写理由',
+    ).toBeGreaterThanOrEqual(12);
+    // 这一档用的确实是展开令牌（若哪天改成展开档也压回 56，这条账就失去对象）
+    expect(
+      railExpanded,
+      `展开宽 ${railExpanded}px 没大于收起宽 ${railW}px：≥1360 这一档不存在，本条该删`,
+    ).toBeGreaterThan(railW);
+    // 紧约束点必须真是「断点 +1」：断点之内 rail 被 CSS 压回 56，展开宽在那里够不着
+    const widestBp = Math.max(...bps);
+    const layoutBlock = [
+      ...appCss.matchAll(new RegExp(`@media\\s*\\(max-width:\\s*${widestBp}px\\)\\s*\\{[\\s\\S]*?\\n\\}`, 'g')),
+    ]
+      .map((m) => m[0])
+      .find((b) => b.includes('.rail'));
+    expect(
+      layoutBlock,
+      `断点 ${widestBp}px 里没有 .rail 规则：展开宽在 <1360 也生效，本条的取档口径（断点+1）要重定`,
+    ).not.toBeUndefined();
+    expect(
+      layoutBlock as string,
+      '断点里 rail 没被压回收起宽：那 <1360 也在用展开档，A2 的逐档扫描同样失真',
+    ).toMatch(/\.rail\s*\{[^}]*width:\s*var\(--mz-layout-rail-w\)/);
+  });
 });
 
 describe('B. 三栏真的会收缩（flex:none 是修复前的形状，不许回来）', () => {

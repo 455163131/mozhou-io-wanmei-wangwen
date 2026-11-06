@@ -25,13 +25,20 @@
  *     所以平局＝输。派生后 ConfirmDialog 的 `.dangerBtn`（终审 Important-1 那颗
  *     回滚确认键）自然入列，候选全量 10 处（原 6 处 + dangerBtn + R37 之前就各自
  *     挡住的 AgentPanel .runBtn / SettingsModal .btnPrimary / GenView .btnPrimary）。
- *  D. §UI ·终审 Important-3（R40）+ Minor③（R41）+ R41 加宽复核——soon 占位项在展开态
+ *  D. §UI ·终审 Important-3（R40）+ Minor③（R41）+ R41 加宽复核 + **R42 级联感知**——soon 占位项在展开态
  *     被省略号截断：一行里 mode 项没有「设计中」chip、soon 项有，所以 soon 的标签预算少一颗
  *     chip 的宽度；四字标签需要的宽度**恰好**比预算大 2px，于是 `button:hover` 那次
  *     没查出来的账在这里现算。★ R41 的实测结论：R40 只靠收 gap 买到 1.64px 账面余量，
  *     打包版墨韵皮肤真机（SimSun 字宽 + 显示缩放逐边取整 + 导航列滚动条预留）照样截断
  *     ——所以 D 组现在按**加宽后的 184px** 重算，并同时卡两档余量（账面 / 扣滚动条的
  *     最坏档），下限 6px。两条负对照分别钉住「加宽」和「gap 补偿」各自承重的那一笔。
+ *     ★ §UI ·R42：gap 这一笔原本是**死声明**——裸 `.railSoon` 的 `gap: 8` 被同特异性
+ *     (0,1,0) 且源序更晚的 `.railBtn` 的 `gap: 10` 盖掉，soon 元素的类集是
+ *     `railBtn railSoon` 两个都有，读单条规则等于读输家：真机 gap 恒 10px，账面余量
+ *     虚高 4px（ideal 真值 13.64、worst 真值 3.64 < 本批自设 6px 下限）。D 组因此
+ *     升级为**级联感知**：每个几何输入都按 soon 元素的真实类集（从 App.tsx 现读）
+ *     跑一遍层叠（特异性高者胜，同特异性源序晚者胜），负对照②改成「删掉赢者声明 →
+ *     胜者退回 `.railBtn` → 余量当场掉档」，另加一条钉两套收起态仍赢回 gap 0。
  *     同批钉：模式显示名三副本收成一处、占位符颜色接线。
  *
  * 比值一律 WCAG 2.1 现场算（与 theme-ink B 组 / p2ui-t3-reskin B 组同式），不抄结论。
@@ -524,7 +531,7 @@ describe('C. §UI ·R37+R38+终审 Important-2 hover 覆盖（候选集从 CSS �
   });
 });
 
-describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档 184px）+ Minor③（R41 占位符接线）', () => {
+describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档 184px → R42 级联感知）+ Minor③（R41 占位符接线）', () => {
   /** tokens 取值解析：`Npx` / `Nem` / `var(--x)` 链（布局与间距令牌都在 :root，两套皮肤共用） */
   function tokenNum(name: string, seen = 0): number {
     const raw = paper.get(name);
@@ -609,8 +616,197 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
    */
   const SLACK_MIN = 6;
 
+  /* ────────────────────────────────────────────────────────────────────────
+   * ★ §UI ·R42：D 组的读取口径升级为**级联感知**。
+   *
+   * 起因是一条**一直存在的死声明**：裸 `.railSoon { gap: var(--mz-space-2) }` 与
+   * `.railBtn { gap: var(--mz-space-2h) }` 同特异性 (0,1,0)，而 soon 元素的类集是
+   * `railBtn railSoon` 两个都有，`.railBtn` 写得更晚 —— 层叠第二顺位判它赢，
+   * 真机 soon 行 gap 恒 10px。旧读法 `lenOf(soonBody, 'gap')` 拿的是**输的那条**，
+   * 于是账面余量整体虚高 4px（ideal 真值 13.64／worst 真值 3.64，后者低于本批
+   * 自设的 6px 下限）。这不是观感问题，是**门禁自己读错了源**。
+   *
+   * 下面的 resolveDecl 把 soon 元素**真实的类集**（从 App.tsx 的 className 现读）
+   * 喂进层叠：特异性高者胜，同特异性时源序晚者胜，与浏览器 `getComputedStyle`
+   * 的判定同序。产物级取证另见 npm run build 后 out/renderer/assets/index-*.css
+   * 里两条声明的先后。
+   * ──────────────────────────────────────────────────────────────────────── */
+
+  interface OrderedRule {
+    /** 逗号拆开前的原始头（仅供报错文案） */
+    header: string;
+    selectors: string[];
+    body: string;
+    /** 规则头在源码里的起始下标 = 源序键 */
+    at: number;
+    bodyAt: number;
+    /** 所在 @media 的条件；null = 顶层 */
+    media: string | null;
+  }
+
+  /** @media 块的字节区间（本仓没有嵌套 @media，一层够用） */
+  function mediaRanges(src: string): Array<{ start: number; end: number; cond: string }> {
+    const out: Array<{ start: number; end: number; cond: string }> = [];
+    const re = /@media[^{]*\{/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(src)) !== null) {
+      const open = m.index + m[0].length - 1;
+      let depth = 0;
+      let i = open;
+      for (; i < src.length; i++) {
+        if (src[i] === '{') depth++;
+        else if (src[i] === '}') {
+          depth--;
+          if (depth === 0) break;
+        }
+      }
+      out.push({ start: m.index, end: i, cond: m[0].slice(0, -1).trim().replace(/\s+/g, ' ') });
+    }
+    return out;
+  }
+
+  /** 全部规则，带源序下标与 @media 归属 */
+  function rulesInOrder(src: string): OrderedRule[] {
+    const medias = mediaRanges(src);
+    const out: OrderedRule[] = [];
+    const re = /([^{}]+)\{([^{}]*)\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(src)) !== null) {
+      const at = m.index;
+      const media = medias.find((r) => at >= r.start && at <= r.end)?.cond ?? null;
+      const header = m[1].trim().replace(/\s+/g, ' ');
+      out.push({
+        header,
+        selectors: header.split(',').map((s) => s.trim().replace(/\s+/g, ' ')).filter(Boolean),
+        body: m[2],
+        at,
+        bodyAt: at + m[1].length + 1,
+        media,
+      });
+    }
+    return out;
+  }
+
+  const cmpSpec = (a: [number, number], b: [number, number]): number =>
+    a[0] !== b[0] ? a[0] - b[0] : a[1] - b[1];
+
+  /** 选择器是否命中「目标类集 cls + 祖先类集 ancestors」；命中返回该选择器的特异性 */
+  function selectorApplies(
+    sel: string,
+    cls: Set<string>,
+    ancestors: Set<string>,
+  ): [number, number] | null {
+    if (!isBaseRule(sel)) return null; // :hover/:disabled/伪元素都不参与基态算术
+    const parts = sel.trim().split(/[\s>+~]+/);
+    const subject = parts[parts.length - 1];
+    const subjCls = [...subject.matchAll(/\.([\w-]+)/g)].map((x) => x[1]);
+    if (subjCls.length === 0 || !subjCls.every((c) => cls.has(c))) return null;
+    for (const p of parts.slice(0, -1)) {
+      const need = [...p.matchAll(/\.([\w-]+)/g)].map((x) => x[1]);
+      if (!need.every((c) => ancestors.has(c))) return null;
+    }
+    return specificity(sel);
+  }
+
+  interface Winner {
+    selector: string;
+    raw: string;
+    spec: [number, number];
+    at: number;
+    /** 生效声明在源码里的绝对下标（负对照②删的就是它） */
+    declAt: number;
+    media: string | null;
+  }
+
   /**
-   * soon 行的几何账（全部从令牌 + 规则现读，没有一个手抄的数）。
+   * 层叠胜者：`prop` 在「cls 这组类 + ancestors 这组祖先 + 是否落在窄窗断点里」
+   * 这套状态下实际生效的那条声明。
+   * 判据与浏览器一致：特异性高者胜；同特异性时**源序晚者胜**（顶层规则恒早于
+   * 文件末尾的 @media 块，所以窄窗断点天然盖过基态——这条也是 R42 那笔死声明的成因）。
+   */
+  function resolveDecl(
+    src: string,
+    prop: string,
+    cls: string[],
+    ancestors: string[],
+    narrow = false,
+  ): Winner {
+    const clsSet = new Set(cls);
+    const ancSet = new Set(ancestors);
+    let best: Winner | null = null;
+    for (const r of rulesInOrder(src)) {
+      if (r.media !== null && !(narrow && /max-width/.test(r.media))) continue;
+      const decls = [...r.body.matchAll(new RegExp(`(?:^|[;\\s])${prop}:\\s*([^;]+)`, 'g'))];
+      const decl = decls[decls.length - 1]; // 同块内同属性多条：后写的生效
+      if (!decl) continue;
+      let spec: [number, number] | null = null;
+      let selector = '';
+      for (const sel of r.selectors) {
+        const s = selectorApplies(sel, clsSet, ancSet);
+        if (s && (!spec || cmpSpec(s, spec) > 0)) {
+          spec = s;
+          selector = sel;
+        }
+      }
+      if (!spec) continue;
+      if (!best || cmpSpec(spec, best.spec) >= 0) {
+        best = {
+          selector,
+          raw: decl[1].trim(),
+          spec,
+          at: r.at,
+          declAt: r.bodyAt + decl.index + decl[0].indexOf(`${prop}:`),
+          media: r.media,
+        };
+      }
+    }
+    expect(best, `层叠里没有任何基态规则给「${cls.join('+')}」写 ${prop}：D 组的算术失去输入`).not.toBeNull();
+    return best as Winner;
+  }
+
+  /** 删掉一条声明（连整行），供负对照②模拟「赢者声明不在了」 */
+  function dropDecl(src: string, w: Winner): string {
+    const lineStart = src.lastIndexOf('\n', w.declAt) + 1;
+    const semi = src.indexOf(';', w.declAt);
+    expect(semi, `${w.selector} 的声明读不到结尾分号，删不掉`).toBeGreaterThan(-1);
+    return src.slice(0, lineStart) + src.slice(semi + 1);
+  }
+
+  /** soon 按钮的真实类集：从 App.tsx 的 className 拼接现读，不抄清单 */
+  const SOON_CLS = (() => {
+    const m = /className=\{(`\$\{styles\.railBtn\} \$\{styles\.railSoon\}`)\}/.exec(appTsx);
+    expect(
+      m,
+      'App.tsx 里 soon 按钮的 className 不再是 `railBtn + railSoon` 两元拼接：级联的输入变了，D 组的胜者判定要重看',
+    ).not.toBeNull();
+    return [...(m?.[1].match(/styles\.(\w+)/g) ?? [])].map((s) => s.slice('styles.'.length));
+  })();
+  /** mode 按钮的真实类集（同排不带 chip 的那一行，gap 账的对手） */
+  const MODE_CLS = (() => {
+    const m = /className=\{`\$\{styles\.(\w+)\} \$\{mode === m\.id \? styles\.(\w+)/.exec(appTsx);
+    expect(m, 'App.tsx 里 mode 按钮的 className 拼接形状变了：gap 差值失去了对手').not.toBeNull();
+    return [m?.[1], m?.[2]] as string[];
+  })();
+
+  /** rail 一路到按钮的祖先类链（展开态；JS 收起态在此之上再加 railCollapsed） */
+  const RAIL_ANCESTORS = ['shell', 'rail', 'railModes', 'railGroup'];
+  /** 图标与 chip 还多一层按钮祖先 */
+  const ROW_ANCESTORS = [...RAIL_ANCESTORS, ...SOON_CLS];
+
+  /** 声明值 → px（var 链 / Npx / Nem / 无单位零；两值简写默认取横向分量） */
+  function len(w: Winner, which: 'inline' | 'first' = 'inline'): number {
+    const parts = w.raw.split(/\s+/);
+    const h = which === 'first' || parts.length < 2 ? parts[0] : parts[1];
+    const viaToken = /^var\((--[\w-]+)\)$/.exec(h);
+    if (viaToken) return tokenNum(viaToken[1]);
+    if (/^0$/.test(h)) return 0; // 收起态写的就是无单位的 `gap: 0`
+    const num = /^(\d+(?:\.\d+)?)(px|em)$/.exec(h);
+    expect(num, `${w.selector} 的声明值读不出长度：${w.raw}`).not.toBeNull();
+    return Number(num?.[1]);
+  }
+
+  /**
+   * soon 行的几何账（全部从令牌 + **级联胜者**现读，没有一个手抄的数）。
    * `budget(gap, reserve)` = 轨宽 − rail 左右内边距 − 行左右内边距 − 图标 − chip
    *                        − 两道 gap −（可选）滚动条预留。
    *
@@ -619,32 +815,39 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
    *      --mz-tracking-cjk，R40 只按 3×--mz-fs-2xs 算，账面少算了 0.345px；
    *   ② 增加 reserve 一档，把「导航列滚动」当作 soon 行的**可达状态**来算最坏档，
    *      而不是等偶然撞上（`.railModes` 写的就是 overflow-y: auto）。
+   * ★ R42 的第三处：每个输入都改走 resolveDecl（`src` 可替换，负对照②据此删声明重算）。
    */
-  function soonRow(railW: number = tokenNum('--mz-layout-rail-expanded-w')) {
+  function soonRow(railW: number = tokenNum('--mz-layout-rail-expanded-w'), src: string = css) {
+    const gapSoonDecl = resolveDecl(src, 'gap', SOON_CLS, RAIL_ANCESTORS);
+    const gapModeDecl = resolveDecl(src, 'gap', MODE_CLS, RAIL_ANCESTORS);
     const inner =
       railW -
-      2 * lenOf(railBody, 'padding') -
-      2 * lenOf(btnBody, 'padding');
+      2 * len(resolveDecl(src, 'padding', ['rail'], ['shell'])) -
+      2 * len(resolveDecl(src, 'padding', SOON_CLS, RAIL_ANCESTORS));
     const labelFs = tokenNum('--mz-chrome-type-body');
     const tracking = tokenNum('--mz-tracking-cjk');
     const chipW =
       [...CHIP].length * tokenNum('--mz-fs-2xs') * (1 + tracking) +
-      2 * lenOf(tagBody, 'padding') +
-      2 * lenOf(tagBody, 'border', 'first');
-    const fixed = inner - lenOf(icoBody, 'width') - chipW;
+      2 * len(resolveDecl(src, 'padding', ['soonTag'], ROW_ANCESTORS)) +
+      2 * len(resolveDecl(src, 'border', ['soonTag'], ROW_ANCESTORS), 'first');
+    const fixed = inner - len(resolveDecl(src, 'width', ['railIco'], ROW_ANCESTORS)) - chipW;
+    const gapSoon = len(gapSoonDecl);
+    const gapMode = len(gapModeDecl);
     return {
       budget: (gap: number, reserve = 0): number => fixed - 2 * gap - reserve,
       need: (chars: number): number => chars * labelFs * (1 + tracking),
       widest: Math.max(...SOON.map((s) => [...s.label].length)),
-      gapSoon: lenOf(soonBody, 'gap'),
-      gapMode: lenOf(btnBody, 'gap'),
+      gapSoon,
+      gapMode,
+      gapSoonDecl,
+      gapModeDecl,
       railW,
     };
   }
 
   /** 现档的两个余量：账面（静态）与最坏（扣掉滚动条预留） */
-  function slackAt(railW: number): { ideal: number; worst: number } {
-    const { budget, need, widest, gapSoon } = soonRow(railW);
+  function slackAt(railW: number, src: string = css): { ideal: number; worst: number } {
+    const { budget, need, widest, gapSoon } = soonRow(railW, src);
     const n = need(widest);
     return { ideal: budget(gapSoon) - n, worst: budget(gapSoon, scrollbarW) - n };
   }
@@ -659,9 +862,14 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
   });
 
   it('★ soon 行宽度账现算：标签 + 图标 + chip + 两道 gap 装进展开态轨宽，且余量 >= 6px（双档）', () => {
-    const { budget, need, widest, gapSoon, railW } = soonRow();
+    const { budget, need, widest, gapSoon, gapMode, railW } = soonRow();
     const n = need(widest);
     const { ideal, worst } = slackAt(railW);
+    // ★ R42：gap 走级联胜者后，soon 行必须真的比 mode 行紧一格；相等＝补偿没生效
+    expect(
+      gapSoon,
+      `soon 行的级联胜者 gap 是 ${gapSoon}px，与 mode 行的 ${gapMode}px 同一档：横向补偿没落地（R42 死声明的形状）`,
+    ).toBeLessThan(gapMode);
     expect(
       n,
       `${widest} 字 soon 标签要 ${n.toFixed(2)}px，但 soon 行账面只剩 ${budget(gapSoon).toFixed(2)}px：` +
@@ -669,13 +877,56 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
     ).toBeLessThanOrEqual(budget(gapSoon));
     expect(
       ideal,
-      `账面余量 ${ideal.toFixed(2)}px < ${SLACK_MIN}px 下限——R40 就是栽在 1.64px 这种脆账上`,
+      `账面余量 ${ideal.toFixed(2)}px < ${SLACK_MIN}px 下限——R40 就是栽在 1.64px 这种脆账上，` +
+        `R42 的取证则证明按输家声明算出来的 13.64px 同样是脆账`,
     ).toBeGreaterThanOrEqual(SLACK_MIN);
     expect(
       worst,
       `最坏档（含 ${scrollbarW}px 滚动条预留）余量 ${worst.toFixed(2)}px < ${SLACK_MIN}px 下限：` +
-        `导航列一滚动，「${SOON.find((s) => [...s.label].length === widest)?.label}」又会回到真机截断那一档`,
+        `导航列一滚动，「${SOON.find((s) => [...s.label].length === widest)?.label}」又会回到真机截断那一档` +
+        `（R42 取证时真机就是 3.64px）`,
     ).toBeGreaterThanOrEqual(SLACK_MIN);
+  });
+
+  it('★ 级联本身（R42 的死声明不许回来）：赢者必须是 soon 专属那条，两套收起态仍赢回 gap 0', () => {
+    const { gapSoonDecl, gapModeDecl, gapSoon, gapMode } = soonRow();
+    // ① 赢者必须压过 mode 行的那条：特异性更高，或同特异性时源序更晚
+    expect(
+      cmpSpec(gapSoonDecl.spec, gapModeDecl.spec) > 0 ||
+        (cmpSpec(gapSoonDecl.spec, gapModeDecl.spec) === 0 && gapSoonDecl.at > gapModeDecl.at),
+      `soon 行的胜者「${gapSoonDecl.selector}」${gapSoonDecl.spec.join(',')} @${gapSoonDecl.at} ` +
+        `压不过 mode 行的「${gapModeDecl.selector}」${gapModeDecl.spec.join(',')} @${gapModeDecl.at}`,
+    ).toBe(true);
+    // ② 裸 `.railSoon` 不许再挂一条**会输**的 gap：挂了就必须等于胜者，否则就是死声明
+    const naiveHasGap = /(?:^|[;\s])gap:/.test(soonBody);
+    if (naiveHasGap) {
+      expect(
+        lenOf(soonBody, 'gap'),
+        '.railSoon 上又挂了一条与胜者不同值的 gap——同特异性时它会输回 `.railBtn`，' +
+          '正是 R42 取证的那条死声明：要么删掉，要么把值改成胜者',
+      ).toBe(gapSoon);
+    }
+    // ③ JS 收起态（.railCollapsed）与 <1360 物理收起态都必须赢回 gap 0，
+    //    否则 soon 那条 (0,2,0) 补偿会把 56px 一行的图标+文字顶开（R42 新增的回归面）
+    const collapsed = resolveDecl(css, 'gap', SOON_CLS, [...RAIL_ANCESTORS, 'railCollapsed']);
+    expect(
+      len(collapsed),
+      `JS 收起态 soon 行的胜者变成「${collapsed.selector}」(${collapsed.spec.join(',')}) ` +
+        `gap=${collapsed.raw}——soon 那笔补偿越过了收起态，56px 档的账要重算`,
+    ).toBe(0);
+    const compact = resolveDecl(css, 'gap', SOON_CLS, RAIL_ANCESTORS, true);
+    expect(
+      len(compact),
+      `紧凑档（<1360）soon 行的胜者变成「${compact.selector}」gap=${compact.raw}` +
+        `——断点里的 gap: 0 被 (0,2,0) 的补偿顶掉了，物理收起档要带上 .railBtn.railSoon`,
+    ).toBe(0);
+    expect(
+      compact.media,
+      '紧凑档的 gap 胜者不在 @media 块里：断点没盖到 soon 行（上面那条会一起红）',
+    ).toMatch(/max-width/);
+    expect(gapMode, 'mode 行的 gap 读数不是 10px 档：D 组的对手变了，横向差值要重算').toBeGreaterThan(
+      gapSoon,
+    );
   });
 
   it('★ 负对照①（加宽是承重的）：轨宽退回 R40 的 168px 档就复现真机截断', () => {
@@ -695,32 +946,70 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
       old.worst,
       `168px 档的最坏余量不再是负的？那 R41 的截断实锤就没有账面对手了，这条负对照该改写`,
     ).toBeLessThan(0);
-    // 新档买到的预算必须正好等于加宽的增量（+16px），不多不少——防止「顺手加宽」没账
-    expect(now.ideal - old.ideal, '加宽增量与令牌差不一致').toBeCloseTo(expanded - PRE_R41_RAIL_W, 6);
+    /**
+     * ★ Minor-1（R42）：这里原来钉的是 `now.ideal − old.ideal ≈ 令牌差`，但预算对轨宽
+     * 是斜率 1 的线性式，两个档相减**恒等于**令牌差——一条永真的恒等式，加宽多少都绿。
+     * 换成会咬的形式：加宽买到的增量必须**覆盖已经入账的吃掉项**（滚动条预留 + 最坏档下限），
+     * 也就是「加宽不是估的」这句台账话术的可验形态；再钉一次增量的两端（旧档最坏为负、
+     * 新档最坏过线），两头一起才构成这笔账。
+     */
+    const delta = expanded - PRE_R41_RAIL_W;
+    expect(
+      delta,
+      `展开档只比 R40 档宽 ${delta}px，覆盖不了已入账的吃掉项（滚动条 ${scrollbarW}px + 下限 ${SLACK_MIN}px ` +
+        `= ${scrollbarW + SLACK_MIN}px）：最坏档在数学上就不可能过线，加宽这一笔是估的不是推的`,
+    ).toBeGreaterThanOrEqual(scrollbarW + SLACK_MIN);
+    expect(
+      now.worst - old.worst,
+      `最坏档余量的增量 ${now.worst.toFixed(2)} − ${old.worst.toFixed(2)} 没有覆盖那笔吃掉项`,
+    ).toBeGreaterThanOrEqual(scrollbarW + SLACK_MIN);
   });
 
-  it('★ 负对照②（soon 行的 gap 补偿仍在买预算）：撤成 mode 行的 gap 就不达标 / 旧档直接爆账', () => {
-    const { budget, need, widest, gapSoon, gapMode, railW } = soonRow();
-    const old = soonRow(PRE_R41_RAIL_W);
-    expect(gapSoon, 'soon 行与 mode 行的 gap 一样，那 soon 的补偿没写进去').not.toBe(gapMode);
+  it('★ 负对照②（gap 承重，级联胜者口径）：删掉赢者声明→胜者退回 mode 行→余量掉档', () => {
+    const { budget, gapSoon, gapMode, railW, gapSoonDecl } = soonRow();
+    expect(gapSoon, 'soon 与 mode 行的级联胜者 gap 一样，补偿没写进去').not.toBe(gapMode);
     expect(
-      budget(gapSoon) - budget(gapMode),
-      '.railSoon 的 gap 补偿不再等于两道 gap 的差（规则被改了就要重算账）',
+      budget(gapSoon) > budget(gapMode),
+      'soon 行的胜者 gap 没在买预算（方向反了）',
+    ).toBe(true);
+
+    /**
+     * ★ Minor-1（R42）：原来钉的是 `budget(gapSoon) − budget(gapMode) ≈ 2×(gapMode−gapSoon)`，
+     * 可 budget 的定义就是 `fixed − 2×gap`，这条同样是永真恒等式。
+     * 换成**删声明重算**：从源码里删掉胜者那条 gap 声明，级联必须退回 mode 行的 10px，
+     * 两个档的余量当场掉下去——R42 取证拿到的正是「胜者本来就是输的」这一档。
+     */
+    const brokenSrc = dropDecl(css, gapSoonDecl);
+    const broken = soonRow(railW, brokenSrc);
+    expect(
+      broken.gapSoonDecl.selector,
+      `删掉「${gapSoonDecl.selector}」的 gap 后胜者不是退回 .railBtn，而是 ` +
+        `「${broken.gapSoonDecl.selector}」：层叠读法要重看`,
+    ).toBe('.railBtn');
+    expect(
+      broken.gapSoon,
+      `删掉赢者声明后 soon 行 gap 读成 ${broken.gapSoon}px（mode 行 ${gapMode}px）：级联没退回对手档`,
+    ).toBe(gapMode);
+    const nowSlack = slackAt(railW);
+    const brokenSlack = slackAt(railW, brokenSrc);
+    expect(
+      nowSlack.ideal - brokenSlack.ideal,
+      `删掉赢者声明后账面余量只掉了 ${(nowSlack.ideal - brokenSlack.ideal).toFixed(2)}px，` +
+        `不是两道 gap 的 2×(${gapMode}−${gapSoon})=${2 * (gapMode - gapSoon)}px：这条声明不承重`,
     ).toBeCloseTo(2 * (gapMode - gapSoon), 6);
-    // 旧档：撤掉 gap 收紧，四字标签连账面都装不下 —— R40 报的截断本身就是这么算出来的
     expect(
-      old.need(old.widest),
-      `168px 档用 mode 行的 gap(${old.gapMode}) 还剩 ${old.budget(old.gapMode).toFixed(2)}px，` +
-        `装得下 ${old.widest} 字标签（${old.need(old.widest).toFixed(2)}px）——那 R40 的截断就不成立了`,
-    ).toBeGreaterThan(old.budget(old.gapMode));
-    // 新档：撤掉 gap 后不至于当场截断，但最坏档余量掉到 6px 下限以下 —— 这条规则仍然承重
-    const slackWithoutGapFix = budget(gapMode, scrollbarW) - need(widest);
-    expect(
-      slackWithoutGapFix,
-      `在 ${railW}px 档撤掉 soon 行的 gap 补偿后最坏余量还有 ${slackWithoutGapFix.toFixed(2)}px，` +
-        `不再低于 ${SLACK_MIN}px —— .railSoon 那条 gap 变成装饰了，要么改规则要么改这条台账`,
+      brokenSlack.worst,
+      `删掉赢者声明后最坏档余量还有 ${brokenSlack.worst.toFixed(2)}px，不再低于 ${SLACK_MIN}px 下限——` +
+        '.railBtn.railSoon 那条 gap 变成装饰了，要么改规则要么改这条台账',
     ).toBeLessThan(SLACK_MIN);
-    expect(budget(gapSoon)).toBeGreaterThan(budget(gapMode));
+
+    // 旧档（168px）：删掉 gap 收紧后四字标签连账面都装不下 —— R40 报的截断就是这么算出来的
+    const oldBroken = soonRow(PRE_R41_RAIL_W, brokenSrc);
+    expect(
+      oldBroken.need(oldBroken.widest),
+      `168px 档用 mode 行的 gap(${oldBroken.gapMode}) 还剩 ${oldBroken.budget(oldBroken.gapMode).toFixed(2)}px，` +
+        `装得下 ${oldBroken.widest} 字标签（${oldBroken.need(oldBroken.widest).toFixed(2)}px）——那 R40 的截断就不成立了`,
+    ).toBeGreaterThan(oldBroken.budget(oldBroken.gapMode));
   });
 
   it('★ 契约不放宽的依据：184 档下五字标签账面放得下、最坏档放不下', () => {

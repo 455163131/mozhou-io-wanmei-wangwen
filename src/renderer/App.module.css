@@ -177,8 +177,20 @@
    *   mode 行唯一的横向差别），但真正承重的是 --mz-layout-rail-expanded-w 那一档。
    *   算术（含最坏档与两条负对照）由 tests/unit/p2ui-t4-smoke-fixes.test.ts D 组现读令牌钉，
    *   ≤4 字的标签契约同处钉死：184 档下五字标签账面放得下、最坏档放不下，故契约**不放宽**。
+   *
+   * ★ §UI ·R42（评审真机取证，推翻上面「gap 这条保留（仍买 4px）」半句）：
+   *   本条曾经写作 `gap: var(--mz-space-2)`，挂在裸 `.railSoon` 上。但 soon 元素的
+   *   类集是 `railBtn railSoon` **两个都有**（App.tsx 的拼接），而下方 `.railBtn` 的
+   *   `gap: var(--mz-space-2h)` 与它**同特异性 (0,1,0) 且源序更晚** —— 层叠第二顺位
+   *   「同特异性后写者胜」，于是本条从写下起就是**死声明**：真机 soon 行 gap 恒 10px，
+   *   R40/R41 按 8px 记的横向账整体虚高 4px（账面真值 13.64px、最坏档真值 **3.64px**，
+   *   低于本批自设的 6px 下限）。四字截断确实被 184 加宽治好了，但「gap 买 4px」
+   *   这条台账当时是假的。
+   *   裁决是**让声明赢、保账不重写**：gap 声明移到 `.railBtn` 之后的
+   *   `.railBtn.railSoon`（(0,2,0) 稳赢 (0,1,0)），账面的 8px 从此是真值。
+   *   D 组口径同步升级为**级联胜者**（按 soon 的真实类集在源序里取胜者，不再单类直读），
+   *   负对照②改成「删掉赢者声明 → 余量掉到真机取证那一档」。
    */
-  gap: var(--mz-space-2);
 }
 /*
  * soon 项的「设计中」tag：无边框底色的空心 chip——它是路标不是状态。
@@ -226,6 +238,21 @@
   letter-spacing: var(--mz-tracking-cjk);
   text-align: left;
   white-space: nowrap;
+}
+/**
+ * ★ §UI ·R42：soon 行的 gap 补偿**唯一生效的那一条**。
+ *
+ * 写在 `.railBtn` 之后、且复合成 `.railBtn.railSoon`（特异性 (0,2,0)），两件事同时成立：
+ *   ① 展开态：本条 (0,2,0) 压过 `.railBtn` 的 (0,1,0) gap(10px)，soon 行真值 gap **8px**
+ *      —— 上方 `.railSoon` 注释里那笔「两道 gap 买 4px」的横向账从此是真账；
+ *   ② 收起两态仍赢：`.railCollapsed .railBtn { gap: 0 }` 同为 (0,2,0) 但**源序更晚**，
+ *      `<1360` 紧凑档那条 `.railBtn { gap: 0 }` 也在更晚的 @media 块里（见文件末尾，
+ *      已把 `.railBtn.railSoon` 一并列进它的选择器，防它被本条的 (0,2,0) 顶掉）。
+ * 顺序是承重的：把本条挪到 `.railCollapsed .railBtn` 之后，收起态的 gap 就会退回 8px。
+ * 这笔账（含两套收起态的胜者）由 tests/unit/p2ui-t4-smoke-fixes.test.ts D 组级联感知现读。
+ */
+.railBtn.railSoon {
+  gap: var(--mz-space-2);
 }
 .railCollapsed .railBtn {
   width: 100%;
@@ -838,7 +865,10 @@
     padding: var(--mz-space-2h) var(--mz-space-1);
     align-items: center;
   }
-  .railBtn {
+  /* ★ §UI ·R42：选择器要带上 .railBtn.railSoon——紧凑档是 (0,1,0)，
+   *   压不过文件里那条 (0,2,0) 的 soon gap 补偿，物理收起态的 gap 会退回 8px。 */
+  .railBtn,
+  .railBtn.railSoon {
     justify-content: center;
     gap: 0;
     padding: var(--mz-space-2) 0;

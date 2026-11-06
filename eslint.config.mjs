@@ -44,6 +44,12 @@ export default tseslint.config(
       'vitest.config.ts.timestamp-*.mjs',
       // 临时探针（与 vitest 的 `**/_*.test.ts` 排除约定一致）
       'tests/**/_*.test.ts',
+      // ★ §UI ·R42：SDD 台账目录（.superpowers/**）是**过程 scratch**，不是源码。
+      //   里面的 shots*/seed.js 一类脚本是给真机截图播种用的临时件（require/__dirname/console
+      //   在 Node 里都合法，但没有 Node globals 配置），本机 `npm run lint` 恒 8 红全部来自它，
+      //   与门禁「0 error 才算绿」的口径冲突。台账本身已由 .gitignore 之外的纪律管理，
+      //   lint 不参与它的评审——这里显式忽略，而不是给 scratch 补 globals。
+      '.superpowers/**',
     ],
   },
 

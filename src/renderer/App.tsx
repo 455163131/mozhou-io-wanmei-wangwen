@@ -81,6 +81,11 @@ type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
  *   （扣掉 `.railModes` 滚动时 10px 滚动条预留的最坏档仍有 **7.64px**）。
  *   gap 那条补偿保留（仍买 4px），但**契约不放宽**：184 档下五字标签账面放得下、
  *   最坏档放不下，所以 ≤4 字继续有效，防文案漂移。
+ * ★ §UI ·R42（评审真机取证后的口径修正）：上面那句「gap 那条补偿保留（仍买 4px）」
+ *   在 R41 时点其实是**假的**——裸 `.railSoon` 的 gap 被同特异性且更晚的 `.railBtn`
+ *   盖死，soon 行真机 gap 恒 10px，账面余量真值 13.64px、最坏档真值 3.64px（低于 6px
+ *   下限）。裁决是让声明赢（gap 移到 `.railBtn.railSoon`，(0,2,0)），17.64 / 7.64
+ *   两档余量从今往后才是真数；D 组的 gap 读法同步改为按 soon 的真实类集取级联胜者。
  */
 type NavItem =
   | { kind: 'mode'; id: Mode; label: string; d: string }
