@@ -178,6 +178,21 @@ export interface IpcInvokeMap {
 
   'ledger:query': { req: LedgerQuery; res: { conflicts: LedgerConflict[]; characters: CharacterProfile[] } };
   'ledger:upsert': { req: { entries: LedgerEntries }; res: LedgerCounts };
+  // ── 手改通道（★P2-B T3：Agent 与作者共写一本账）───────────────────
+  /**
+   * 白名单合并更新（只开 character/foreshadow——number/timeline 是 Agent 的
+   * 证据账，手改结构字段等于伪造出处）。res 固定 true：改没改成由抛错说话
+   * （不存在 → E_NOT_FOUND，白名单/值域违规 → E_INVALID_ARGS），不返布尔让 UI 猜。
+   */
+  'ledger:patch': {
+    req: { kind: 'character' | 'foreshadow'; id: string; patch: Record<string, unknown> };
+    res: true;
+  };
+  /** 删一条账。四类全开；不存在返回 {ok:false} 不抛（与 canon:remove 同口径，删除是幂等收尾） */
+  'ledger:remove': {
+    req: { kind: 'character' | 'foreshadow' | 'number' | 'timeline'; id: string };
+    res: { ok: boolean };
+  };
 
   'tool:list': { req: void; res: ToolSpec[] };
   'tool:preview': { req: ToolPreviewPayload; res: ChangeSet };
@@ -542,6 +557,9 @@ export const IPC_CHANNELS = [
   'health:rules',
   'ledger:query',
   'ledger:upsert',
+  // 手改通道（★P2-B T3）
+  'ledger:patch',
+  'ledger:remove',
   'tool:list',
   'tool:preview',
   'tool:execute',

@@ -103,6 +103,9 @@ const bridge: MzBridge = {
   ledger: {
     query: (kind, subject) => invoke('ledger:query', { kind: kind ?? 'all', subject }),
     upsert: (entries) => invoke('ledger:upsert', { entries }),
+    // ★P2-B T3 手改通道：req 原样转发（白名单与值域校验全在主进程 repo，桥不加工）
+    patch: (req) => invoke('ledger:patch', req),
+    remove: (req) => invoke('ledger:remove', req),
   },
 
   tool: {

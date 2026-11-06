@@ -415,6 +415,34 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     }
   }, services);
 
+  /**
+   * ★P2-B T3 手改通道。边界只做形状守卫（kind/id/patch 三件套），
+   * 白名单与值域全在 LedgerRepo.patch——两处不漂移，Agent 工具若接 patch 也走同一道闸。
+   * 与 ledger:upsert 的 try/catch 压平不同：repo 抛的就是 MzError（E_NOT_FOUND/E_INVALID_ARGS），
+   * 原样让它出去，压平会把"条目不存在"错报成"参数非法"。
+   */
+  handle('ledger:patch', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    if ((p.kind !== 'character' && p.kind !== 'foreshadow') || typeof p.id !== 'string' || !p.id) {
+      throw new MzError('E_INVALID_ARGS', 'ledger:patch 需要 { kind: character|foreshadow, id: 非空字符串, patch: 字段对象 }');
+    }
+    if (!p.patch || typeof p.patch !== 'object' || Array.isArray(p.patch)) {
+      throw new MzError('E_INVALID_ARGS', 'ledger:patch 的 patch 必须是要改的字段对象');
+    }
+    s.ledgerRepo.patch(s.project.id, p.kind, p.id, p.patch);
+    return true as const; // res: true 字面量类型——改成布尔要先动契约
+  }, services);
+
+  handle('ledger:remove', (p, s) => {
+    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
+    const kinds = ['character', 'foreshadow', 'number', 'timeline'];
+    if (!kinds.includes(p.kind) || typeof p.id !== 'string' || !p.id) {
+      throw new MzError('E_INVALID_ARGS', 'ledger:remove 需要 { kind: character|foreshadow|number|timeline, id: 非空字符串 }');
+    }
+    // 幂等删除：不存在回 {ok:false} 不抛（canon:remove 同款口径）
+    return { ok: s.ledgerRepo.remove(s.project.id, p.kind, p.id) };
+  }, services);
+
   // ── tool ──
   handle('tool:list', (_p, s) => s.registry.list(), services);
 

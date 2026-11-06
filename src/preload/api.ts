@@ -80,6 +80,10 @@ export interface MzBridge {
   ledger: {
     query(kind?: LedgerQuery['kind'], subject?: string): Promise<IpcInvokeMap['ledger:query']['res']>;
     upsert(entries: LedgerEntries): Promise<IpcInvokeMap['ledger:upsert']['res']>;
+    /** ★P2-B T3 手改：白名单合并更新（character/foreshadow），违规抛错不返布尔 */
+    patch(req: IpcInvokeMap['ledger:patch']['req']): Promise<IpcInvokeMap['ledger:patch']['res']>;
+    /** 删一条账；不存在返回 {ok:false} 不抛 */
+    remove(req: IpcInvokeMap['ledger:remove']['req']): Promise<IpcInvokeMap['ledger:remove']['res']>;
   };
 
   // 工具
@@ -245,6 +249,9 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'health:rules',
   'ledger:query',
   'ledger:upsert',
+  // 手改通道（★P2-B T3）
+  'ledger:patch',
+  'ledger:remove',
   'tool:list',
   'tool:preview',
   'tool:execute',

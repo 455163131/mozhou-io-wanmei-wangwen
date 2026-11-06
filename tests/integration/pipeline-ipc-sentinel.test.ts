@@ -16,7 +16,9 @@ import { join } from 'node:path';
 //   世界观铁律的管理通道同样受四处齐改铁律约束。
 // ★ P2-A T3：覆盖层与技能表五通道（overlay:get/save/remove、skills:list/match）入列，
 //   总 15 通道——覆盖层是文件不是表，但通道契约同样四处齐改，一个都不许漏。
-const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove', 'overlay:get', 'overlay:save', 'overlay:remove', 'skills:list', 'skills:match'];
+// ★ P2-B T3：手改通道两枚（ledger:patch / ledger:remove）入列，总 17 通道——
+//   共写一本账的入口与登记通道同受四处齐改铁律约束。
+const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove', 'overlay:get', 'overlay:save', 'overlay:remove', 'skills:list', 'skills:match', 'ledger:patch', 'ledger:remove'];
 const FILES = ['src/shared/types/ipc.ts', 'src/preload/api.ts', 'src/preload/index.ts', 'src/main/ipc/register.ts'];
 
 describe('pipeline IPC 四处契约哨兵', () => {
