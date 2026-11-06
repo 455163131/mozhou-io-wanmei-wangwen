@@ -15,8 +15,27 @@
  *   放进 user 消息。这样同一本书从第 1 章写到第 N 章，system 前缀
  *   逐字节不变，provider 侧的 prompt cache 才能长驻命中。
  *   tests/unit/pipeline-prompts.test.ts 的第 4 例把这条钉死。
+ *   ★ P2-A T2 扩展形态：接入提示词覆盖层后，纪律升级为
+ *   「同书 + 同覆盖层内容 → 逐字节稳定」——overlay 是书籍级输入，
+ *   只把「附加要求」原样追加在 system 末尾；覆盖层变更 = 作者有意
+ *   失效 prompt cache（UI 侧须提示，见 P2-A 计划全局约束）。
  */
 import type { PipelineCtx } from '@shared/types/pipeline';
+import type { PromptOverlay } from './overlay';
+
+/* ── 覆盖层追加（P2-A T2）──────────────────────────────────────── */
+
+/**
+ * 把覆盖层的「附加要求」追加到 system 末尾：空一行 + 块头「【作者附加要求】」+ 原文（trim 后）。
+ * overlay=null（无文件/垃圾文件态回退，见 overlay.ts）或 additional trim 后为空 →
+ * 零追加，输出与接入覆盖层前**逐字节等**——既有 zh 稳定回归口径原样保留。
+ * temperature 不进 system（它走 chat 参数，由 tools 层消费）。
+ */
+function withOverlay(base: string, overlay?: PromptOverlay | null): string {
+  const text = overlay?.additional.trim();
+  if (!text) return base;
+  return `${base}\n\n【作者附加要求】\n${text}`;
+}
 
 /* ── 公共底座：任何角色都不得突破的底线 ────────────────────────── */
 
@@ -99,11 +118,11 @@ function canonBlock(canon: string[]): string {
  * 是唯一事实来源，整理器只负责把它们收敛成结构化构思。七项确认门 +
  * 金手指代价 + 套路回避 + JSON 硬约束（titles=3 / hooks=5 / 全非空）。
  */
-export function composeConceptPrompt(ctx: PipelineCtx): string {
+export function composeConceptPrompt(ctx: PipelineCtx, overlay?: PromptOverlay | null): string {
   // minor-3（P1-B T4）：单章体量单位按语言取——zh 用「字」（原文逐字不变），
   // en 用 words（海外口径 chapterWords 即目标英文词数，见 platforms.ts R26 注释）。
   const unit = ctx.language === 'en' ? 'words' : '字';
-  return [
+  return withOverlay([
     `你是构思环节的「对谈整理器」：把作者与主编对谈中已经点头确认的设定，收敛成一份结构化构思。你不是灵感发生器——对谈材料里没有的东西，一个字也不许替作者发明。本作定位：${ctx.genre}题材，发布于${ctx.platform}，目标总字数 ${ctx.targetWords}，单章约 ${ctx.chapterWords} ${unit}。`,
     baseBlock(ctx.language),
     '',
@@ -135,7 +154,7 @@ export function composeConceptPrompt(ctx: PipelineCtx): string {
     '只准输出纯 JSON——不要代码围栏、不要任何多余文字，严格照此执行。',
   ]
     .filter(Boolean)
-    .join('\n');
+    .join('\n'), overlay);
 }
 
 /* ── 全书架构师 ────────────────────────────────────────────────── */
@@ -146,7 +165,7 @@ export function composeConceptPrompt(ctx: PipelineCtx): string {
  * 压力节拍按 platform 与 chapterWords 推算（每千字一拍，随单章体量缩放），
  * 不引入题材数据表——P0 先把机制接通，细化留给后续迭代。
  */
-export function composeArchitectPrompt(ctx: PipelineCtx): string {
+export function composeArchitectPrompt(ctx: PipelineCtx, overlay?: PromptOverlay | null): string {
   const totalChapters = Math.max(1, Math.round(ctx.targetWords / Math.max(1, ctx.chapterWords)));
   // 压力节拍：单章体量每满 1000 字约一拍，至少 2 拍——保证短章也有起伏。
   const beats = Math.max(2, Math.round(ctx.chapterWords / 1000));
@@ -156,7 +175,7 @@ export function composeArchitectPrompt(ctx: PipelineCtx): string {
   const isEn = ctx.language === 'en';
   const unit = isEn ? 'words' : '字';
   const beatNote = isEn ? '（大体每 1000 words 一拍）' : '（大体每千字一拍）';
-  return [
+  return withOverlay([
     `你是全书架构师，为${ctx.genre}题材、发布于${ctx.platform}的作品搭建卷纲与章纲。目标总字数 ${ctx.targetWords}，单章体量 ${ctx.chapterWords} ${unit}，全书约 ${totalChapters} 章。`,
     baseBlock(ctx.language),
     '',
@@ -192,7 +211,7 @@ export function composeArchitectPrompt(ctx: PipelineCtx): string {
     '只给纯 JSON，不带围栏、不带解释。',
   ]
     .filter(Boolean)
-    .join('\n');
+    .join('\n'), overlay);
 }
 
 /* ── 正文写手 ──────────────────────────────────────────────────── */
@@ -207,9 +226,9 @@ export function composeArchitectPrompt(ctx: PipelineCtx): string {
  * 场景路由机制：六类场景（动作/情感/对话/调查/过渡/揭示），每一类绑定
  * 「收束时必须交出的一笔状态变化」——账面上什么都没变的场景即废戏。
  */
-export function composeWriterPrompt(ctx: PipelineCtx): string {
+export function composeWriterPrompt(ctx: PipelineCtx, overlay?: PromptOverlay | null): string {
   const unit = ctx.language === 'en' ? '词' : '字';
-  return [
+  return withOverlay([
     `你是正文写手，为${ctx.genre}题材、发布于${ctx.platform}的作品执笔，单章体量 ${ctx.chapterWords} ${unit}。文字要有网文的鲜活气口：节奏快、画面实、对白像人说的话，拒绝一切机器腔。`,
     baseBlock(ctx.language),
     '',
@@ -241,5 +260,5 @@ export function composeWriterPrompt(ctx: PipelineCtx): string {
     '动笔即写正文——不得附带解说、小标题或字数盘点，直接输出成品。',
   ]
     .filter(Boolean)
-    .join('\n');
+    .join('\n'), overlay);
 }

@@ -28,6 +28,7 @@ import {
 } from './pipeline/tools';
 import type { PipelineCtx } from '@shared/types/pipeline';
 import { buildPipelineCtx } from './pipeline/ctx';
+import { loadOverlay } from './pipeline/overlay';
 import { CheckpointManager } from './checkpoint/manager';
 import { Replayer } from './checkpoint/replayer';
 import { PushChannel } from './ipc/push';
@@ -377,6 +378,11 @@ export class AppServices {
       // P1-A T3：writeDraft 上章结尾衔接桥的读侧——复用带日增量记账的
       // 同一个 chapterRepo 实例（同库同表，只读 getBody，不写正稿）
       chapters: this.chapterRepo,
+      // P2-A T2：提示词覆盖层——落点与书稿库同一数据目录（便携版由
+      // index.ts 把 userData 指到 exe 旁，桌面版保持 %APPDATA% 默认）。
+      // loadOverlay 永不抛错：文件缺失/垃圾文件 → overlay=null，
+      // tools 层据此回退内置温度与零追加（默认态）。
+      getOverlay: async (role) => (await loadOverlay(app.getPath('userData'), role)).overlay,
     };
   }
 

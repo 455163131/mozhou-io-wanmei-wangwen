@@ -73,6 +73,15 @@ describe('overlay 往返（serialize → parse 语义等值）', () => {
     expect(parsed.overlay).toBeNull();
     expect(parsed.warnings.length).toBeGreaterThan(0);
   });
+
+  it('同内容两次 serialize 逐字节相等（无时间戳/随机量——prompt cache 纪律的投影，T1 minor-1 并批）', () => {
+    const o = { role: 'writer' as const, temperature: 0.85, additional: '留钩子\n短句为主。' };
+    const a = serializeOverlay(o);
+    expect(serializeOverlay({ ...o })).toBe(a);
+    expect(serializeOverlay({ role: 'writer', temperature: 0.85, additional: '留钩子\n短句为主。' })).toBe(a);
+    // additional 首尾空白差异会被 trim 抹平 → 同一份字节
+    expect(serializeOverlay({ ...o, additional: '\n  留钩子\n短句为主。 \n' })).toBe(a);
+  });
 });
 
 describe('overlay 容错（回退默认 + warning 直报，绝不静默吞）', () => {

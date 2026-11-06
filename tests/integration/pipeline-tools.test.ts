@@ -10,6 +10,7 @@ import { ChapterRepo, ProjectRepo } from '@main/db/repos/chapter-repo';
 import { DraftRepo } from '@main/db/repos/draft-repo';
 import { ToolRegistry } from '@main/tools/registry';
 import { registerPipelineTools, pipelineHandlers, type PipelineDeps } from '@main/pipeline/tools';
+import type { PromptOverlay } from '@main/pipeline/overlay';
 import type { PipelineCtx } from '@shared/types/pipeline';
 
 const CONCEPT_JSON = JSON.stringify({ titles: ['雾隐山海', '玉佩三千年', '山海崩'], logline: '时间秘境换回一座城', synopsis: '梗概'.repeat(20), goldenFinger: '玉佩秘境 3000:3，代价是被遗忘', hooks: ['h1', 'h2', 'h3', 'h4', 'h5'] });
@@ -166,5 +167,93 @@ describe('生成工具', () => {
     const res = await handlers.writeDraft({ chapterNo: 1, planItem: { title: 't', hook: 'h' } }, {} as any);
     expect(res.data.retries).toBe(1);
     expect(messages()[3].content).toBe('字数不足目标一半，从中断处继续写完本章，不重复已写内容');
+  });
+});
+
+/* ── P2-A T2：覆盖层接线 + 温度覆盖 ──────────────────────────────── */
+
+/**
+ * 带覆盖层的 harness：deps.getOverlay 固定返回给定 overlay（或 null = 默认态/垃圾文件态），
+ * calls() 记录每次 llm.chat 收到的 temperature 与 system 原文——
+ * 温度覆盖与 system 尾部追加两条链路都钉在这里。
+ * withGetOverlay:false 造"未注入 getOverlay"的旧调用方形态。
+ */
+function harnessOverlay(overlay: PromptOverlay | null, queue: string[], opts: { withGetOverlay?: boolean } = {}) {
+  const db = new Database(':memory:'); migrate(db);
+  const pid = new ProjectRepo(db).create('测试书', '/tmp/t', 300000).id;
+  const q = [...queue];
+  const calls: { temperature: number | undefined; system: string }[] = [];
+  const deps: PipelineDeps = {
+    db,
+    llm: {
+      chat: async (req) => {
+        calls.push({ temperature: req.temperature, system: req.messages[0]?.content ?? '' });
+        return { content: q.shift() ?? '', usage: { input: 10, output: 10 } };
+      },
+    },
+    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh' }),
+    chapters: new ChapterRepo(db),
+  };
+  if (opts.withGetOverlay !== false) deps.getOverlay = () => overlay;
+  return { db, pid, drafts: new DraftRepo(db), handlers: pipelineHandlers(deps), calls };
+}
+
+describe('覆盖层接线与温度覆盖（P2-A T2）', () => {
+  it('构思：overlay 温度覆盖内置 1.05，附加要求逐字出现在 chat 的 system 尾部', async () => {
+    const { handlers, calls } = harnessOverlay({ role: 'concept', temperature: 0.3, additional: '书名别带「穿越」二字。' }, [CONCEPT_JSON]);
+    const res = await handlers.concept({}, {} as any);
+    expect(res.ok).toBe(true);
+    expect(calls[0].temperature).toBe(0.3);
+    expect(calls[0].system.endsWith('\n\n【作者附加要求】\n书名别带「穿越」二字。')).toBe(true);
+  });
+
+  it('架构：0.7 → 覆盖生效；写手：0.9 → 首稿与降级续写两次 chat 同用覆盖值', async () => {
+    const o = harnessOverlay({ role: 'architect', temperature: 0.2, additional: '每卷 25 章上下。' }, [OUTLINE_JSON]);
+    const resO = await o.handlers.outline({}, {} as any);
+    expect(resO.ok).toBe(true);
+    expect(o.calls[0].temperature).toBe(0.2);
+    expect(o.calls[0].system.endsWith('\n\n【作者附加要求】\n每卷 25 章上下。')).toBe(true);
+
+    // 首稿 3 字（< 8000×0.5）触发续写一轮；system 两轮一致（书籍级稳定）
+    const w = harnessOverlay({ role: 'writer', temperature: 0.4, additional: '多用短句。' }, ['短稿。', 'x'.repeat(9000)]);
+    const resW = await w.handlers.writeDraft({ chapterNo: 1, planItem: { title: 't', hook: 'h' } }, {} as any);
+    expect(resW.ok).toBe(true);
+    expect(w.calls.length).toBe(2);
+    expect(w.calls[0].temperature).toBe(0.4);
+    expect(w.calls[1].temperature).toBe(0.4);
+    expect(w.calls[1].system).toBe(w.calls[0].system);
+    expect(w.calls[0].system.endsWith('\n\n【作者附加要求】\n多用短句。')).toBe(true);
+  });
+
+  it('overlay=null（垃圾文件态回退）→ 内置三档温度照旧，system 不含【作者附加要求】', async () => {
+    const c = harnessOverlay(null, [CONCEPT_JSON]);
+    await c.handlers.concept({}, {} as any);
+    expect(c.calls[0].temperature).toBe(1.05);
+    expect(c.calls[0].system).not.toContain('【作者附加要求】');
+
+    const o = harnessOverlay(null, [OUTLINE_JSON]);
+    await o.handlers.outline({}, {} as any);
+    expect(o.calls[0].temperature).toBe(0.7);
+
+    const w = harnessOverlay(null, ['x'.repeat(9000)]);
+    await w.handlers.writeDraft({ chapterNo: 1, planItem: { title: 't', hook: 'h' } }, {} as any);
+    expect(w.calls[0].temperature).toBe(0.9);
+  });
+
+  it('overlay 存在但温度留空 → 沿用内置；additional 空白 → system 零追加', async () => {
+    const { handlers, calls } = harnessOverlay({ role: 'concept', temperature: null, additional: '  \n ' }, [CONCEPT_JSON]);
+    await handlers.concept({}, {} as any);
+    expect(calls[0].temperature).toBe(1.05);
+    expect(calls[0].system).not.toContain('【作者附加要求】');
+  });
+
+  it('未注入 getOverlay（旧调用方零改动）→ 内置三档温度', async () => {
+    const c = harnessOverlay(null, [CONCEPT_JSON], { withGetOverlay: false });
+    await c.handlers.concept({}, {} as any);
+    expect(c.calls[0].temperature).toBe(1.05);
+
+    const w = harnessOverlay(null, ['x'.repeat(9000)], { withGetOverlay: false });
+    await w.handlers.writeDraft({ chapterNo: 1, planItem: { title: 't', hook: 'h' } }, {} as any);
+    expect(w.calls[0].temperature).toBe(0.9);
   });
 });

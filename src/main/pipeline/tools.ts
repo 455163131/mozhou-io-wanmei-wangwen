@@ -26,6 +26,7 @@ import { ChapterPlanSchema, ConceptSchema, OutlineSchema } from '@shared/types/p
 import { DraftRepo } from '../db/repos/draft-repo';
 import { ChapterRepo } from '../db/repos/chapter-repo';
 import { composeArchitectPrompt, composeConceptPrompt, composeWriterPrompt } from './prompts';
+import type { PromptOverlay, PromptOverlayRole } from './overlay';
 import { assembleWriterContext, PREV_ENDING_CAP_CHARS, type TrimTrace } from './assemble';
 import { extractJson } from '../agent/host';
 import type { ToolRegistry } from '../tools/registry';
@@ -63,6 +64,13 @@ export interface PipelineDeps {
    * 用同一个 db 自建兜底——衔接桥不能因为"忘了喂"而静默缺席。
    */
   chapters?: ChapterRepo;
+  /**
+   * P2-A T2：读取角色提示词覆盖层（concept/architect/writer 三档）。
+   * 生产装配由 services 注入（内部 loadOverlay(dataDir, role)：文件不存在/
+   * 垃圾文件无法解析 → null = 默认态，消费端回退内置温度、system 零追加）。
+   * 返回类型同时容忍同步实现（测试直接喂字面量）。
+   */
+  getOverlay?: (role: PromptOverlayRole) => PromptOverlay | null | Promise<PromptOverlay | null>;
 }
 
 export interface PipelineHandlers {
@@ -73,7 +81,7 @@ export interface PipelineHandlers {
 
 /* ── 常量 ──────────────────────────────────────────────────────── */
 
-/** 角色温度：构思要发散、架构要收敛、写手居中 */
+/** 角色温度：构思要发散、架构要收敛、写手居中。P2-A T2：可被覆盖层「温度：」行逐角色覆盖 */
 const TEMPERATURE = { concept: 1.05, architect: 0.7, writer: 0.9 } as const;
 
 /**
@@ -126,6 +134,14 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
   // 自建（ChapterRepo 的 dailyWrites 缺省也是自建同库，口径一致）。
   const chapters = deps.chapters ?? new ChapterRepo(deps.db);
 
+  /**
+   * P2-A T2：取角色覆盖层。未注入 getOverlay / 返回 null（文件缺失、
+   * 垃圾文件回退态，见 overlay.ts 的"容 null 回退默认"契约）→ 一律按无覆盖层处理。
+   */
+  async function overlayFor(role: PromptOverlayRole): Promise<PromptOverlay | null> {
+    return (await deps.getOverlay?.(role)) ?? null;
+  }
+
   /** 构思：composeConceptPrompt → LLM → extractJson + ConceptSchema → 草稿区 */
   const concept: ToolHandler = async () => {
     const started = Date.now();
@@ -138,14 +154,15 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
       };
     }
     const ctx0 = await deps.getCtx(projectId);
-    const system = composeConceptPrompt(ctx0);
+    const overlay = await overlayFor('concept');
+    const system = composeConceptPrompt(ctx0, overlay);
     const user = composeParamsUser(ctx0) + '\n\n本次任务：执行构思整理，只输出符合契约的纯 JSON。';
     const resp = await deps.llm.chat({
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
-      temperature: TEMPERATURE.concept,
+      temperature: overlay?.temperature ?? TEMPERATURE.concept,
       maxTokens: ctx0.chapterWords * 2,
     });
 
@@ -201,7 +218,8 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
         },
       };
     }
-    const system = composeArchitectPrompt(ctx0);
+    const overlay = await overlayFor('architect');
+    const system = composeArchitectPrompt(ctx0, overlay);
     const taskLine = isContinuation
       ? `本次任务：执行任务②——续写${typeof a.volumeIndex === 'number' ? `第 ${a.volumeIndex + 1} 卷` : '下一卷'}的章纲，只输出 {"chapterPlan":[…]}，不要重吐 volumes。`
       : '本次任务：执行任务①——全书规划，输出完整 volumes 与第一卷 chapterPlan。';
@@ -211,7 +229,7 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
-      temperature: TEMPERATURE.architect,
+      temperature: overlay?.temperature ?? TEMPERATURE.architect,
       maxTokens: ctx0.chapterWords * 2,
     });
 
@@ -311,14 +329,15 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
         error: { code, message: e instanceof Error ? e.message : String(e), retryable: false },
       };
     }
-    const system = composeWriterPrompt(ctxW);
+    const overlay = await overlayFor('writer');
+    const system = composeWriterPrompt(ctxW, overlay);
 
     const resp = await deps.llm.chat({
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
-      temperature: TEMPERATURE.writer,
+      temperature: overlay?.temperature ?? TEMPERATURE.writer,
       maxTokens: ctxW.chapterWords * 2,
     });
 
@@ -350,7 +369,7 @@ export function pipelineHandlers(deps: PipelineDeps): PipelineHandlers {
           { role: 'assistant', content },
           { role: 'user', content: contInstruction },
         ],
-        temperature: TEMPERATURE.writer,
+        temperature: overlay?.temperature ?? TEMPERATURE.writer,
         maxTokens: ctxW.chapterWords * 2,
       });
       const extra = cont.content.trim();
