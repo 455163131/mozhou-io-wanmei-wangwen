@@ -13,13 +13,19 @@
  * 章末口径 index i = 第 i+1 章写完时点；hover 走 SVG `<title>`，无 JS、不抢焦点），
  * 下＝台账表格（伏笔名/埋设章/权重/状态点/因果链/操作），右栏＝状态筛选 + 证据面板。
  * 色与间距一律 var(--mz-*) 令牌（wiring 测试钉死零裸色）。
+ *
+ * 异步纪律（T4 审查修复波）：openProject 换书不重挂载本页——初始 load 键在
+ * project?.id 上（GenView 的 R13 口径）；load 与证据定位各持一条 sequencer
+ * （lib/sequenced，I-1 同族），await 回来判最新才许落状态，跳章只走成功路径。
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { bridge, errorText } from '../../hooks/use-mz-bridge';
+import { createSequencer } from '../../lib/sequenced';
 import { useProjectStore } from '../../store';
 import { useConfirm } from '../common/ConfirmDialog';
 import type { Foreshadow } from '@shared/types/ledger';
+import { MODE_LABELS } from '@shared/constants/modes';
 import { debtSeries, excerptAround, ledgerStatus, OVERDUE_GAP_CHAPTERS } from '@shared/ledger-metrics';
 import { nextId } from '@shared/util/id';
 import styles from './ForeshadowView.module.css';
@@ -49,6 +55,7 @@ interface Evidence {
 }
 
 export function ForeshadowView(): JSX.Element {
+  const project = useProjectStore((s) => s.project);
   const chapters = useProjectStore((s) => s.chapters);
   const [fs, setFs] = useState<Foreshadow[]>([]);
   const [busy, setBusy] = useState(true);
@@ -59,24 +66,36 @@ export function ForeshadowView(): JSX.Element {
   const [submitting, setSubmitting] = useState(false);
   const { confirm, node: confirmNode } = useConfirm();
 
+  // 竞态守卫（I-1 同族，sequenced T1）：load 与证据定位是两个独立异步面，各自一条序号链。
+  const loadSeqRef = useRef(createSequencer());
+  const eviSeqRef = useRef(createSequencer());
+
+  const pid = project?.id ?? null;
+
   const load = useCallback(async () => {
+    const seq = loadSeqRef.current.next();
     setBusy(true);
     setErr(null);
     try {
       const api = bridge();
       if (!api) throw new Error('未连接到主进程');
       const r = await api.ledger.query('foreshadow');
+      if (!loadSeqRef.current.isCurrent(seq)) return;
       setFs(r.foreshadows);
     } catch (e) {
-      setErr(errorText(e));
+      if (loadSeqRef.current.isCurrent(seq)) setErr(errorText(e));
     } finally {
-      setBusy(false);
+      if (loadSeqRef.current.isCurrent(seq)) setBusy(false);
     }
   }, []);
 
   useEffect(() => {
+    // ★ R13 同款切换守卫（GenView 口径）：openProject 原地换 project+chapters、
+    //   modeHost 不重挂载，本页只键 pid 不键 chapters——同一帧两路刷新，键两个会双载。
+    setEvi(null);
+    eviSeqRef.current.next(); // 旧项目还在途的证据请求，落地即作废
     void load();
-  }, [load]);
+  }, [pid, load]);
 
   /** chapterId → 故事章号（章序 = chapters 下标 + 1，chapter:list 按 ord 排好序）。
    *  定位不到回 null——debtSeries/ledgerStatus 对 null 的口径是「不虚增、不判红」，
@@ -182,12 +201,17 @@ export function ForeshadowView(): JSX.Element {
   }
 
   /** 定位证据：只读取正文 → excerptAround；同时跳章（setCurrent + locateChapter 预热
-   *  编辑器行内标注——与体检共用那条通道）。miss（空串）如实显示，不硬凑上下文。 */
+   *  编辑器行内标注——与体检共用那条通道）。miss（空串）如实显示，不硬凑上下文。
+   *  竞态（I-1 同族）：连点两行时慢的 A 响应不许盖 B 的面板、更不许把编辑器拽去 A 章——
+   *  守卫坐在最后一个 await 与第一批状态写（面板 + 跳章）之间，判最新才许落地；
+   *  chapter.get 失败只报错误，不跳编辑器。 */
   async function locateEvidence(f: Foreshadow): Promise<void> {
+    const seq = eviSeqRef.current.next();
     setEvi({ f, busy: true, planted: '', resolved: null, err: null });
     const api = bridge();
     try {
       const chap = await api.chapter.get(f.plantedAt.chapterId);
+      if (!eviSeqRef.current.isCurrent(seq)) return;
       const planted = excerptAround(chap.body, f.plantedAt.offset, f.plantedAt.quote);
       let resolved: string | null = null;
       if (f.status === 'resolved' && f.resolvedAt) {
@@ -199,15 +223,17 @@ export function ForeshadowView(): JSX.Element {
           /* 回收章取不到正文：保留 ''，走 miss 行 */
         }
       }
+      if (!eviSeqRef.current.isCurrent(seq)) return;
       setEvi({ f, busy: false, planted, resolved, err: null });
+      useProjectStore.getState().setCurrent(f.plantedAt.chapterId);
+      try {
+        await api.health.locateChapter(f.plantedAt.chapterId);
+      } catch {
+        /* 跳章一侧的失败不拖垮证据显示 */
+      }
     } catch (e) {
-      setEvi({ f, busy: false, planted: '', resolved: null, err: errorText(e) });
-    }
-    useProjectStore.getState().setCurrent(f.plantedAt.chapterId);
-    try {
-      await api.health.locateChapter(f.plantedAt.chapterId);
-    } catch {
-      /* 跳章一侧的失败不拖垮证据显示 */
+      if (eviSeqRef.current.isCurrent(seq))
+        setEvi({ f, busy: false, planted: '', resolved: null, err: errorText(e) });
     }
   }
 
@@ -217,7 +243,7 @@ export function ForeshadowView(): JSX.Element {
   return (
     <div className={styles.wrap}>
       <div className={styles.head}>
-        <span className={styles.title}>伏笔台账</span>
+        <span className={styles.title}>{MODE_LABELS.foreshadow}</span>
         <span className={styles.sub}>埋设→回收全程可追 · 共 {fs.length} 条</span>
         <span className={styles.spacer} />
         <button className={styles.btn} disabled={busy} onClick={() => void load()}>
@@ -344,7 +370,9 @@ export function ForeshadowView(): JSX.Element {
                             {label}
                           </span>
                         </td>
-                        <td className={styles.chainCell}>{f.chain && f.chain.trim() ? f.chain : '—'}</td>
+                        <td className={styles.chainCell}>
+                          {f.chain && f.chain.trim() ? f.chain : <span className={styles.unreg}>未登记</span>}
+                        </td>
                         <td>
                           <span className={styles.ops}>
                             <button className={styles.btn} onClick={() => setModal({ kind: 'edit', f })}>
