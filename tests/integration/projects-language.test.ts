@@ -83,7 +83,7 @@ function enHarness(queue: string[], ctxOverride: Partial<PipelineCtx> = {}) {
     llm: { chat: async () => ({ content: q.shift() ?? '', usage: { input: 10, output: 10 } }) },
     getCtx: async () => ({
       genre: '玄幻', platform: 'Webnovel', chapterWords: 2000, targetWords: 300000,
-      premise: 'p', canon: [], language: 'en',
+      premise: 'p', canon: [], language: 'en', foreshadowLines: [], castLines: [],
       platformRule: PLATFORM_RULES.find((p) => p.id === 'webnovel'),
       ...ctxOverride,
     }),

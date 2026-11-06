@@ -3,7 +3,7 @@ import { composeConceptPrompt, composeArchitectPrompt, composeWriterPrompt } fro
 import type { PromptOverlay } from '@main/pipeline/overlay';
 import type { PipelineCtx } from '@shared/types/pipeline';
 
-const ctx: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: '少年拾玉佩藏时间秘境', canon: ['玉佩内时间流速 3000:3'], language: 'zh' };
+const ctx: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: '少年拾玉佩藏时间秘境', canon: ['玉佩内时间流速 3000:3'], language: 'zh', foreshadowLines: [], castLines: [] };
 
 describe('prompt 合成器机制断言', () => {
   it('构思：缺项禁止自行补全 + 金手指必须有代价 + 3书名5分支硬约束', () => {

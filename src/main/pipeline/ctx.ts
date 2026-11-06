@@ -13,11 +13,19 @@
  *
  * ★ P1-A：canon 由休眠的空数组换成真数据源——CanonRepo.list（project_canon 表，
  *   迁移 v13），按录入序进入每次装配（保护层铁律，任何环节不得与之相抵）。
+ *
+ * ★ P2-B T7：台账两源真读——伏笔台账（LedgerRepo.foreshadows，仅未偿）与
+ *   人物近况（LedgerRepo.characters + stateList，每人取最大章号快照）。
+ *   装配纪律：定位不到埋设章的坏 ref **整行跳过**（debtSeries 同口径——
+ *   宁可少一条，不让模型看到一条来路不明的债）；行只进 user 可压缩槽，
+ *   不进 system（R45：写手 system 字节稳定纪律）。
  */
 import type { Database } from 'better-sqlite3';
-import { ProjectRepo } from '../db/repos/chapter-repo';
+import { ProjectRepo, ChapterRepo } from '../db/repos/chapter-repo';
 import { DraftRepo } from '../db/repos/draft-repo';
 import { CanonRepo } from '../db/repos/canon-repo';
+import { LedgerRepo } from '../db/repos/ledger-repo';
+import { WEIGHT_VALUE } from '@shared/ledger-metrics';
 import type { ConceptOut, OutlineOut, PipelineCtx } from '@shared/types/pipeline';
 import { ConceptSchema, OutlineSchema } from '@shared/types/pipeline';
 import { PLATFORM_RULES } from '@shared/constants/platforms';
@@ -52,6 +60,43 @@ export function buildPipelineCtx(db: Database, projectId: string): PipelineCtx {
     }
   }
 
+  /* ── P2-B T7：台账两源（伏笔/人物近况）── */
+
+  // 章 id → 故事章号：createChapter 的算号口径是「数字字符串主键」，
+  // 楔子/番外这类非数字 id 不参与（它给不出「埋第几章」）。
+  const chapterNoOf = new Map<string, number>();
+  for (const m of new ChapterRepo(db).listMeta(projectId)) {
+    const n = Number(m.id);
+    if (Number.isInteger(n) && n >= 1 && String(n) === m.id) chapterNoOf.set(m.id, n);
+  }
+  const ledgers = new LedgerRepo(db);
+
+  const openForeshadows: Array<{ text: string; rank: number }> = [];
+  for (const fo of ledgers.foreshadows(projectId)) {
+    if (fo.status === 'resolved') continue; // 已偿的债不占预算
+    const plantedNo = chapterNoOf.get(fo.plantedAt?.chapterId ?? '');
+    if (plantedNo === undefined) continue; // 坏 ref 整行跳过，不虚增（debtSeries 同口径）
+    // 脏 weight（Agent 旧行/手工改库）一律按中性 B——与 ledger-metrics 的兜底同形
+    const w = fo.weight === 'A' || fo.weight === 'C' ? fo.weight : 'B';
+    openForeshadows.push({
+      text: `【伏笔】${fo.name ?? '（未命名）'}（埋第${plantedNo}章·权重${w}）：${fo.chain ?? ''}`,
+      rank: WEIGHT_VALUE[w],
+    });
+  }
+  // A→C 稳定排序（Node 22 的 sort 稳定）：装配侧「保头丢尾」的硬顶收敛
+  // 因此天然先落 C 档，与条目级牺牲 rank 同一方向，不打对台。
+  openForeshadows.sort((a, b) => b.rank - a.rank);
+  const foreshadowLines = openForeshadows.map((o) => o.text);
+
+  // 每人取**最大章号**的快照：stateList 已按章号升序，后来者覆盖即可。
+  const latestSnapshot = new Map<string, string>();
+  for (const s of ledgers.stateList(projectId)) latestSnapshot.set(s.characterId, s.snapshot);
+  const castLines = ledgers.characters(projectId).map((c) => {
+    const knows = (c.knows ?? []).join('、') || '未登记';
+    const notKnows = (c.notKnows ?? []).join('、') || '未登记';
+    return `${c.name}：${latestSnapshot.get(c.id) ?? '近况未记'}｜知：${knows}｜不知：${notKnows}`;
+  });
+
   return {
     genre: params.genre || '未设定',
     platform: params.platform || '未设定',
@@ -68,5 +113,8 @@ export function buildPipelineCtx(db: Database, projectId: string): PipelineCtx {
     platformRule: PLATFORM_RULES.find((r) => r.name === params.platform || r.id === params.platform),
     concept,
     outline,
+    // P2-B T7：台账两源真读（装配侧只消费字符串，rank/槽位归 assemble 管）
+    foreshadowLines,
+    castLines,
   };
 }

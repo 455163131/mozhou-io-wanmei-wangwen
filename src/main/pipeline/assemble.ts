@@ -19,12 +19,13 @@
 import type { PipelineCtx } from '@shared/types/pipeline';
 import { MzError } from '@shared/types/ipc';
 import { matchSkills } from '@main/pipeline/craft-skills';
+import { WEIGHT_VALUE } from '@shared/ledger-metrics';
 
 /* ── 对外类型 ──────────────────────────────────────────────────── */
 
 /** 一次裁剪动作的留痕：装配透明原则的载体，逐条可回查。 */
 export type TrimTrace = {
-  /** 栏位名（prevEnding / synopsis / hooks / craftSkills） */
+  /** 栏位名（prevEnding / synopsis / hooks / craftSkills / foreshadow / cast） */
   slot: string;
   /** kept=全文保留；compressed=被截断；dropped=被整条丢弃 */
   action: 'kept' | 'compressed' | 'dropped';
@@ -76,22 +77,34 @@ export const PREV_ENDING_CAP_CHARS = 260;
 export const CRAFT_SKILLS_CAP_TOKENS = 1200;
 
 /**
- * R25：craftSkills 硬顶的条目边界收敛——保留靠前的命中条目，末位装不下的
- * **整条丢弃**。此前的裸字符切分会把一条 skill 指令拦腰截半，半条指令比没有
- * 更糟（模型会执行残缺的规则）；宁可少一条完整的，不要多半条碎的。
- * @param parts 逐条渲染好的 skill 文本（'\n\n' 连接口径与装配一致）
- * @param capChars 硬顶（字符数）
+ * 伏笔台账槽（foreshadow）的硬顶（tokens）。P2-B T7，craftSkills 同档：
+ * 台账是欠读者的债，但正文衔接优先——硬顶只收条目边界（R25 同纪律），
+ * 且 ctx 侧行已按权重 A→C 排好，「保头丢尾」天然先落 C 档。
  */
-export function fitCraftSkillEntries(parts: string[], capChars: number): { text: string; droppedCount: number } {
+export const FORESHADOW_CAP_TOKENS = 1200;
+
+/** 人物近况槽（cast）的硬顶（tokens）。P2-B T7，同档同纪律（按行边界丢末位人物）。 */
+export const CAST_CAP_TOKENS = 1200;
+
+/**
+ * R25：硬顶的条目边界收敛——保留靠前的条目，末位装不下的**整条丢弃**。
+ * 此前的裸字符切分会把一条指令拦腰截半，半条指令比没有更糟（模型会执行
+ * 残缺的规则）；宁可少一条完整的，不要多半条碎的。craftSkills（'\n\n' 段）、
+ * foreshadow / cast（'\n' 行）三槽共用。
+ * @param parts 逐条渲染好的文本（craftSkills 段 / 伏笔行 / 人物行）
+ * @param capChars 硬顶（字符数）
+ * @param sep 条目连接符（口径必须与对应栏位的渲染一致，否则长度算错）
+ */
+export function fitCraftSkillEntries(parts: string[], capChars: number, sep: string = '\n\n'): { text: string; droppedCount: number } {
   const kept: string[] = [];
   let len = 0;
   for (const p of parts) {
-    const next = kept.length === 0 ? p.length : len + 2 + p.length; // +2 = '\n\n' 连接符
+    const next = kept.length === 0 ? p.length : len + sep.length + p.length;
     if (next > capChars) break;
     kept.push(p);
     len = next;
   }
-  return { text: kept.join('\n\n'), droppedCount: parts.length - kept.length };
+  return { text: kept.join(sep), droppedCount: parts.length - kept.length };
 }
 
 /* ── token 估算 ────────────────────────────────────────────────── */
@@ -109,7 +122,7 @@ export function estimateTokens(text: string): number {
 
 interface CompSlot {
   /** 栏位名，同时是 trace 里的 slot 字段 */
-  slot: 'prevEnding' | 'synopsis' | 'hooks' | 'craftSkills';
+  slot: 'prevEnding' | 'synopsis' | 'hooks' | 'craftSkills' | 'foreshadow' | 'cast';
   /** 栏位级牺牲顺序：小者先被牺牲（hooks 最先，prevEnding 最后） */
   sacrificeRank: number;
   /** 块标题行 */
@@ -133,6 +146,16 @@ function slotTokens(s: CompSlot): number {
   return estimateTokens(renderSlot(s));
 }
 
+/**
+ * foreshadow 槽的条目级牺牲 rank：从行内「权重X）：」标签还原。
+ * 行模板的正主在 ctx.ts（同一份契约的两半，p2b-acceptance 逐字钉住）；
+ * 认不出的标签兜底中性 B——与 ledger-metrics 对脏 weight 的兜底同形。
+ */
+function foreshadowRank(text: string): number {
+  const w = /权重([ABC])）/u.exec(text)?.[1];
+  return WEIGHT_VALUE[(w ?? 'B') as 'A' | 'B' | 'C'];
+}
+
 /* ── 主入口 ────────────────────────────────────────────────────── */
 
 /**
@@ -141,6 +164,7 @@ function slotTokens(s: CompSlot): number {
  * 装填顺序（保护块固定四段，随后是可压缩栏位）：
  *   项目参数行 → canon 逐条 → 本章章纲 → 章末钩子铁律提醒
  *   → 上章结尾 → 剧情梗概 → 脑洞分支 → 写作工艺（craftSkills）
+ *   → 人物近况（cast）→ 伏笔台账（foreshadow）（P2-B T7，台账两源只进 user）
  *
  * 预算纪律：user 全文（含标题行与分隔符）不超过 window − outputReserve；
  * 保护层超配额直接抛错；可压缩栏位超额按牺牲顺序截断并逐次留痕。
@@ -282,6 +306,103 @@ export function assembleWriterContext(ctx: PipelineCtx, budget: WriterBudget): A
     }
   }
 
+  // foreshadow：伏笔台账的未偿条目（P2-B T7）。ctx 侧已滤掉 resolved、跳过坏 ref、
+  // 按权重 A→C 排序；条目级 rank 从行内「权重X」标签还原，rank 小者先丢——
+  // 与 hooks 同口径（C 档先落，A 档活到最后）。硬顶 FORESHADOW_CAP_TOKENS
+  // 按条目边界丢末位（R25 同纪律，不截半条债）。空账 → 一行诚实占位（canon 空态同型）。
+  if (ctx.foreshadowLines.length === 0) {
+    const ph = '本书暂无未偿伏笔。';
+    slots.push({
+      slot: 'foreshadow',
+      sacrificeRank: 6,
+      header: '【伏笔台账】',
+      items: [{ text: ph, rank: 0 }],
+      originalTokens: estimateTokens(ph),
+      touched: false,
+    });
+  } else {
+    const lines = ctx.foreshadowLines;
+    const before = estimateTokens(lines.join('\n'));
+    const fitted = fitCraftSkillEntries(lines, Math.floor(FORESHADOW_CAP_TOKENS / 0.6), '\n');
+    if (fitted.droppedCount > 0) {
+      trace.push(
+        fitted.text
+          ? {
+              slot: 'foreshadow',
+              action: 'compressed',
+              before,
+              after: estimateTokens(fitted.text),
+              reason: `超出 ${FORESHADOW_CAP_TOKENS} tokens 硬顶，按条目边界整条丢弃末位 ${fitted.droppedCount} 条伏笔（A→C 排序下即 C 档先落，不拦腰截半条债）`,
+            }
+          : {
+              slot: 'foreshadow',
+              action: 'dropped',
+              before,
+              after: 0,
+              reason: `首条伏笔即超 ${FORESHADOW_CAP_TOKENS} tokens 硬顶，按条目边界无可保留，整槽丢弃`,
+            },
+      );
+    }
+    if (fitted.text) {
+      slots.push({
+        slot: 'foreshadow',
+        sacrificeRank: 6,
+        header: '【伏笔台账】',
+        items: lines.slice(0, lines.length - fitted.droppedCount).map((text) => ({ text, rank: foreshadowRank(text) })),
+        originalTokens: before,
+        touched: fitted.droppedCount > 0,
+      });
+    }
+  }
+
+  // cast：人物近况（P2-B T7）。单条多行块（每人一行：最新快照｜知｜不知），
+  // 槽级牺牲 rank 5（排在 prevEnding 之后、foreshadow 之前——人物边界先让位给
+  // 未偿债务，但都比脑洞/工艺/梗概活得久）。硬顶按行边界丢末位人物。空账占位行。
+  if (ctx.castLines.length === 0) {
+    const ph = '本书暂无人物近况记录。';
+    slots.push({
+      slot: 'cast',
+      sacrificeRank: 5,
+      header: '【人物近况】',
+      items: [{ text: ph, rank: 1 }],
+      originalTokens: estimateTokens(ph),
+      touched: false,
+    });
+  } else {
+    const lines = ctx.castLines;
+    const before = estimateTokens(lines.join('\n'));
+    const fitted = fitCraftSkillEntries(lines, Math.floor(CAST_CAP_TOKENS / 0.6), '\n');
+    if (fitted.droppedCount > 0) {
+      trace.push(
+        fitted.text
+          ? {
+              slot: 'cast',
+              action: 'compressed',
+              before,
+              after: estimateTokens(fitted.text),
+              reason: `超出 ${CAST_CAP_TOKENS} tokens 硬顶，按行边界整行丢弃末位 ${fitted.droppedCount} 个人物近况`,
+            }
+          : {
+              slot: 'cast',
+              action: 'dropped',
+              before,
+              after: 0,
+              reason: `首行即超 ${CAST_CAP_TOKENS} tokens 硬顶，按行边界无可保留，整槽丢弃`,
+            },
+      );
+    }
+    if (fitted.text) {
+      slots.push({
+        slot: 'cast',
+        sacrificeRank: 5,
+        header: '【人物近况】',
+        items: [{ text: fitted.text, rank: 1 }],
+        originalTokens: before,
+        touched: fitted.droppedCount > 0,
+      });
+    }
+  }
+
   /* ── 第三步：总预算收敛（超额按牺牲顺序裁剪，逐次留痕） ── */
 
   const renderUser = (): string =>
@@ -299,8 +420,9 @@ export function assembleWriterContext(ctx: PipelineCtx, budget: WriterBudget): A
 
     const beforeTokens = slotTokens(victim);
 
-    if (victim.slot === 'hooks') {
-      // 整条牺牲：先丢条目级 rank 最小者（即末位分支）。
+    if (victim.slot === 'hooks' || victim.slot === 'foreshadow') {
+      // 整条牺牲：先丢条目级 rank 最小者（hooks=末位脑洞分支；foreshadow=权重最低
+      // 的伏笔条目——R25 同款纪律，半条债比没有这条债更糟，绝不拦腰截行）。
       let idx = 0;
       for (let i = 1; i < victim.items.length; i++) {
         if (victim.items[i].rank < victim.items[idx].rank) idx = i;
@@ -308,11 +430,14 @@ export function assembleWriterContext(ctx: PipelineCtx, budget: WriterBudget): A
       victim.items.splice(idx, 1);
       victim.touched = true;
       trace.push({
-        slot: 'hooks',
+        slot: victim.slot,
         action: 'dropped',
         before: beforeTokens,
         after: slotTokens(victim),
-        reason: '总预算超额，按牺牲顺序丢弃末位脑洞分支',
+        reason:
+          victim.slot === 'hooks'
+            ? '总预算超额，按牺牲顺序丢弃末位脑洞分支'
+            : '总预算超额，按牺牲顺序整条丢弃权重最低的伏笔条目',
       });
     } else {
       // 文本截断：按估算口径反算需要砍掉的字符数（+8 字符余量兜住取整误差）。

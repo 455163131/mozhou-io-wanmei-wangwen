@@ -51,6 +51,17 @@ export interface PipelineCtx {
   planItem?: { title: string; hook: string };
   /** 上一章结尾片段（衔接用）——章节级字段，不进 system */
   prevEnding?: string;
+  /**
+   * 伏笔台账·未偿行（P2-B T7）：一条未偿伏笔一行，行内带「权重X」标签
+   * （装配侧据此还原条目级牺牲 rank）。台账随作者改账而变，属装配数据而非
+   * 稳定性锚点——**只进 user 的 foreshadow 槽，绝不进 system**（R45）。
+   */
+  foreshadowLines: string[];
+  /**
+   * 人物近况行（P2-B T7）：一人一行（最新快照 + 知/不知边界）。
+   * 同 foreshadowLines：只进 user 的 cast 槽，不进 system（R45）。
+   */
+  castLines: string[];
 }
 
 /* ── 世界观铁律（canon，P1-A T2 上移到 shared：IPC 契约 canon:list/add/remove 的 res/req） ── */

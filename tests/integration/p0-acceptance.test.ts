@@ -41,7 +41,7 @@ describe('P0 验收：空库到第一章草稿全流程', () => {
     const deps: PipelineDeps = {
       db,
       llm: { chat: async () => ({ content: queue.shift()!, usage: { input: 1, output: 1 } }) },
-      getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: '少年拾玉佩', canon: ['玉佩内时间流速 3000:3'], language: 'zh' }),
+      getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: '少年拾玉佩', canon: ['玉佩内时间流速 3000:3'], language: 'zh', foreshadowLines: [], castLines: [] }),
     };
     const h = pipelineHandlers(deps);
 

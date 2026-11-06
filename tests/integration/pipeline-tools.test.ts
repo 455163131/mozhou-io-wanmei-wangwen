@@ -23,7 +23,7 @@ function harness(fixed: string) {
   const deps: PipelineDeps = {
     db,
     llm: { chat: async () => ({ content: fixed, usage: { input: 10, output: 10 } }) },
-    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh' }),
+    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh', foreshadowLines: [], castLines: [] }),
     chapters: new ChapterRepo(db),
   };
   const ok = registerPipelineTools(registry, deps);
@@ -49,7 +49,7 @@ function harnessQueue(queue: string[], ctxOverride: Partial<PipelineCtx> = {}) {
         return { content: q.shift() ?? '', usage: { input: 10, output: 10 } };
       },
     },
-    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh', ...ctxOverride }),
+    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh', foreshadowLines: [], castLines: [], ...ctxOverride }),
     chapters: new ChapterRepo(db),
   };
   return { db, pid, drafts: new DraftRepo(db), handlers: pipelineHandlers(deps), messages: () => lastMessages };
@@ -73,7 +73,7 @@ function harnessWithCapture(fixed: string) {
         return { content: fixed, usage: { input: 10, output: 10 } };
       },
     },
-    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh' }),
+    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh', foreshadowLines: [], castLines: [] }),
     chapters,
   };
   const ok = registerPipelineTools(registry, deps);
@@ -191,7 +191,7 @@ function harnessOverlay(overlay: PromptOverlay | null, queue: string[], opts: { 
         return { content: q.shift() ?? '', usage: { input: 10, output: 10 } };
       },
     },
-    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh' }),
+    getCtx: async () => ({ genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 300000, premise: 'p', canon: [], language: 'zh', foreshadowLines: [], castLines: [] }),
     chapters: new ChapterRepo(db),
   };
   if (opts.withGetOverlay !== false) deps.getOverlay = () => overlay;

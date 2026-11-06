@@ -100,7 +100,7 @@ function makeEnv(opts: EnvOpts = {}) {
   const pid = projects.create('测试书', '/tmp/t5', 300000).id;
   const chapterRepo = new ChapterRepo(db, new DailyWriteRepo(db));
   const drafts = new DraftRepo(db);
-  const baseCtx: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 2000, targetWords: 300000, premise: 'p', canon: [], language: 'zh' };
+  const baseCtx: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 2000, targetWords: 300000, premise: 'p', canon: [], language: 'zh', foreshadowLines: [], castLines: [] };
   const deps: PipelineDeps = {
     db,
     projectId: () => pid,

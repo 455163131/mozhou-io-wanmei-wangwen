@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { assembleWriterContext, estimateTokens, fitCraftSkillEntries } from '@main/pipeline/assemble';
 import type { PipelineCtx } from '@shared/types/pipeline';
 
-const base: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: 'p', canon: ['铁律一'] , planItem: { title: '雾中拾玉', hook: '玉佩里传出心跳声' }, language: 'zh' };
+const base: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: 'p', canon: ['铁律一'] , planItem: { title: '雾中拾玉', hook: '玉佩里传出心跳声' }, language: 'zh', foreshadowLines: [], castLines: [] };
 const budget = { window: 128000, outputReserve: 4000 };
 
 describe('装配器', () => {
@@ -31,6 +31,24 @@ describe('装配器', () => {
     expect(user).toContain('章末钩子三件套');
     const tight = assembleWriterContext({ ...ctx, prevEnding: 'x'.repeat(20000) }, { window: 9000, outputReserve: 4000 });
     expect(tight.trace.some(t => t.slot === 'craftSkills' || t.slot === 'prevEnding')).toBe(true);
+  });
+  it('P2-B T7：foreshadow/cast 槽在预算内各记一条 kept trace（装配可视化面板零改动即见）', () => {
+    const ctx = {
+      ...base,
+      foreshadowLines: ['【伏笔】秘境钥匙（埋第1章·权重A）：主线'],
+      castLines: ['林晚：右手受伤｜知：玉佩是钥匙｜不知：未登记'],
+    };
+    const { user, trace } = assembleWriterContext(ctx, budget);
+    expect(user).toContain('【伏笔台账】');
+    expect(user).toContain('【伏笔】秘境钥匙（埋第1章·权重A）：主线');
+    expect(user).toContain('【人物近况】');
+    expect(user).toContain('林晚：右手受伤｜知：玉佩是钥匙｜不知：未登记');
+    const slots = trace.map((t) => t.slot);
+    expect(slots).toContain('foreshadow');
+    expect(slots).toContain('cast');
+    for (const s of ['foreshadow', 'cast']) {
+      expect(trace.find((t) => t.slot === s)!.action).toBe('kept');
+    }
   });
   it('R25：craftSkills 硬顶按条目边界整条丢弃末位命中，不拦腰截半条指令', () => {
     const parts = ['第一条完整指令甲', '第二条完整指令乙', '第三条完整指令丙'];

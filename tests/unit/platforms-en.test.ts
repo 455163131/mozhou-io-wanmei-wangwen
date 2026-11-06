@@ -7,7 +7,7 @@ import { composeWriterPrompt, composeConceptPrompt, composeArchitectPrompt } fro
 import { PLATFORM_RULES } from '@shared/constants/platforms';
 import type { PipelineCtx } from '@shared/types/pipeline';
 
-const zh: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: 'p', canon: [], language: 'zh' };
+const zh: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: 'p', canon: [], language: 'zh', foreshadowLines: [], castLines: [] };
 const en: PipelineCtx = { ...zh, platform: 'Webnovel', language: 'en', platformRule: PLATFORM_RULES.find(p => p.id === 'webnovel') };
 
 describe('海外/英文适配', () => {
@@ -33,8 +33,8 @@ describe('海外/英文适配', () => {
 
 /* ── P1-B T4：R27 架构师 en 适配 / minor-3 构思单章 words / R28 稳定性钉死 ── */
 
-const enArch: PipelineCtx = { genre: '古风玄幻', platform: 'Webnovel', chapterWords: 2000, targetWords: 400000, premise: 'p', canon: [], language: 'en', platformRule: PLATFORM_RULES.find(p => p.id === 'webnovel') };
-const zhArch: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: 'p', canon: [], language: 'zh' };
+const enArch: PipelineCtx = { genre: '古风玄幻', platform: 'Webnovel', chapterWords: 2000, targetWords: 400000, premise: 'p', canon: [], language: 'en', platformRule: PLATFORM_RULES.find(p => p.id === 'webnovel'), foreshadowLines: [], castLines: [] };
+const zhArch: PipelineCtx = { genre: '古风玄幻', platform: '番茄', chapterWords: 8000, targetWords: 1200000, premise: 'p', canon: [], language: 'zh', foreshadowLines: [], castLines: [] };
 
 describe('R27 架构师 en 适配', () => {
   it('en 架构师 system 要求英文产出（volumes/goal/chapterPlan title/hook 一律英文）', () => {
