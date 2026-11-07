@@ -561,6 +561,55 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 16,
+    name: 'add_inspiration_tables',
+    /**
+     * ★ P2-C T1：灵感线三表（卡片/选题/拆书报告）——**全局子系统，不带
+     *   project_id**：灵感卡片在书籍立项之前就存在（扫榜→抽脑洞→拆书→
+     *   选题库→立项），项目隔离口径在这里不适用；唯一的项目挂钩点是
+     *   topics.project_id（可空，立项时由 TopicRepo.linkProject 回填）。
+     *   与 v13/v15「新事实才开新表」同一条裁决：三张都是新事实，开新表；
+     *   旧表一根手指都不碰（只增不改）。
+     *   不加 CHECK：口径同 v14——kind/status 枚举收紧留给应用写侧
+     *   （InspirationRepo/TopicRepo），坏值不炸迁移。
+     *   created_at/updated_at 统一 INTEGER（Date.now()），与 drafts/ledger
+     *   同口径（控制器裁决 R1），类型侧 createdAt:number。
+     */
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS inspiration_cards (
+          id            TEXT PRIMARY KEY,
+          kind          TEXT NOT NULL,
+          title         TEXT NOT NULL,
+          payload       TEXT NOT NULL,
+          source_label  TEXT NOT NULL,
+          collected     INTEGER NOT NULL DEFAULT 0,
+          created_at    INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_insp_kind ON inspiration_cards(kind, created_at);
+        CREATE TABLE IF NOT EXISTS topics (
+          id              TEXT PRIMARY KEY,
+          title           TEXT NOT NULL,
+          premise         TEXT NOT NULL,
+          status          TEXT NOT NULL,
+          project_id      TEXT,
+          source_card_id  TEXT,
+          created_at      INTEGER NOT NULL,
+          updated_at      INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_topic_status ON topics(status, updated_at);
+        CREATE TABLE IF NOT EXISTS teardown_reports (
+          id               TEXT PRIMARY KEY,
+          book_title       TEXT NOT NULL,
+          structure_json   TEXT NOT NULL,
+          dimensions_json  TEXT,
+          created_at       INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_teardown_created ON teardown_reports(created_at);
+      `);
+    },
+  },
 ];
 
 export function migrate(db: Database): void {

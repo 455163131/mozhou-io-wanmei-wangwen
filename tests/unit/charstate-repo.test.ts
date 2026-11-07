@@ -31,9 +31,11 @@ const c = (id: string): CharacterProfile => ({
 });
 
 describe('v15 迁移', () => {
-  it('user_version===15 且 ledger_char_states 表存在', () => {
+  it('user_version>=15 且 ledger_char_states 表存在', () => {
     const { db } = mk();
-    expect(currentVersion(db)).toBe(15);
+    // ★ P2-C T1：v16 落地后「最新版」不再是 15——本测试的意图是「v15 已应用」，
+    //   故钉 >=15 而非 ===15，后续追加迁移不再误伤（口径同 topic-repo.test 的 >=16）。
+    expect(currentVersion(db)).toBeGreaterThanOrEqual(15);
     const t = db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ledger_char_states'")
       .get();
