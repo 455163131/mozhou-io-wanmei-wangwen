@@ -123,7 +123,7 @@ export function estimateTokens(text: string): number {
 interface CompSlot {
   /** 栏位名，同时是 trace 里的 slot 字段 */
   slot: 'prevEnding' | 'synopsis' | 'hooks' | 'craftSkills' | 'foreshadow' | 'cast';
-  /** 栏位级牺牲顺序：小者先被牺牲（hooks 最先，prevEnding 最后） */
+  /** 栏位级牺牲顺序：小者先被牺牲（hooks 最先，foreshadow 最后） */
   sacrificeRank: number;
   /** 块标题行 */
   header: string;
@@ -147,12 +147,13 @@ function slotTokens(s: CompSlot): number {
 }
 
 /**
- * foreshadow 槽的条目级牺牲 rank：从行内「权重X）：」标签还原。
+ * foreshadow 槽的条目级牺牲 rank：从行内「·权重X）：」标签还原。
  * 行模板的正主在 ctx.ts（同一份契约的两半，p2b-acceptance 逐字钉住）；
- * 认不出的标签兜底中性 B——与 ledger-metrics 对脏 weight 的兜底同形。
+ * 正则锚到模板后缀（·前缀 + ）：后缀）——伏笔**名**里含「权重A）」
+ * 不能 spoof rank。认不出的标签兜底中性 B——与 ledger-metrics 对脏 weight 的兜底同形。
  */
 function foreshadowRank(text: string): number {
-  const w = /权重([ABC])）/u.exec(text)?.[1];
+  const w = /·权重([ABC])）：/u.exec(text)?.[1];
   return WEIGHT_VALUE[(w ?? 'B') as 'A' | 'B' | 'C'];
 }
 

@@ -23,7 +23,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { bridge, errorText, hasBridge } from '../../hooks/use-mz-bridge';
-import { createSequencer, type Sequencer } from '../../lib/sequenced';
+import { createSequencer } from '../../lib/sequenced';
 import { useConfirm } from '../common/ConfirmDialog';
 import type { CraftSkillInfo, OverlayRole } from '@shared/types/ipc';
 import styles from './PromptView.module.css';
@@ -91,11 +91,10 @@ export function PromptView(): JSX.Element {
    * 请求序号守卫（终审 I-1）：见 lib/sequenced。角色切换是「切换即拉取」，
    * 慢的旧响应后到会盖掉新表单、保存即串档。故每次动作领一个序号，
    * await 回来后只有仍是最新的那一次才许落地——规则只有一条：**用户动作赢**。
-   * 惰性初始化（Fix round1 minor）：useRef 直接传工厂会每渲染调用一次，
-   * 改为占位 + 首渲染补齐；类型仍为 Sequencer，闭包内取用无需二次判空。
+   * 终审修复波并批#4：回到 T4/T6 同款 plain form——null! 占位常驻一条
+   * no-non-null-assertion 警告；createSequencer() 每渲染空转一次的成本可忽略。
    */
-  const seqRef = useRef<Sequencer>(null!);
-  if (!seqRef.current) seqRef.current = createSequencer();
+  const seqRef = useRef(createSequencer());
 
   const { confirm, node: confirmNode } = useConfirm();
 

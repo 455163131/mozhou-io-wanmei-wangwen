@@ -90,12 +90,16 @@ describe('P2-B 验收：人物近况进装配（cast 槽）', () => {
       { id: 'c-lin', name: '林晚', role: '主角', age: '20', note: '', refs: [], updatedAt: now, knows: ['玉佩是钥匙'], notKnows: ['沈默的身份'] },
       { id: 'c-shen', name: '沈默', role: '配角', age: '25', note: '', refs: [], updatedAt: now },
     ]);
-    ledgers.stateSet(pid, 'c-lin', 1, '初入城，未觉异常');
+    // 对抗性钉（终审修复波 A）：乱序插入——先第 3 章再第 1 章，证明 ctx 取的是
+    // **最大章号**而非插入序（stateList ORDER BY 另由 charstate-repo 独立钉）。
     ledgers.stateSet(pid, 'c-lin', 3, '右手受伤');
+    ledgers.stateSet(pid, 'c-lin', 1, '初入城，未觉异常');
     const ctx = buildPipelineCtx(db, pid);
-    // 第 3 章（最大章号）盖掉第 1 章；无人物状态卡 → 近况未记；无 knows → 未登记
+    // 第 3 章（最大章号）盖掉第 1 章；快照带「第N章末：」as-of 锚点（R49：
+    // 无锚点写手无法判断快照有多陈旧）；无人物状态卡 → 近况未记（不带锚点）；
+    // 无 knows → 未登记
     expect(ctx.castLines).toEqual([
-      '林晚：右手受伤｜知：玉佩是钥匙｜不知：沈默的身份',
+      '林晚：第3章末：右手受伤｜知：玉佩是钥匙｜不知：沈默的身份',
       '沈默：近况未记｜知：未登记｜不知：未登记',
     ]);
     const { user, trace } = assembleWriterContext(ctx, budget());

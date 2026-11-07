@@ -56,4 +56,19 @@ describe('excerptAround', () => {
   it('offset 超界（正文被改写后）回空串——调用侧显示诚实 miss 态', () => {
     expect(excerptAround('短', 999, 'x')).toBe('');
   });
+  it('★ 终审修复波 B：空/纯白 quote 回空串——手录行无登记证据原文，不得拿章首窗口冒充', () => {
+    // ForeshadowView manual-add/markResolved 存 {offset:0, quote:''}：
+    // 修复前 offset 0 过守卫 → 返回章首 60 字当「埋设/回收原文」展示（编造）。
+    // 空串让 locateEvidence 的诚实 miss UI 可达。
+    const body = '一段正文……' + '余'.repeat(100);
+    expect(excerptAround(body, 0, '', 60)).toBe('');
+    expect(excerptAround(body, 0, '   ', 60)).toBe('');
+    expect(excerptAround(body, 0, '\t\n', 60)).toBe('');
+  });
+  it('非空 quote 行为不变：仍取 ±radius 窗口；超界 offset 仍回空串', () => {
+    const body = 'A'.repeat(100) + '真实引文' + 'B'.repeat(100);
+    expect(excerptAround(body, 100, '真实引文', 10)).toBe('A'.repeat(10) + '真实引文' + 'B'.repeat(10));
+    expect(excerptAround(body, 9999, '真实引文', 10)).toBe('');
+    expect(excerptAround(body, -1, '真实引文', 10)).toBe('');
+  });
 });

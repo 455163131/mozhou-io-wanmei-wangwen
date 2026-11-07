@@ -89,12 +89,16 @@ export function buildPipelineCtx(db: Database, projectId: string): PipelineCtx {
   const foreshadowLines = openForeshadows.map((o) => o.text);
 
   // 每人取**最大章号**的快照：stateList 已按章号升序，后来者覆盖即可。
-  const latestSnapshot = new Map<string, string>();
-  for (const s of ledgers.stateList(projectId)) latestSnapshot.set(s.characterId, s.snapshot);
+  // 章号与快照并存（R49）：cast 行带「第N章末：」as-of 锚点——无锚点写手
+  // 无法判断快照有多陈旧（停在第3章的快照生成第30章时会被当当下状态）。
+  const latestSnapshot = new Map<string, { snap: string; ch: number }>();
+  for (const s of ledgers.stateList(projectId)) latestSnapshot.set(s.characterId, { snap: s.snapshot, ch: s.chapterNo });
   const castLines = ledgers.characters(projectId).map((c) => {
     const knows = (c.knows ?? []).join('、') || '未登记';
     const notKnows = (c.notKnows ?? []).join('、') || '未登记';
-    return `${c.name}：${latestSnapshot.get(c.id) ?? '近况未记'}｜知：${knows}｜不知：${notKnows}`;
+    const st = latestSnapshot.get(c.id);
+    const snapSeg = st ? `第${st.ch}章末：${st.snap}` : '近况未记';
+    return `${c.name}：${snapSeg}｜知：${knows}｜不知：${notKnows}`;
   });
 
   return {

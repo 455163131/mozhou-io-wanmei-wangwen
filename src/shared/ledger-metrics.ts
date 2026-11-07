@@ -78,9 +78,12 @@ export function ledgerStatus(
  * 钳位两头不抛：offset 落在正文边缘时截到边界，宁可短窗不可错位。
  * offset 超出正文长度 → 回空串：正文被改写过，旧引用已失效，
  * 调用侧据空串显示"定位失败"诚实态，而不是硬凑一段误导性的上下文。
+ * 空/纯白 quote 同判（终审修复波 B）：手录行（manual-add/markResolved）
+ * 没有登记证据原文，offset 0 会取到章首窗口冒充「埋设/回收原文」——
+ * 回空串让调用侧的诚实 miss 态可达，不编造内容当事实。
  */
 export function excerptAround(body: string, offset: number, quote: string, radius: number = 60): string {
-  if (offset < 0 || offset >= body.length) return '';
+  if (!quote.trim() || offset < 0 || offset >= body.length) return '';
   const start = Math.max(0, offset - radius);
   const end = Math.min(body.length, offset + quote.length + radius);
   return body.slice(start, end);
