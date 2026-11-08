@@ -187,6 +187,8 @@ export function ExportView(): JSX.Element {
         const r = await bridge().exportArtifact(req);
         if (!actionSeqRef.current.isCurrent(seq)) return;
         setNotice(`已导出 ${r.path} · ${bytesText(r.bytes)} 字节`);
+        // reloadHistory 自带 load 链 isCurrent 守卫（其内 next()+判鲜），
+        // 陈旧时内部即弃——此处无需再判，其后也无状态写。
         await reloadHistory();
       }
     } catch (e) {
@@ -225,6 +227,11 @@ export function ExportView(): JSX.Element {
       </div>
     );
   }
+
+  // export:history 通道是全局账本（跨书审计友好，spec §6），页面按项目过滤
+  // （P2D-R3）——不过滤会把别书行摆进本书历史，且 scopeLabel 会拿本书 volumes
+  // 去解外书卷号（诚实但错误的「卷（已删除）」）。T5 评审 Important-1。
+  const bookHistory = history.filter((r) => r.projectId === project.id);
 
   return (
     <div className={styles.wrap}>
@@ -365,9 +372,9 @@ export function ExportView(): JSX.Element {
       <section className={styles.card}>
         <div className={styles.cardHead}>
           <h3 className={styles.cardTitle}>导出历史</h3>
-          <span className={styles.sub}>最近 {history.length} 条 · 成功失败都记账</span>
+          <span className={styles.sub}>最近 {bookHistory.length} 条 · 成功失败都记账</span>
         </div>
-        {history.length === 0 ? (
+        {bookHistory.length === 0 ? (
           <p className={styles.note}>还没有导出记录——配好范围点右上「导出」，成功后这里即见。</p>
         ) : (
           <table className={styles.table}>
@@ -382,7 +389,7 @@ export function ExportView(): JSX.Element {
               </tr>
             </thead>
             <tbody>
-              {history.map((row) => (
+              {bookHistory.map((row) => (
                 <tr key={row.id}>
                   <td className={styles.monoCell}>{row.format}</td>
                   <td>{scopeLabel(row.scope, volumes)}</td>

@@ -28,4 +28,9 @@ describe('导出中心页接线', () => {
     expect(view).toMatch(/真字节|预览/);
     expect(view).toMatch(/未打开项目/);
   });
+  // T5 评审 Important-1 修钉：export:history 通道全局记账，页面按项目过滤——
+  // 不过滤会把别书的导出行摆进本书历史，且 scopeLabel 拿本书 volumes 解外书卷号。
+  it('ExportView 历史表按当前项目过滤（P2D-R3 项目作用域诚实）', () => {
+    expect(view).toMatch(/projectId\s*===\s*project\.id/);
+  });
 });
