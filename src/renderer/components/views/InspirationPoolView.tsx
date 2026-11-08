@@ -6,7 +6,9 @@
  *   · 默认看**已收藏**（kind='collected'），tab 切 全部/热榜/脑洞/拆书。
  *   · 全局子系统：卡片在书籍立项**之前**就存在，不键当前项目 id、
  *     不随换书重挂载、不挂项目门（口径同扫榜/脑洞/拆书/选题库四页）。
- *   · 删除走 danger 二次确认（useConfirm），per-card pending 防连点。
+ *   · 删除走 danger 二次确认（useConfirm），per-card pending 防连点；
+ *     删除在途同时禁 tab——否则尾部 load(旧tab闭包) 会反超新分类的 load，
+ *     把旧列表盖进新分类的高亮下（终审 Important，I-1 族）。
  *   · 演示兜底卡如实打「演示数据」徽标（payload.live===false），不冒充真抓取。
  *
  * 异步纪律（I-1 同族）：load/action 各持一条 sequencer，每个 await（含 catch/finally）
@@ -135,7 +137,7 @@ export function InspirationPoolView(): JSX.Element {
           <button
             key={t.id}
             className={`${styles.tab} ${tab === t.id ? styles.tabOn : ''}`}
-            disabled={busy}
+            disabled={busy || pendingId !== null}
             onClick={() => setTab(t.id)}
           >
             {t.label}

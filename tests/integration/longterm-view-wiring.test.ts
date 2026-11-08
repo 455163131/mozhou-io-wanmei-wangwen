@@ -53,4 +53,10 @@ describe('长期记忆页接线', () => {
     // 消费侧必须开既有 cell 弹窗（预填快照），不是另起一套编辑器
     expect(charView).toMatch(/kind:\s*'cell'/);
   });
+  it('★ 终审修复波：复制通知有动作序号闸；取数失败时不消费交接草稿', () => {
+    // clipboard 慢 resolve 不许把「已复制」写回换书后的新页面
+    expect(view).toMatch(/actionSeqRef/);
+    // 取数失败（err 非空）时草稿留待下次成功取数再消费，不谎报「人物已不存在」
+    expect(charView).toMatch(/!handoffDraft \|\| busy \|\| err/);
+  });
 });

@@ -33,4 +33,9 @@ describe('灵感池页接线', () => {
     // 全局子系统：卡片在立项之前就存在，不键项目、不挂「未打开项目」门
     expect(view).not.toMatch(/未打开项目/);
   });
+  it('★ 终审修复波：删除在途禁 tab——陈旧 tab 闭包重取不许盖新分类（I-1 族）', () => {
+    // tab 按钮的 disabled 必须同时看 busy 与 pendingId：删除确认后的 IPC 在途期间
+    // 切 tab 会让删除尾部的 load(旧tab) 反超新 load，列表与高亮错配。
+    expect(view).toMatch(/className=\{`\$\{styles\.tab\}[\s\S]{0,120}disabled=\{busy \|\| pendingId !== null\}/);
+  });
 });

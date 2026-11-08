@@ -40,6 +40,9 @@ export function LongTermView(): JSX.Element {
   const [filter, setFilter] = useState<number | 'all'>('all');
 
   const loadSeqRef = useRef(createSequencer());
+  /** 动作通知闸（TopicLibraryView 同款）：clipboard 慢 resolve 不许把「已复制」
+   *  写回换书/新动作之后的页面；只闸 UI 通知，不闸复制动作本身。 */
+  const actionSeqRef = useRef(createSequencer());
   const pid = project?.id ?? null;
 
   const load = useCallback(async (): Promise<void> => {
@@ -103,17 +106,19 @@ export function LongTermView(): JSX.Element {
   );
 
   async function copySnapshot(text: string): Promise<void> {
+    const seq = actionSeqRef.current.next();
     setErr(null);
     setNotice(null);
     try {
       await navigator.clipboard.writeText(text);
-      setNotice('快照已复制到剪贴板。');
+      if (actionSeqRef.current.isCurrent(seq)) setNotice('快照已复制到剪贴板。');
     } catch (e) {
-      setErr(`复制失败：${errorText(e)}`);
+      if (actionSeqRef.current.isCurrent(seq)) setErr(`复制失败：${errorText(e)}`);
     }
   }
 
   function loadIntoEditor(s: CharState): void {
+    actionSeqRef.current.next();
     useSnapshotHandoff.getState().offer({ characterId: s.characterId, chapterNo: s.chapterNo, snapshot: s.snapshot });
     setErr(null);
     setNotice(`已把「${charName(s.characterId)} · 第 ${s.chapterNo} 章」快照预填进交接草稿——切到「人物记忆」即见编辑弹窗，保存与否由你确认。`);

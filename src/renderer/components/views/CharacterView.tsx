@@ -116,10 +116,12 @@ export function CharacterView(): JSX.Element {
    * ★ P2-E ②：长期记忆页「载入编辑器」的交接草稿在这里消费——取数完成（busy=false）
    * 后开既有 cell 弹窗预填快照，take 读一次即清；保存仍走 charstate:set 由作者确认。
    * 人物已删/跨书草稿找不到人：如实报错不静默吞（草稿已被 take 清掉，不会反复弹）。
+   * ★ 终审修复波：取数失败（err 非空）时不消费——草稿留待下次成功取数，
+   * 不拿空 chars 谎报「人物已不存在」掩盖真实失败原因。
    */
   const handoffDraft = useSnapshotHandoff((s) => s.draft);
   useEffect(() => {
-    if (!handoffDraft || busy) return;
+    if (!handoffDraft || busy || err) return;
     const d = useSnapshotHandoff.getState().take();
     if (!d) return;
     const ch = chars.find((c) => c.id === d.characterId);
@@ -129,7 +131,7 @@ export function CharacterView(): JSX.Element {
     }
     setSelId(ch.id);
     setModal({ kind: 'cell', characterId: ch.id, characterName: ch.name, chapterNo: d.chapterNo, snapshot: d.snapshot });
-  }, [handoffDraft, busy, chars]);
+  }, [handoffDraft, busy, err, chars]);
 
   /** 没选中就回落第一位（原型口径）；删书清空后为 null。 */
   const sel = chars.find((c) => c.id === selId) ?? chars[0] ?? null;
