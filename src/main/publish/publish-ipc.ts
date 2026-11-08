@@ -115,12 +115,23 @@ function ruleFor(platform: string): PlatformRule | undefined {
 const ILLEGAL_NAME_CHARS = '\\/:*?"<>|';
 
 /**
- * 章文件名前缀：章 id 的数字形零填充四位（'1'→'0001'）；
- * 非数字 id（插章 '10.5' 之类）parseInt 取整数部分，NaN 兜队列序 ord。
+ * 章文件名序号：队列序零填充四位（T7 携带修复：旧名取章 id parseInt，
+ * 插章 '10.5' 与 '10' 同截断成 '0010' 会同名覆写；序改队列 ord，
+ * 消歧靠并入文件名安全化的章 id，见 safeId）。
  */
-function pad4(chapterId: string, ord: number): string {
-  const n = Number.parseInt(chapterId, 10);
-  return String(Number.isNaN(n) ? ord : n).padStart(4, '0');
+function pad4(ord: number): string {
+  return String(ord).padStart(4, '0');
+}
+
+/**
+ * 章 id 文件名安全化：点号是合法文件名字符（'10.5' 原样保留），
+ * 只剥路径分隔/Windows 保留字符与控制字符；极端全毒形兜队列序。
+ */
+function safeId(chapterId: string, ord: number): string {
+  const cleaned = [...chapterId]
+    .filter((ch) => ch.charCodeAt(0) >= 0x20 && !ILLEGAL_NAME_CHARS.includes(ch))
+    .join('');
+  return cleaned || String(ord);
 }
 
 /** 标题安全化：剥 Windows/POSIX 非法字符与控制字符（charCodeAt 判 <0x20，不用控制字符正则——lint 明令），空白标题兜「章+id」 */
@@ -183,8 +194,10 @@ function queueInputs(deps: PublishIpcDeps, project: PublishProject, plan: Publis
 }
 
 /**
- * 推导队列 + 跳过警告。plan 不存在/非本项目 → E_NOT_FOUND（归属闸）。
+ * 推导队列 + 跳过警告 + 暂存真源。plan 不存在/非本项目 → E_NOT_FOUND（归属闸）。
  * 平台规则不在册（手工改库等极端形）时如实追加 warning——不悄悄按默认目标算。
+ * ★ T7 BLOCK：res 加 staged（listByPlan 的两字段投影）——渲染层 chip 的服务端真源，
+ * 重载/刷新后 暂存/已发布 如实恢复；现通道改形，CH 计数不动。
  */
 export function queueIpc(deps: PublishIpcDeps, args: unknown): PublishQueueRes {
   const parsed = parse(PlanIdSchema, 'publish:queue', args);
@@ -193,7 +206,10 @@ export function queueIpc(deps: PublishIpcDeps, args: unknown): PublishQueueRes {
   const { rule, built } = queueInputs(deps, project, plan);
   const warnings = [...built.warnings];
   if (!rule) warnings.push(`平台规则未在册：${plan.platform}——体量目标按 0 处理，请人工核对`);
-  return { plan, items: built.items, warnings };
+  const staged = deps.staging
+    .listByPlan(plan.id)
+    .map((r) => ({ chapterId: r.chapterId, publishedAt: r.publishedAt }));
+  return { plan, items: built.items, warnings, staged };
 }
 
 /* ── publish:stage（批准即提交 + 服务端独立再清洗 + 项目内暂存写）── */
@@ -203,7 +219,8 @@ export function queueIpc(deps: PublishIpcDeps, args: unknown): PublishQueueRes {
  *   章不存在 → skipped「章节不存在」；published 集命中 → skipped「已发布不许换稿」
  *   （前置路由，不走到 repo 抛，已写文件一字不动）；不在队列（非 revised/done）
  *   → skipped「未定稿（需 revised/done）」；否则 cleanForPublish(market) 独立再清洗
- *   → staging/<platformId>/<pad4>_<safeTitle>.txt 原子写 → upsertStaged(hash=sha256(cleaned))。
+ *   → staging/<platformId>/<pad4(ord)>_<safeId>_<safeTitle>.txt 原子写（T7：id 入名消歧，
+ *   插章 '10.5' 与 '10' 同题不覆写）→ upsertStaged(hash=sha256(cleaned))。
  * 写永远只落项目根内（resolveInProject 兜底），%APPDATA% 与正文库行都不碰。
  */
 export async function stageIpc(deps: PublishIpcDeps, args: unknown): Promise<StageOutcome> {
@@ -239,7 +256,8 @@ export async function stageIpc(deps: PublishIpcDeps, args: unknown): Promise<Sta
       continue;
     }
     const { cleaned, edits } = cleanForPublish(bodies.get(chapterId) ?? '', market);
-    const fileName = `${pad4(chapterId, item.ord)}_${safeTitle(meta.title, chapterId)}.txt`;
+    // ★ T7 消歧名：pad4(队列序)_<safeId>_<safeTitle>.txt——id '10' 与 '10.5' 同题不再同名覆写
+    const fileName = `${pad4(item.ord)}_${safeId(chapterId, item.ord)}_${safeTitle(meta.title, chapterId)}.txt`;
     const fullPath = resolveInProject(project.rootDir, join('staging', platformId, fileName));
     await ensureDir(dirname(fullPath));
     await atomicWrite(fullPath, cleaned);

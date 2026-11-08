@@ -448,6 +448,7 @@ export interface IpcInvokeMap {
   /** projectId 不在 req——服务端取当前项目，越权他书 by construction 不可能 */
   'publish:plan-save': { req: PublishPlanSaveReq; res: PublishPlan };
   'publish:plan-list': { req: { includeArchived?: boolean }; res: PublishPlan[] };
+  /** T7 携带修复：res 加 staged 两字段投影（暂存/已发布 chip 的服务端真源）——现通道改形，CH 计数不动 */
   'publish:queue': { req: { planId: string }; res: PublishQueueRes };
   'publish:stage': { req: { planId: string; chapterIds: string[] }; res: StageOutcome };
   /** 人工标记发布（UI 走 useConfirm 非 danger 档）；未暂存 → E_STAGING_STATE */

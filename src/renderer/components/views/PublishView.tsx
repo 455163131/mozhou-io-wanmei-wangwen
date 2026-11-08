@@ -15,11 +15,13 @@
  * ★ 按项目作用域（P2D-R3 口径，同 ExportView）：键 project?.id；未打开项目显
  *   诚实空态，一条 bridge 都不发。
  *
- * ★ 暂存态显示是会话快照：publish:queue 契约 res 只有 {plan, items, warnings}
- *   （队列不入库，纯函数推导），staging 行不随队列回带——本页从 stage/mark 的
- *   **响应**累积会话内的 暂存/已发布 标记；跨会话状态以后端闸为准（已发布章再
- *   stage 必被 skipped，不存在页面显示说错了就能换稿的路径）。此取舍如实写在这，
- *   不假装队列响应里有它没有的东西。
+ * ★ 暂存态显示真源是服务端（T7 BLOCK 裁决）：publish:queue res 带 staged——
+ *   staging 账本的 {chapterId, publishedAt} 两字段投影。chip 三档：有行且
+ *   publishedAt=null → 暂存；publishedAt 非 null → 已发布；无行 → 待排。
+ *   重载/刷新后状态如实恢复，杀掉旧会话快照的「未暂存」假阳性。stage/mark
+ *   响应仍做乐观并显（零延迟回显），mark 尾重走 load 链以服务端账本复同步——
+ *   取舍选 refetch 而非本地并集：账本单一真源，页面不自账（此注记取代旧
+ *   「显示是会话快照」取舍声明）。
  *
  * 竞态纪律（照 ExportView 形状，P2-C 修复波口径）：一条 load 链（计划+队列，
  *   选中卡切换即整链重走）+ 一条 action 链（planSave/清洗预览取正文/stage/mark
@@ -121,7 +123,6 @@ export function PublishView(): JSX.Element {
   // ── 清洗预览（会话闸：批准 = 勾选且看过 diff，P2D-R2 提交即批准集）──
   const [approvedIds, setApprovedIds] = useState<string[]>([]);
   const [diffs, setDiffs] = useState<Record<string, CleanResult>>({});
-  const [sessionStaging, setSessionStaging] = useState<Record<string, 'staged' | 'published'>>({});
 
   const loadSeqRef = useRef(createSequencer());
   const actionSeqRef = useRef(createSequencer());
@@ -134,6 +135,8 @@ export function PublishView(): JSX.Element {
     : null;
   const market = rule?.market ?? 'cn';
   const canStage = selectedPlan !== null && approvedIds.length > 0 && !busy && !actionBusy;
+  // ★ chip 真源：queue res 的 staged 账本（chapterId→publishedAt），服务端投影（T7 BLOCK）
+  const stagedMap = new Map((queue?.staged ?? []).map((s) => [s.chapterId, s.publishedAt]));
 
   /** load 链：计划清单 +（有效选中的）队列，一条链两个 await，之间也判鲜。 */
   const load = useCallback(async (planId: string | null): Promise<void> => {
@@ -169,12 +172,11 @@ export function PublishView(): JSX.Element {
     setActionBusy(false);
   }, []);
 
-  /** 换计划/换书的会话态清零：批准集、diff 缓存、暂存快照、skips 一条都不续命。 */
+  /** 换计划/换书的会话态清零：批准集、diff 缓存、skips 一条都不续命（暂存态真源在 queue.staged，随 load 链整取）。 */
   const resetSession = useCallback(() => {
     invalidateAction();
     setApprovedIds([]);
     setDiffs({});
-    setSessionStaging({});
     setSkips({});
     setNotice(null);
   }, [invalidateAction]);
@@ -288,12 +290,12 @@ export function PublishView(): JSX.Element {
       const out = await bridge().publish.stage(selectedPlan.id, [...approvedIds]);
       if (!actionSeqRef.current.isCurrent(seq)) return;
       setSkips(Object.fromEntries(out.skipped.map((s) => [s.chapterId, s.reason])));
-      setSessionStaging((prev) => {
-        const next = { ...prev };
-        for (const s of out.staged) next[s.chapterId] = 'staged';
-        // 服务端说「已发布不许换稿」= 这一章确已发布：把会话快照纠正过来
-        for (const s of out.skipped) if (s.reason.includes('已发布')) next[s.chapterId] = 'published';
-        return next;
+      // 乐观并显（零延迟回显）：staged 响应先入账本投影，终局仍由尾部的 load 复同步
+      setQueue((q) => {
+        if (!q) return q;
+        const next = new Map(q.staged.map((s) => [s.chapterId, s.publishedAt]));
+        for (const s of out.staged) next.set(s.chapterId, null);
+        return { ...q, staged: [...next].map(([chapterId, publishedAt]) => ({ chapterId, publishedAt })) };
       });
       setApprovedIds([]); // 提交即消费：批准集不清就会让人以为还能一键重发
       setNotice(
@@ -308,10 +310,10 @@ export function PublishView(): JSX.Element {
     }
   }
 
-  async function runMark(chapterId: string, title: string): Promise<void> {
+  async function runMark(chapterId: string, ord: number, title: string): Promise<void> {
     if (!selectedPlan) return;
     const okc = await confirm({
-      title: `标记已发布：${title}`,
+      title: `标记已发布：第 ${ord} 章《${title}》`,
       body: '确认这一章已经按排期发到平台上吗？标记后该章进「已发布」态——发布工具不会再对它换稿暂存（已发布不许悄悄改历史），要改只能人工处理。',
       confirmText: '标记已发布',
     });
@@ -323,8 +325,18 @@ export function PublishView(): JSX.Element {
     try {
       const row = await bridge().publish.markPublished(selectedPlan.id, chapterId);
       if (!actionSeqRef.current.isCurrent(seq)) return;
-      setSessionStaging((prev) => ({ ...prev, [chapterId]: 'published' }));
-      setNotice(`已标记发布：第 ${chapterId} 章 · ${row.publishedAt === null ? '时刻未登记（异常）' : new Date(row.publishedAt).toLocaleString()}`);
+      // 乐观并显用响应里的真 publishedAt（服务端时刻，不自己造）
+      setQueue((q) => {
+        if (!q) return q;
+        const hit = q.staged.some((s) => s.chapterId === chapterId);
+        const staged = hit
+          ? q.staged.map((s) => (s.chapterId === chapterId ? { chapterId, publishedAt: row.publishedAt } : s))
+          : [...q.staged, { chapterId, publishedAt: row.publishedAt }];
+        return { ...q, staged };
+      });
+      setNotice(`已标记发布：第 ${ord} 章《${title}》 · ${row.publishedAt === null ? '时刻未登记（异常）' : new Date(row.publishedAt).toLocaleString()}`);
+      // ★ T7 refetch 裁决：mark 尾复走 load 链，显示终局以服务端 staged 账本为准（单一真源，不靠本地并集）
+      await load(selectedPlan.id);
     } catch (e) {
       if (actionSeqRef.current.isCurrent(seq)) setErr(errorText(e));
     } finally {
@@ -366,7 +378,7 @@ export function PublishView(): JSX.Element {
       <section className={styles.card}>
         <div className={styles.cardHead}>
           <h3 className={styles.cardTitle}>排期计划</h3>
-          <span className={styles.sub}>platform 存规则 id；archived 终态也列出（只读）</span>
+          <span className={styles.sub}>platform 存规则 id；archived 终态也列出（已归档 · 不再出现在默认列表；队列与暂存仍可查）</span>
         </div>
         {plans.length === 0 && !formOpen ? (
           <p className={styles.note}>还没有排期计划——点右上「新建计划」，选平台、起始日与更新节奏。队列按库内章序纯推导，不入库。</p>
@@ -529,7 +541,9 @@ export function PublishView(): JSX.Element {
               <tbody>
                 {queue.items.map((item) => {
                   const details = validateChapter(item);
-                  const st = sessionStaging[item.chapterId];
+                  // chip 三档由服务端 staged 账本推导（T7 BLOCK）：有行未发→暂存、有行已发→已发布、无行→待排
+                  const hasRow = stagedMap.has(item.chapterId);
+                  const st = !hasRow ? 'pending' : stagedMap.get(item.chapterId) !== null ? 'published' : 'staged';
                   const approved = approvedIds.includes(item.chapterId);
                   const diff = diffs[item.chapterId];
                   return (
@@ -564,7 +578,7 @@ export function PublishView(): JSX.Element {
                           ) : st === 'staged' ? (
                             <span className={`${styles.chip} ${styles.chipWarn}`}>暂存</span>
                           ) : (
-                            <span className={`${styles.chip} ${styles.chipMute}`}>未暂存</span>
+                            <span className={`${styles.chip} ${styles.chipMute}`}>待排</span>
                           )}
                         </td>
                         <td>
@@ -572,7 +586,7 @@ export function PublishView(): JSX.Element {
                             <button
                               className={styles.btn}
                               disabled={busy || actionBusy}
-                              onClick={() => void runMark(item.chapterId, item.title)}
+                              onClick={() => void runMark(item.chapterId, item.ord, item.title)}
                             >
                               标记已发布
                             </button>

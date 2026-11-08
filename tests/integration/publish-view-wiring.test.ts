@@ -72,4 +72,24 @@ describe('发布排期页接线', () => {
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(css).toMatch(/var\(--mz-accent-ink\)/);
   });
+
+  it('★ T7 BLOCK：暂存态 chip 真源是 queue res 的 staged（杀会话快照假阳性）+ 待排档 + mark 后复取队列', () => {
+    // chip 三档从服务端 staged 账本推导（stage/mark 响应只做乐观并显，终局以 refetch 为准）
+    expect(view).toMatch(/queue\.staged|stagedMap/);
+    expect(view).toMatch(/staged/);
+    expect(view).toMatch(/待排/);
+    // mark 成功后重走 load 链复同步（refetch 裁决，注释里写明取舍）
+    const markBlock = /async function runMark[\s\S]*?\n {2}}/.exec(view)?.[0] ?? '';
+    expect(markBlock).toMatch(/await load\(/);
+    // 文件头注记不再声称「会话快照是显示真源」
+    expect(view).not.toMatch(/暂存态显示是会话快照/);
+  });
+
+  it('★ T7 minors：archived 卡文案不称「只读」（如实：队列/暂存面仍可用）+ runMark notice 携序携题', () => {
+    expect(view).not.toMatch(/（只读）/);
+    expect(view).toMatch(/已归档[\s\S]{0,40}不再出现在默认列表/);
+    // notice 用队列 ord + 标题，不裸 id（用户账本里章序和标题才是人话）
+    expect(view).toMatch(/\$\{ord\} 章/);
+    expect(view).toMatch(/《\$\{title\}》|\$\{title\}/);
+  });
 });

@@ -52,6 +52,21 @@ describe('cleanForPublish 确定性四规则', () => {
       expect(cleanForPublish(once.cleaned, 'overseas').cleaned).toBe(once.cleaned);
     }
   });
+  it('幂等·html-tags→horiz 重暴露闭合（T7 携带修复：剥标签裸露整行规则，同型 md 道先例）', () => {
+    // '<p>---</p>' 剥后剩 '---'、'a\n<br>---<br>' 剥后剩 'a\n---'——单遍管道里
+    // horiz 道已跑过不回头，二次跑必产 edit 改输出；修复前这两形必红。
+    const shapes = ['<p>---</p>', 'a\n<br>---<br>'];
+    for (const s of shapes) {
+      const once = cleanForPublish(s, 'overseas');
+      expect(cleanForPublish(once.cleaned, 'overseas').edits, JSON.stringify(s)).toHaveLength(0);
+      expect(cleanForPublish(once.cleaned, 'overseas').cleaned, JSON.stringify(s)).toBe(once.cleaned);
+    }
+    // 修复后语义真形：裸露的规则行在第一遍就被补跑的 horiz 道吃掉
+    expect(cleanForPublish('<p>---</p>', 'overseas').cleaned).toBe('');
+    expect(cleanForPublish('a\n<br>---<br>', 'overseas').cleaned).toBe('a\n');
+    // cn 市场从不跑 html 道——这两形在 cn 下按现契约原样保留规则行（只钉 overseas 不是笔误）
+    expect(cleanForPublish('<p>---</p>', 'cn').cleaned).toBe('<p>---</p>');
+  });
   it('edits 携 before/after 可审', () => {
     const r = cleanForPublish('尾空白   ', 'cn');
     expect(r.edits[0].before).toBe('尾空白   ');

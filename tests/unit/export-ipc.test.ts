@@ -262,4 +262,27 @@ describe('export-ipc', () => {
     expect(() => historyIpc(deps, { limit: 301 })).toThrowError(MzError);
     expect(() => historyIpc(deps, { limit: 1.5 })).toThrowError(MzError);
   });
+
+  it('★ T7 携带修复：历史账本尽力而为——fail 路径 history.insert 再抛时，reject 的仍是原始错误', async () => {
+    // 结构性 stub（同 ExportIpcDeps 方法面）：insert 必抛，模拟账本损坏/磁盘锁。
+    // 修复前 catch 内裸 insert 会把「账本坏了」冒名顶替 E_NOT_FOUND 真因；
+    // 修复后 swallow-with-comment，原始错误永不被替换。
+    const boom = {
+      insert(): never {
+        throw new Error('账本写入失败（模拟）');
+      },
+      listRecent: () => [],
+    };
+    // 类私有 db 字段让字面量无法名义 assignable——测试侧一次性宽转（生产签名不动）
+    const brokenDeps: ExportIpcDeps = { ...deps, history: boom as unknown as ExportHistoryRepo };
+    const err = await runExportIpc(brokenDeps, {
+      format: 'txt',
+      scope: { kind: 'chapters', chapterIds: ['999'] },
+      dest: 'project',
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(MzError);
+    expect(err.code).toBe('E_NOT_FOUND');
+    expect(err.message).toContain('999');
+    expect(err.message).not.toContain('账本写入失败');
+  });
 });

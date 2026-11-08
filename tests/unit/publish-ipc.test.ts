@@ -201,6 +201,27 @@ describe('publish-ipc · queueIpc（服务端推导入队，P2D-R1）', () => {
     expect(res.warnings).toEqual([]);
     expect(res.plan.intervalDays).toBe(2);
   });
+
+  it('★ T7 BLOCK：queueIpc 回带 staged 真源（暂存账本映射两字段，不发明行）', async () => {
+    const a = makeChapter('第一章 起', '定稿正文一。'.repeat(10));
+    const b = makeChapter('第二章 承', '定稿正文二。'.repeat(10));
+    const plan = savePlanIpc(deps, { platform: 'webnovel', cadence: 'daily', startAt: START_AT });
+    // 一条都没暂存：staged 是空账本不是 undefined（页面据此显「待排」）
+    expect(queueIpc(deps, { planId: plan.id }).staged).toEqual([]);
+    await stageIpc(deps, { planId: plan.id, chapterIds: [a] });
+    const q1 = queueIpc(deps, { planId: plan.id });
+    expect(q1.staged).toEqual([{ chapterId: a, publishedAt: null }]);
+    // mark 后再取队列：publishedAt 如实回带——重载页面后「已发布」不再假阳性
+    markPublishedIpc(deps, { planId: plan.id, chapterId: a });
+    const q2 = queueIpc(deps, { planId: plan.id });
+    expect(q2.staged).toHaveLength(1);
+    expect(q2.staged[0].chapterId).toBe(a);
+    expect(q2.staged[0].publishedAt).not.toBeNull();
+    // b 从未进过暂存：absent（不在 staged 里，页面显「待排」）
+    expect(q2.staged.every((s) => s.chapterId !== b)).toBe(true);
+    // staged 只映射两字段：行 id/hash/时刻等账本细节不外泄给渲染层
+    expect(Object.keys(q2.staged[0]).sort()).toEqual(['chapterId', 'publishedAt']);
+  });
 });
 
 describe('publish-ipc · stageIpc（批准即提交 + 服务端独立再清洗）', () => {
@@ -296,6 +317,25 @@ describe('publish-ipc · stageIpc（批准即提交 + 服务端独立再清洗�
     const p2 = savePlanIpc(deps, { platform: 'fanqie', cadence: 'daily', startAt: START_AT });
     const r2 = await stageIpc(deps, { planId: p2.id, chapterIds: [zh] });
     expect(readFileSync(r2.staged[0].path, 'utf8')).toContain('<p>'); // cn 市场标签保留（人工取舍）
+  });
+
+  it('★ T7 文件名消歧：id 10 与 10.5 同题 → 两个不同文件、字节都落盘（修复前 pad4 取整数部分同名覆写）', async () => {
+    // 插章 id '10.5' 是写作常态；旧名 pad4('10.5')=parseInt→'0010'，与 '10' 同题同名，
+    // 后者 atomicWrite 悄悄覆写前者——新名 `pad4(队列序)_<safeId>_<safeTitle>.txt` 消歧。
+    chapters.insert({ id: '10', projectId: pid, title: '插曲同题', volumeId: null, order: 9, status: 'done', body: '正文甲。' });
+    chapters.insert({ id: '10.5', projectId: pid, title: '插曲同题', volumeId: null, order: 10, status: 'done', body: '正文乙。' });
+    const plan = savePlanIpc(deps, { platform: 'webnovel', cadence: 'daily', startAt: START_AT });
+    const res = await stageIpc(deps, { planId: plan.id, chapterIds: ['10', '10.5'] });
+    expect(res.staged).toHaveLength(2);
+    const names = res.staged.map((s) => s.path.split(/[\\/]/).pop()!);
+    expect(new Set(names).size).toBe(2); // 两个不同文件名
+    expect(readdirSync(join(root, 'staging', 'webnovel'))).toHaveLength(2); // 没有一个覆写另一个
+    const textA = readFileSync(res.staged.find((s) => s.chapterId === '10')!.path, 'utf8');
+    const textB = readFileSync(res.staged.find((s) => s.chapterId === '10.5')!.path, 'utf8');
+    expect(textA).toContain('正文甲');
+    expect(textB).toContain('正文乙');
+    // 文件名仍可审：4 位队列序 + 安全化章 id（点号是文件名安全字符，保留）+ 安全标题
+    for (const n of names) expect(n).toMatch(/^\d{4}_[0-9A-Za-z.]+_.+\.txt$/);
   });
 
   it('标题安全化：非法字符剥净、空标题兜底「章+id」，路径永远在项目根内', async () => {

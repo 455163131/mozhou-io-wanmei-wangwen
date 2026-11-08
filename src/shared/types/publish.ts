@@ -50,9 +50,21 @@ export interface PublishPlanSaveReq {
   startAt: number;
 }
 
-/** publish:queue res（P2-D T6）——队列**服务端推导**（P2D-R1：渲染层拿不到正文就不许装算得出体量）。 */
+/**
+ * publish:queue 的暂存账本投影（T7 BLOCK 裁决）：只映射 chapterId+publishedAt 两字段——
+ * 渲染层的 待排/暂存/已发布 chip 以此为真源（重载如实恢复，杀会话快照的「未暂存」假阳性），
+ * 行 id/hash/暂存时刻等账本细节不外泄。
+ */
+export interface PublishStagedMark {
+  chapterId: string;
+  publishedAt: number | null;
+}
+
+/** publish:queue res（P2-D T6；T7 携带修复加 staged 真源）——队列**服务端推导**（P2D-R1：渲染层拿不到正文就不许装算得出体量）。 */
 export interface PublishQueueRes {
   plan: PublishPlan;
   items: PublishQueueItem[];
   warnings: string[];
+  /** staging.listByPlan 的两字段投影，按暂存先后 */
+  staged: PublishStagedMark[];
 }

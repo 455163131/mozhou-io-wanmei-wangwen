@@ -55,7 +55,11 @@ const ScopeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('volume'), volumeId: z.string().min(1) }),
   z.object({ kind: z.literal('chapters'), chapterIds: z.array(z.string().min(1)).min(1) }),
 ]);
-const ReqSchema = z.object({
+/**
+ * ★ T7 携带修复：`z.ZodType<ExportRunReq>` 显式形护——schema 与契约漂移时
+ * 编译期立红，不靠 gate() 出口处的那枚 `as` 兜住（该 as 已随之退役）。
+ */
+const ReqSchema: z.ZodType<ExportRunReq> = z.object({
   format: z.enum(['txt', 'md', 'epub', 'docx', 'zip']),
   scope: ScopeSchema,
   dest: z.enum(['project', 'external']),
@@ -167,7 +171,7 @@ function gate(deps: ExportIpcDeps, channel: string, args: unknown): { req: Expor
   if (!parsed.success) invalid(channel, parsed.error);
   const project = deps.getProject();
   if (!project) throw new MzError('E_INVALID_ARGS', '未打开项目');
-  return { req: parsed.data as ExportRunReq, project };
+  return { req: parsed.data, project };
 }
 
 /** export:run —— 构建 → 落盘（原子写）→ ok 行；任何一步失败 → fail 行带真因再原样抛。 */
@@ -193,16 +197,22 @@ export async function runExportIpc(deps: ExportIpcDeps, args: unknown): Promise<
     return { path: fullPath, bytes: content.length };
   } catch (e) {
     // fail 行存真因（EACCES/磁盘满/缺章的原始 message），不是拟人的'导出失败'
-    deps.history.insert({
-      projectId: project.id,
-      format: req.format,
-      scope: req.scope,
-      dest: req.dest,
-      path: null,
-      bytes: null,
-      status: 'fail',
-      error: e instanceof Error ? e.message : String(e),
-    });
+    // ★ T7 携带修复：历史账本尽力而为——账本自己写不进（锁库/磁盘满）不能冒名
+    // 顶替原始错误；吞掉的只是二次故障，rethrow 的永远是最初那个真因。
+    try {
+      deps.history.insert({
+        projectId: project.id,
+        format: req.format,
+        scope: req.scope,
+        dest: req.dest,
+        path: null,
+        bytes: null,
+        status: 'fail',
+        error: e instanceof Error ? e.message : String(e),
+      });
+    } catch {
+      /* 历史尽力而为——原始错误才是主角 */
+    }
     throw e;
   }
 }

@@ -12,8 +12,9 @@
  *    '__---__'、'**```**'、'正文\n**---**\n正文' 及空行并串变体；注意正包形
  *    '---**x**---' 剥后剩 '---x---' 非规则行，经实测本就安全）——md 道有编辑
  *    时补跑 horiz 再补跑 whitespace（行删除会并串空行）；
- *    ② html-tags 剥标签可能裸露行尾空白并把换行并串（'a␣␣<br>␣␣'、
- *    'a\n\n<br>\n\n\n\nb'）——html 道同理立即复归一空白。
+ *    ② html-tags 剥标签可能**裸露整行规则/围栏**并把行尾空白与换行并串
+ *    （'<p>---</p>' 剥后剩 '---'、'a␣␣<br>␣␣'、'a\n\n<br>\n\n\n\nb'）——html 道
+ *    有编辑时补跑 horiz 再补跑 whitespace（照 md 道先例，T7 携带修复闭合）。
  *    两处补跑都只调用已有规则道（零新规则名、主链顺序概念不变），
  *    T4 评审修复波经实测钉死（tests/unit/publish-clean.test.ts 幂等矩阵）。
  * 3. **不处理全半角**：全半角/标点风格属平台注记人工项，不做自动改写（YAGNI）。
@@ -90,8 +91,10 @@ function passWhitespace(text: string, edits: CleanEdit[]): string {
 function passHtmlTags(text: string, edits: CleanEdit[]): string {
   const stripped = runPass(text, 'html-tags', HTML_TAG_RE, edits, () => '');
   if (stripped === text) return stripped;
-  // 剥标签可能裸露行尾空白并把换行串并（见文件头契约 2），立即复归一空白。
-  return passWhitespace(stripped, edits);
+  // 剥标签可能裸露整行规则/围栏并把行尾空白与换行串并（'<p>---</p>' 剥后剩
+  // '---'，'a␣␣<br>␣␣' 剥后剩行尾空白）——照 md 道先例：有编辑时补跑 horiz
+  // 再补跑 whitespace（行删除会并串空行，顺序 horiz→ws）。T7 携带修复闭合。
+  return passWhitespace(passHorizRule(stripped, edits), edits);
 }
 
 /**
