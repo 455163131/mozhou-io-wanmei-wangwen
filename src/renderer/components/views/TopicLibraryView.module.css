@@ -1,0 +1,224 @@
+/**
+ * 选题库页样式（P2-C T6）。
+ * 布局：头部（标题 + 刷新）→ 三态互斥 Tab（带计数）→ 选题卡网格（title/premise/来源/操作）。
+ * 色与间距一律只走 --mz- 令牌——theme-ink C 组钉死零裸色；design-tokens-usage A 组钉死
+ * 字号/圆角/间距不许裸 px。实底按钮仅 btnPrimary 一颗（「立项」CTA，金 × accent-ink，
+ * 与 TeardownView/TrendingView 同族同档），已登记进 SOLID_BUTTON_CENSUS；
+ * 刷新/打开这本书走描边档 .btn，放弃走**只描边不实底**的 .btnDanger（ForeshadowView 同档），
+ * 非实底不入台账。
+ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-4);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2h);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-h3);
+  color: var(--mz-text-primary);
+}
+
+.sub {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* ── 三态互斥 Tab（带计数徽记）：淡晕选中档，非实底（同 TrendingView .tab/.tabOn）── */
+
+.tabs {
+  display: flex;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mz-space-1);
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-secondary);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-sm);
+}
+
+.tab:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+  color: var(--mz-text-primary);
+}
+
+.tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tabOn {
+  background: var(--mz-accent-soft);
+  border-color: var(--mz-border-accent);
+  color: var(--mz-text-primary);
+}
+
+/* 计数徽记：数字族字号（与仪表盘 mzNum 同档），三态栏各带一个 */
+.count {
+  font-family: var(--mz-font-numeric);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+}
+
+.err {
+  color: var(--mz-sem-err-fg);
+  font-size: var(--mz-fs-xs);
+  margin: 0;
+}
+
+.notice {
+  color: var(--mz-sem-pass-fg);
+  font-size: var(--mz-fs-xs);
+  margin: 0;
+}
+
+.empty {
+  background: var(--mz-bg-inset);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-4);
+  color: var(--mz-text-tertiary);
+  font-size: var(--mz-fs-sm);
+  line-height: 1.8;
+  margin: 0;
+}
+
+/* ── 选题卡网格（自适应三列起步，窄窗回落）── */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16em, 1fr));
+  gap: var(--mz-space-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-2);
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-3);
+  min-width: 0;
+}
+
+.cardTitle {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-sm);
+  color: var(--mz-text-primary);
+  font-weight: var(--mz-fw-semibold);
+}
+
+/* 一句话前提：衬线正文档，长句折行不炸卡 */
+.premise {
+  margin: 0;
+  font-family: var(--mz-font-serif);
+  font-size: var(--mz-fs-xs);
+  line-height: 1.8;
+  color: var(--mz-text-body);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  margin: 0;
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+}
+
+.linked {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-secondary);
+}
+
+.ops {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+  margin-top: var(--mz-space-1);
+}
+
+/* ── 按钮三档（btn/btnPrimary 形状与 TeardownView 同族；btnDanger 只描边不实底）── */
+
+.btn {
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-primary);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  /* 立项主 CTA = 金底深字（ink 档香槟金 × 深墨字，与 TeardownView/TrendingView 同档） */
+  border: 1px solid var(--mz-accent);
+  background: var(--mz-accent);
+  color: var(--mz-accent-ink);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+  font-weight: var(--mz-fw-semibold);
+}
+
+/* 特异性 (0,3,1) 严格压过 global.css 的 button:hover:not(:disabled) (0,2,1)，
+   hover 仍走实底档——p2ui-t4-smoke-fixes C 组台账里的 TopicLibraryView#btnPrimary */
+.btnPrimary:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+  border-color: var(--mz-accent-hover);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 放弃 = 危险档但**不实底**：淡描边 + err 字色（ForeshadowView .btnDanger 同族），
+   真危险确认由 ConfirmDialog 的 dangerBtn 承担（那颗才在台账里） */
+.btnDanger {
+  border: 1px solid var(--mz-sem-err-border);
+  background: transparent;
+  color: var(--mz-sem-err-fg);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+
+.btnDanger:hover:not(:disabled) {
+  border-color: var(--mz-sem-err-fg);
+}
+
+.btnDanger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

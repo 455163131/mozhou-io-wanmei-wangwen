@@ -16,13 +16,14 @@
  * import 另一侧都会形成组件间的横向依赖（外壳 ↔ 面板本来是父子关系）。
  */
 
-/** 十二种工作模式（id 与命令面板的 `mode:*` 命令、App 的 onRun 分派逐字同源；
+/** 十三种工作模式（id 与命令面板的 `mode:*` 命令、App 的 onRun 分派逐字同源；
  *  ★ P2-B T4：资产组的「伏笔台账」从 soon 占位转正为真 mode；
  *  ★ P2-B T6：资产组的「人物记忆」同样原地转正；
  *  ★ P2-C T3：灵感组的「扫榜热榜」同样原地转正；
  *  ★ P2-C T4：灵感组的「抽脑洞」同样原地转正；
- *  ★ P2-C T5：灵感组的「拆书报告」同样原地转正） */
-export type WorkMode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen' | 'prompt' | 'foreshadow' | 'characters' | 'trends' | 'idea' | 'teardown';
+ *  ★ P2-C T5：灵感组的「拆书报告」同样原地转正；
+ *  ★ P2-C T6：灵感组的「选题库」同样原地转正——灵感线四页收口） */
+export type WorkMode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen' | 'prompt' | 'foreshadow' | 'characters' | 'trends' | 'idea' | 'teardown' | 'topics';
 
 /**
  * 显示名。四字档是展开态导航的宽度账（`--mz-layout-rail-expanded-w` 184px 里
@@ -48,6 +49,8 @@ export const MODE_LABELS: Record<WorkMode, string> = {
   idea: '抽脑洞',
   // ★ P2-C T5：拆书报告页（四字档，同 soon 时期的路标名，导航行原地转正）。
   teardown: '拆书报告',
+  // ★ P2-C T6：选题库页（三字档，同 soon 时期的路标名，导航行原地转正）。
+  topics: '选题库',
 };
 
 /**

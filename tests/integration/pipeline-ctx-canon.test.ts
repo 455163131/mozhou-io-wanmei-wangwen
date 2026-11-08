@@ -9,6 +9,7 @@ import Database from 'better-sqlite3';
 import { migrate } from '@main/db/migrate';
 import { ProjectRepo } from '@main/db/repos/chapter-repo';
 import { CanonRepo } from '@main/db/repos/canon-repo';
+import { DraftRepo } from '@main/db/repos/draft-repo';
 import { buildPipelineCtx } from '@main/pipeline/ctx';
 import { listCanon, addCanon, removeCanon, type CanonIpcServices } from '@main/pipeline/canon-ipc';
 import { MzError } from '@shared/types/ipc';
@@ -25,6 +26,41 @@ describe('buildPipelineCtx canon 真读', () => {
     const db = new Database(':memory:'); migrate(db);
     const pid = new ProjectRepo(db).create('测试书', '/tmp/t', 300000).id;
     expect(buildPipelineCtx(db, pid).canon).toEqual([]);
+  });
+});
+
+/* ── P2-C T6 / PD-1：premise 派生新口径（v17 真列优先，空列回退 logline）── */
+
+const CONCEPT_FOR_CTX = JSON.stringify({
+  titles: ['雾隐山海', '玉佩三千年', '山海崩'],
+  logline: '时间秘境换回一座城',
+  synopsis: '梗概'.repeat(20),
+  goldenFinger: '玉佩秘境 3000:3，代价是被遗忘',
+  hooks: ['h1', 'h2', 'h3', 'h4', 'h5'],
+});
+
+describe('buildPipelineCtx premise 派生（PD-1 口径）', () => {
+  it('premise 真列优先：setPremise 后 ctx.premise 取列值，哪怕已采纳构思另有 logline', () => {
+    const db = new Database(':memory:'); migrate(db);
+    const pid = new ProjectRepo(db).create('测试书', '/tmp/t', 300000).id;
+    const drafts = new DraftRepo(db);
+    const d = drafts.insert({ projectId: pid, role: 'concept', kind: 'concept', content: CONCEPT_FOR_CTX });
+    drafts.setStatus(d.id, 'adopted');
+    new ProjectRepo(db).setPremise(pid, '显式一句话故事');
+    expect(buildPipelineCtx(db, pid).premise).toBe('显式一句话故事');
+  });
+  it('premise 列空（旧书）→ 回退最新 adopted concept 的 logline：向后兼容逐字不变', () => {
+    const db = new Database(':memory:'); migrate(db);
+    const pid = new ProjectRepo(db).create('测试书', '/tmp/t', 300000).id;
+    const drafts = new DraftRepo(db);
+    const d = drafts.insert({ projectId: pid, role: 'concept', kind: 'concept', content: CONCEPT_FOR_CTX });
+    drafts.setStatus(d.id, 'adopted');
+    expect(buildPipelineCtx(db, pid).premise).toBe('时间秘境换回一座城');
+  });
+  it('两源皆空 → 空串（占位诚实，不撒谎）', () => {
+    const db = new Database(':memory:'); migrate(db);
+    const pid = new ProjectRepo(db).create('测试书', '/tmp/t', 300000).id;
+    expect(buildPipelineCtx(db, pid).premise).toBe('');
   });
 });
 

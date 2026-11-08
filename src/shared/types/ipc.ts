@@ -21,7 +21,7 @@ import type { Checkpoint, RollbackResult } from './checkpoint';
 import type { RunState, RunBudget, TerminationReason, RunStats, StepRecord } from './agent';
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
 import type { Draft, DraftStatus, CanonEntry } from './pipeline';
-import type { CardKind, ChartFetchResult, InspirationCard, Platform, TeardownDims, TeardownStructure, Topic } from './inspiration';
+import type { CardKind, ChartFetchResult, InspirationCard, Platform, TeardownDims, TeardownStructure, Topic, TopicStatus } from './inspiration';
 
 // ───────────────────────── 请求/响应载荷 ─────────────────────────
 
@@ -415,6 +415,25 @@ export interface IpcInvokeMap {
   'teardown:read': { req: { reportId: string }; res: { dims: TeardownDims; source: 'live' | 'demo' } };
   /** 一维存灵感库（P2-C T5）：kind='teardown' 卡，回卡自带 id（收藏/套用直接拿它） */
   'teardown:save-dimension': { req: { reportId: string; dimension: string }; res: InspirationCard };
+
+  // ── P2-C 灵感线（T6）：选题库生命周期三通道 ────────────────────────
+  /**
+   * 选题列表（全局子系统，不要求已打开项目）。status 缺省 = 三态全量（新在前）；
+   * 非法枚举在门口 E_INVALID_ARGS（topic-service zod，口径同 inspiration:list）。
+   */
+  'topic:list': { req: { status?: TopicStatus }; res: Topic[] };
+  /**
+   * 立项（P2-C T6 / R5 裁决）：handler **先建/开项目再播 premise**——
+   * dir 来自入参，缺省走 project:pick-dir 式原生目录选择；随后复用
+   * services.openProject 既有流拿 projectId，promoteTopic 置已立项 + linkProject。
+   * ★ res 可为 null：用户取消目录选择是正常结果不是错误（project:pick-dir 同口径）。
+   */
+  'topic:promote': { req: { topicId: string; dir?: string }; res: { projectId: string; topic: Topic } | null };
+  /**
+   * 放弃（危险动作，UI 走 useConfirm 二次确认）：待立项 → 已放弃。
+   * 单向终局由 TopicRepo.setStatus 守卫——终态改判抛 E_TOPIC_STATE，不静默吞。
+   */
+  'topic:abandon': { req: { topicId: string }; res: Topic };
 }
 
 /**
@@ -681,6 +700,10 @@ export const IPC_CHANNELS = [
   'teardown:structure',
   'teardown:read',
   'teardown:save-dimension',
+  // P2-C 灵感线（T6）：选题库生命周期三通道（取数 / 立项=建开项目+播premise / 放弃）
+  'topic:list',
+  'topic:promote',
+  'topic:abandon',
 ] as const;
 
 export type IpcChannel = keyof IpcInvokeMap;

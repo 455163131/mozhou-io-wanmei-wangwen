@@ -46,6 +46,8 @@ import * as inspirationIpc from '../inspiration/inspiration-ipc';
 import { drawIdea } from '../inspiration/idea-service';
 // ── P2-C 灵感线（T5）：拆书报告业务语义全在 inspiration/teardown-service.ts（零token复用+八维角色+演示兜底），这里只登记通道 ──
 import { teardownStructureIpc, teardownReadIpc, teardownSaveDimensionIpc } from '../inspiration/teardown-service';
+// ── P2-C 灵感线（T6）：选题库生命周期业务语义全在 inspiration/topic-service.ts（R5 立项形+状态机+演示边界），这里只登记通道 ──
+import { listTopics, promoteTopicIpc, abandonTopic } from '../inspiration/topic-service';
 
 type Handler<K extends IpcChannel> = (
   payload: IpcInvokeMap[K]['req'],
@@ -757,6 +759,43 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   handle('teardown:structure', (p, s) => teardownStructureIpc(s.teardownDeps(), p), services);
   handle('teardown:read', (p, s) => teardownReadIpc(s.teardownDeps(), p), services);
   handle('teardown:save-dimension', (p, s) => teardownSaveDimensionIpc(s.teardownDeps(), p), services);
+
+  // ── P2-C 灵感线（T6）：选题库生命周期三通道（取数 / 立项 / 放弃）──
+  // 业务口径（zod 边界、R5 的 projectId 必填形、单向状态机、取消= null 不抛）
+  // 全在 inspiration/topic-service.ts，这里一行式委托（canon/overlay 同款模式）。
+  // ★ dir 缺省时的目录选择器与 project:pick-dir 同一份参数口径；那边的
+  //   showOpenDialog 被 project-pickdir-wiring A 组按 handler 块逐字钉死，
+  //   不能抽走共用——这份是同一 UX 契约的第二调用点（立项专用入口）。
+  const pickDirForPromote = async (): Promise<string | null> => {
+    const win = getWindow();
+    if (!win) return null;
+    const picked = await dialog.showOpenDialog(win, {
+      title: '选择新书目录（立项）',
+      buttonLabel: '在这里开新书',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (picked.canceled || picked.filePaths.length === 0) return null;
+    return picked.filePaths[0];
+  };
+  handle('topic:list', (p, s) => listTopics(s.topicRepo, p), services);
+  handle(
+    'topic:promote',
+    async (p, s) =>
+      promoteTopicIpc(
+        {
+          repo: s.topicRepo,
+          projects: s.projectRepo,
+          // 复用既有 openProject 流：目录幂等守卫 + project:opened 推送（渲染层
+          // store 由 use-agent-stream 的订阅刷新，这里不另起 projects.create，
+          // 同目录双行项目正是 openProject 要避免的形状）。
+          openProject: (dir) => s.openProject(dir),
+          pickDir: pickDirForPromote,
+        },
+        p,
+      ),
+    services,
+  );
+  handle('topic:abandon', (p, s) => abandonTopic(s.topicRepo, p), services);
 }
 
 // ══════════════════════════════════════════════════════════════════════

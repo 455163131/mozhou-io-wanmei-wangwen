@@ -107,8 +107,11 @@ export function buildPipelineCtx(db: Database, projectId: string): PipelineCtx {
     chapterWords: params.chapterWords > 0 ? params.chapterWords : 2000,
     // 目标字数没填时给 0 会让架构师算出「全书约 1 章」——用 30 万缺省兜住
     targetWords: proj && proj.targetWords > 0 ? proj.targetWords : 300_000,
-    // premise 尚无独立入口：已采纳构思的卖点是最接近的既有事实
-    premise: concept?.logline ?? '',
+    // ★ PD-1（P2-C T6）：v17 补 projects.premise 真列——「一句话故事独立入口」缺口
+    //   闭合，立项时由 topic-service 播 premise、读侧优先取列。空列回退最新 adopted
+    //   构思的卖点（旧口径原样保留）：既有书的 ctx.premise 逐字不变（向后兼容），
+    //   R45 写手 system 字节稳定不受影响——premise 本就流经 ctx，本次只给来源加优先列。
+    premise: projects.getPremise(projectId) || concept?.logline || '',
     // P1-A：铁律真读（录入序），无条目时空数组而非 undefined
     canon: new CanonRepo(db).list(projectId).map((e) => e.text),
     // P1-B T3：language 真读（repo 已把枚举外的值收敛为 'zh'）；platformRule

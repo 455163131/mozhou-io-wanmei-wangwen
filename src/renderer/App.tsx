@@ -47,6 +47,7 @@ import { CharacterView } from './components/views/CharacterView';
 import { TrendingView } from './components/views/TrendingView';
 import { IdeaDrawView } from './components/views/IdeaDrawView';
 import { TeardownView } from './components/views/TeardownView';
+import { TopicLibraryView } from './components/views/TopicLibraryView';
 import type { LlmStatus } from '@shared/types/provider';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
 import { MODE_LABELS, type WorkMode } from '@shared/constants/modes';
@@ -60,7 +61,7 @@ type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
  *
  *   创作=[写作坊 / 大纲管理 / 生成·导演台 / 审稿报告(R36 回补)]  —— 产出与定稿的入口
  *   资产=[世界观设定 / 人物记忆(P2-B T6 转正) / 伏笔台账(P2-B T4 转正) / 长期记忆·设计中]
- *   灵感=[扫榜热榜(P2-C T3 转正) / 抽脑洞 / 拆书报告 / 选题库]（后三者设计中）
+ *   灵感=[扫榜热榜(P2-C T3 转正) / 抽脑洞(P2-C T4 转正) / 拆书报告(P2-C T5 转正) / 选题库(P2-C T6 转正)]
  *   输出=[统计账本 / 导出中心·设计中]
  *   系统=[提示词与技能]（★ P2-A T4 新增第 5 组，一条实项，不占数字快捷键）
  *
@@ -146,7 +147,8 @@ const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
       { kind: 'mode', id: 'idea', label: MODE_LABELS.idea, d: 'M9 18h6M10 21h4M12 3a6 6 0 00-4 10.5c.8.8 1.5 1.9 1.5 3H14.5c0-1.1.7-2.2 1.5-3A6 6 0 0012 3z' },
       // ★ P2-C T5：拆书报告从 soon 占位转正为真 mode（icon path 原样保留）。
       { kind: 'mode', id: 'teardown', label: MODE_LABELS.teardown, d: 'M12 4v16M5 6a2 2 0 012-2h3v18H7a2 2 0 00-2 2V6m14 0a2 2 0 00-2-2h-3v18h3a2 2 0 012 2V6' },
-      { kind: 'soon', id: 'soon-topics', label: '选题库', d: 'M4 6h16M4 12h16M4 18h10' },
+      // ★ P2-C T6：选题库从 soon 占位转正为真 mode（icon path 原样保留）——灵感线四页收口。
+      { kind: 'mode', id: 'topics', label: MODE_LABELS.topics, d: 'M4 6h16M4 12h16M4 18h10' },
     ],
   },
   {
@@ -592,6 +594,7 @@ export function App(): JSX.Element {
               {mode === 'trends' && <TrendingView />}
               {mode === 'idea' && <IdeaDrawView />}
               {mode === 'teardown' && <TeardownView />}
+              {mode === 'topics' && <TopicLibraryView />}
             </main>
           )}
         </div>
@@ -633,7 +636,7 @@ export function App(): JSX.Element {
               case 'mode:write': case 'mode:plan': case 'mode:lore':
               case 'mode:review': case 'mode:dash': case 'mode:gen': case 'mode:prompt':
               case 'mode:foreshadow': case 'mode:characters': case 'mode:trends':
-              case 'mode:idea': case 'mode:teardown':
+              case 'mode:idea': case 'mode:teardown': case 'mode:topics':
                 setMode(id.slice(5) as Mode);
                 break;
               case 'panel:tree':

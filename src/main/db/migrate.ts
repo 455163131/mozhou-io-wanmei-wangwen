@@ -610,6 +610,25 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 17,
+    name: 'add_project_premise',
+    /**
+     * ★ P2-C T6（PD-1）：projects 补 premise 真列——「一句话故事独立入口」的
+     *   DRD 缺口闭合。此前 premise 在装配侧只能借最新 adopted 草稿的 logline
+     *   （ctx.ts 原注释「premise 尚无独立入口」），立项的选题卡里那句前提
+     *   无处安放；本列由 ProjectRepo.setPremise/getPremise 读写、由
+     *   topic-service 在立项时播值。
+     *   append-only 纪律：v1..v16 一根手指都不碰，旧表只增列不改列。
+     *   NOT NULL DEFAULT ''：空串 = 「未设定」——读侧（ctx）据此回退 logline，
+     *   既有书的 ctx.premise 逐字不变（向后兼容；R45 写手 system 字节稳定
+     *   不受影响——premise 本就流经 ctx，本次只给来源加优先列）。
+     *   不加 CHECK：口径同 v14——文本内容的收紧归应用写侧（setPremise 校验）。
+     */
+    up(db) {
+      db.exec(`ALTER TABLE projects ADD COLUMN premise TEXT NOT NULL DEFAULT '';`);
+    },
+  },
 ];
 
 export function migrate(db: Database): void {

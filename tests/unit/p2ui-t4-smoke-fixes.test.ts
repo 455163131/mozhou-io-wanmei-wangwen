@@ -274,6 +274,9 @@ const SOLID_BUTTON_CENSUS = [
   // ★ P2-C T5：拆书报告页「结构统计（秒出·零token）」CTA（金实底 × accent-ink 反色字，与 ForeshadowView/
   //   CharacterView/TrendingView/IdeaDrawView 同族同档，hover 生效对 accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
   'components/views/TeardownView.module.css#btnPrimary',
+  // ★ P2-C T6：选题库页「立项」CTA（金实底 × accent-ink 反色字，与 TeardownView/TrendingView
+  //   同族同档，hover 生效对 accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
+  'components/views/TopicLibraryView.module.css#btnPrimary',
   // ★ P2-C T3：扫榜热榜页刷新 CTA（金实底 × accent-ink 反色字，与 ForeshadowView/
   //   CharacterView 同族同档，hover 生效对 accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
   'components/views/TrendingView.module.css#btnPrimary',
@@ -873,9 +876,10 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
   it('soon 占位项确实存在，且标签逐条 ≤4 字（R40 裁决的契约）', () => {
     // ★ P2-B T4：伏笔台账转正，soon 行 8→7；★ P2-B T6：人物记忆转正，soon 行 7→6；
     // ★ P2-C T3：扫榜热榜转正，soon 行 6→5；★ P2-C T4：抽脑洞转正，soon 行 5→4；
-    // ★ P2-C T5：拆书报告转正，soon 行 4→3（下限 3 的防呆哨保留——再有人删 soon 行就红）。
-    expect(SOON.length, '★ P2-C T5 后 NAV_GROUPS 的 soon 行应为 3 条').toBe(3);
-    expect(SOON.length, 'NAV_GROUPS 里一个 soon 项都没扫到，这条断言空转').toBeGreaterThanOrEqual(3);
+    // ★ P2-C T5：拆书报告转正，soon 行 4→3；★ P2-C T6：选题库转正，soon 行 3→2
+    // （剩 长期记忆/导出中心；下限 2 的防呆哨保留——再有人删 soon 行就红）。
+    expect(SOON.length, '★ P2-C T6 后 NAV_GROUPS 的 soon 行应为 2 条').toBe(2);
+    expect(SOON.length, 'NAV_GROUPS 里一个 soon 项都没扫到，这条断言空转').toBeGreaterThanOrEqual(2);
     for (const s of SOON) {
       const n = [...s.label].length;
       expect(n, `${s.id} 的标签「${s.label}」有 ${n} 字，超出 soon 行的预算（契约 ≤4）`).toBeLessThanOrEqual(4);

@@ -217,6 +217,10 @@ const bridge: MzBridge = {
   },
   topic: {
     createFromCard: (cardId) => invoke('topic:create-from-card', { cardId }),
+    // P2-C T6 生命周期三通道：req 原样转发（zod 边界与状态机全在 topic-service/TopicRepo，桥不加工）
+    list: (status) => invoke('topic:list', { status }),
+    promote: (topicId, dir) => invoke('topic:promote', { topicId, dir }),
+    abandon: (topicId) => invoke('topic:abandon', { topicId }),
   },
   idea: {
     draw: () => invoke('idea:draw'),

@@ -20,6 +20,7 @@ import type {
 } from '@shared/types/ipc';
 import type { LedgerEntries, LedgerQuery } from '@shared/types/ledger';
 import type { DraftStatus } from '@shared/types/pipeline';
+import type { TopicStatus } from '@shared/types/inspiration';
 
 /** 白名单 API 的形状。由 MzBridge 暴露到 window.mz。 */
 export interface MzBridge {
@@ -242,10 +243,19 @@ export interface MzBridge {
     remove(cardId: string): Promise<IpcInvokeMap['inspiration:remove']['res']>;
   };
 
-  // ── 选题（P2-C T2）：卡片套用入口 ──
+  // ── 选题（P2-C T2 套用入口 + T6 生命周期三通道）：全局子系统 ──
   topic: {
     /** 卡片 → 待立项选题（premise 按 kind 派生，sourceCardId 挂钩） */
     createFromCard(cardId: string): Promise<IpcInvokeMap['topic:create-from-card']['res']>;
+    /** 三态取数：缺省全量（新在前），status 过滤直连 TopicRepo.listByStatus */
+    list(status?: TopicStatus): Promise<IpcInvokeMap['topic:list']['res']>;
+    /**
+     * 立项（R5）：主进程先建/开项目（dir 缺省走原生目录选择）再播 premise 置已立项。
+     * 取消目录选择返回 null（正常结果不是错误，project.pickDir 同款口径）。
+     */
+    promote(topicId: string, dir?: string): Promise<IpcInvokeMap['topic:promote']['res']>;
+    /** 放弃：待立项 → 已放弃（终态；危险动作的二次确认在渲染层） */
+    abandon(topicId: string): Promise<IpcInvokeMap['topic:abandon']['res']>;
   };
 
   // ── 抽脑洞（P2-C T4）：选方向→LLM→落 idea 卡；无 Key/失败如实回落演示占位 ──
@@ -372,6 +382,10 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'teardown:structure',
   'teardown:read',
   'teardown:save-dimension',
+  // P2-C 灵感线（T6）：选题库生命周期三通道
+  'topic:list',
+  'topic:promote',
+  'topic:abandon',
 ];
 
 /** 全部订阅通道 */

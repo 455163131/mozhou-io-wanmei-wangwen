@@ -575,6 +575,28 @@ export class ProjectRepo {
       .run(genre, platform, chapterWords, language, Date.now(), projectId);
   }
 
+  /**
+   * 写「一句话故事」（PD-1 / v17 premise 真列）。
+   * ★ 为什么单独开方法而不挤进 setPipelineParams：premise 是叙事事实不是生成参数，
+   *   写入口分开，读侧（ctx）的空串回退口径才不会被部分更新的语义搅混。
+   * 拒非字符串：非空垃圾值会一路短路掉 ctx 的 logline 回退，把假前提喂给模型。
+   */
+  setPremise(projectId: string, premise: string): void {
+    if (!this.get(projectId)) throw new Error(`项目不存在：${projectId}`);
+    if (typeof premise !== 'string') throw new Error('premise 必须是字符串');
+    this.db
+      .prepare('UPDATE projects SET premise = ?, updated_at = ? WHERE id = ?')
+      .run(premise, Date.now(), projectId);
+  }
+
+  /** 读「一句话故事」。缺行 / 空列一律回 ''——'' = 未设定，回退口径归读侧（ctx） */
+  getPremise(projectId: string): string {
+    const r = this.db.prepare('SELECT premise FROM projects WHERE id = ?').get(projectId) as
+      | { premise: string | null }
+      | undefined;
+    return r?.premise ?? '';
+  }
+
   touch(projectId: string): void {
     this.db.prepare('UPDATE projects SET updated_at = ? WHERE id = ?').run(Date.now(), projectId);
   }
