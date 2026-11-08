@@ -48,6 +48,7 @@ import { TrendingView } from './components/views/TrendingView';
 import { IdeaDrawView } from './components/views/IdeaDrawView';
 import { TeardownView } from './components/views/TeardownView';
 import { TopicLibraryView } from './components/views/TopicLibraryView';
+import { ExportView } from './components/views/ExportView';
 import type { LlmStatus } from '@shared/types/provider';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
 import { MODE_LABELS, type WorkMode } from '@shared/constants/modes';
@@ -156,7 +157,8 @@ const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
     label: '输出',
     items: [
       { kind: 'mode', id: 'dash', label: MODE_LABELS.dash, d: 'M4 14a8 8 0 0116 0' },
-      { kind: 'soon', id: 'soon-export', label: '导出中心', d: 'M12 3v10m0 0l-3-3m3 3l3-3M5 19h14' },
+      // ★ P2-D T5：导出中心从 soon 占位转正为真 mode（icon path 原样保留）。
+      { kind: 'mode', id: 'export', label: MODE_LABELS.export, d: 'M12 3v10m0 0l-3-3m3 3l3-3M5 19h14' },
     ],
   },
   // ★ P2-A T4（DRD §4.1 系统组）：输出组之后的第 5 组，一条实项「提示词与技能」。
@@ -595,6 +597,7 @@ export function App(): JSX.Element {
               {mode === 'idea' && <IdeaDrawView />}
               {mode === 'teardown' && <TeardownView />}
               {mode === 'topics' && <TopicLibraryView />}
+              {mode === 'export' && <ExportView />}
             </main>
           )}
         </div>
@@ -636,7 +639,8 @@ export function App(): JSX.Element {
               case 'mode:write': case 'mode:plan': case 'mode:lore':
               case 'mode:review': case 'mode:dash': case 'mode:gen': case 'mode:prompt':
               case 'mode:foreshadow': case 'mode:characters': case 'mode:trends':
-              case 'mode:idea': case 'mode:teardown': case 'mode:topics':
+              case 'mode:idea': case 'mode:teardown': case 'mode:topics': case 'mode:export':
+                // ★ P2-D T5：导出中心转正进本组合并分派尾（setMode(id.slice(5))，不占数字快捷键）。
                 setMode(id.slice(5) as Mode);
                 break;
               case 'panel:tree':

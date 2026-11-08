@@ -1,0 +1,320 @@
+/**
+ * 导出中心页样式（P2-D T5）。
+ * 布局照 TrendingView（head/tabs/btn 族）+ ForeshadowView（card/表格/引文块）同族形状，
+ * 颜色、字号、圆角、间距一律只走 --mz- 前缀的令牌——theme-ink C 组钉死零裸色；
+ * design-tokens-usage A 组钉死 font-size/border-radius/padding/gap/margin 零裸 px
+ * （1px 描边与无单位 line-height 除外，同 TrendingView 口径）。
+ * 实底按钮仅 btnPrimary 一颗（金 × accent-ink），已登记进 SOLID_BUTTON_CENSUS
+ * （CharacterView 与 ForeshadowView 之间的 localeCompare 位）；
+ * 范围/格式两条 Tab 条走 accent-soft 淡晕档，非实底，不入台账。
+ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-4);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2h);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-h3);
+  color: var(--mz-text-primary);
+}
+
+.sub {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.err {
+  color: var(--mz-sem-err-fg);
+  font-size: var(--mz-fs-xs);
+  margin: 0;
+}
+
+.notice {
+  color: var(--mz-sem-pass-fg);
+  font-size: var(--mz-fs-xs);
+  margin: 0;
+}
+
+.empty {
+  background: var(--mz-bg-inset);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-4);
+  color: var(--mz-text-tertiary);
+  font-size: var(--mz-fs-sm);
+  line-height: 1.8;
+  margin: 0;
+}
+
+.note {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+  line-height: 1.8;
+  margin: 0;
+}
+
+/* ── 配置卡 / 预览卡 / 历史卡（ForeshadowView 的 card 族同档）── */
+
+.card {
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-3);
+}
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.cardTitle {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-chrome-type-title);
+  color: var(--mz-text-primary);
+  font-weight: var(--mz-fw-semibold);
+  margin: 0;
+}
+
+/* ── 范围三分支 / 格式五选：两条 Tab 条（TrendingView 同族，淡晕选中，非实底）── */
+
+.tabs {
+  display: flex;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+}
+
+.tab {
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-secondary);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-sm);
+}
+
+.tab:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+  color: var(--mz-text-primary);
+}
+
+.tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tabOn {
+  background: var(--mz-accent-soft);
+  border-color: var(--mz-border-accent);
+  color: var(--mz-text-primary);
+}
+
+/* ── 表单件（ForeshadowView 的 field 族同档；input/select 底色走 global.css）── */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+}
+
+.fieldLabel {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+}
+
+/* ── 自选章多选列表（照拆书/伏笔的选章口径，章序 = chapters 序）── */
+
+.chapterBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-2) var(--mz-space-3);
+}
+
+.chapterRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mz-space-2);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-body);
+  cursor: pointer;
+}
+
+/* ── 预览面板（真字节：toc + sample 引文块 + warnings 黄字）── */
+
+.tocList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+}
+
+.tocRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--mz-space-2);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+}
+
+.tocChars {
+  font-family: var(--mz-font-numeric);
+  color: var(--mz-text-tertiary);
+  white-space: nowrap;
+}
+
+.quote {
+  margin: 0;
+  font-family: var(--mz-font-serif);
+  font-size: var(--mz-fs-sm);
+  line-height: 2;
+  color: var(--mz-text-body);
+  background: var(--mz-accent-soft);
+  border: 1px solid var(--mz-border-accent);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-2) var(--mz-space-3);
+  overflow-wrap: anywhere;
+}
+
+.warnList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+}
+
+.warnRow {
+  margin: 0;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-sem-warn-fg);
+  line-height: 1.8;
+}
+
+/* ── 历史表（ForeshadowView 的 table/dot 族同档）── */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--mz-fs-xs);
+}
+
+.table th {
+  text-align: left;
+  color: var(--mz-text-tertiary);
+  font-weight: var(--mz-fw-medium);
+  padding: var(--mz-space-half) var(--mz-space-2);
+  border-bottom: 1px solid var(--mz-border-subtle);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--mz-space-half) var(--mz-space-2);
+  border-bottom: 1px solid var(--mz-border-faint);
+  color: var(--mz-text-body);
+  vertical-align: top;
+}
+
+.monoCell {
+  font-family: var(--mz-font-numeric);
+  white-space: nowrap;
+}
+
+.pathCell {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.statusCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mz-space-1);
+  white-space: nowrap;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--mz-radius-full);
+  display: inline-block;
+  flex: none;
+}
+
+.dotOk {
+  background: var(--mz-sem-pass-strong);
+}
+
+.dotFail {
+  background: var(--mz-sem-err-strong);
+}
+
+/* ── 按钮：btn 描边档（刷新/预览）；btnPrimary 金实底（导出 CTA，入台账）── */
+
+.btn {
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-primary);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  /* 主 CTA = 金底深字（ink 档香槟金 × 深墨字，与 CharacterView/ForeshadowView 同档） */
+  border: 1px solid var(--mz-accent);
+  background: var(--mz-accent);
+  color: var(--mz-accent-ink);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+  font-weight: var(--mz-fw-semibold);
+}
+
+/* 特异性 (0,3,1) 严格压过 global.css 的 button:hover:not(:disabled) (0,2,1)，
+   hover 仍走实底档——p2ui-t4-smoke-fixes C 组台账里的 ExportView#btnPrimary */
+.btnPrimary:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+  border-color: var(--mz-accent-hover);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
