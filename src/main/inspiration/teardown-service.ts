@@ -29,14 +29,14 @@ import { TeardownDimsSchema, TEARDOWN_DEMO_MARK } from '@shared/types/inspiratio
 import type { TeardownDims, TeardownStructure, InspirationCard } from '@shared/types/inspiration';
 import type { TeardownRepo } from '../db/repos/teardown-repo';
 import type { InspirationRepo } from '../db/repos/inspiration-repo';
-import type { PipelineLlm } from '../pipeline/tools';
+import { TEMPERATURE, type PipelineLlm } from '../pipeline/tools';
 import type { PromptOverlay, PromptOverlayRole } from '../pipeline/overlay';
 import { composeTeardownPrompt } from '../pipeline/prompts';
 import { extractJson } from '../agent/host';
 import { distillReferenceWork } from '../tools/impl/digest';
 
-/** 精读内置温度（架构收敛档，同 TEMPERATURE.teardown；可被 teardown 覆盖层「温度：」行覆盖）。 */
-const TEARDOWN_TEMPERATURE = 0.7;
+/* 精读内置温度＝TEMPERATURE.teardown（唯一温度源在 pipeline/tools.ts，终审修复波 T5③
+   删了本地 0.7 字面量；可被 teardown 覆盖层「温度：」行覆盖）。 */
 
 /** 拆书八维的固定维序（TeardownDimsSchema 键序逐字一致，UI 与演示兜底共用）。 */
 export const TEARDOWN_DIMENSIONS: (keyof TeardownDims)[] = [
@@ -193,7 +193,7 @@ export async function teardownRead(
   const structure = (report.structure ?? {}) as TeardownStructure;
   const overlay = (await deps.getOverlay?.('teardown')) ?? null;
   const system = composeTeardownPrompt(overlay);
-  const temperature = overlay?.temperature ?? TEARDOWN_TEMPERATURE;
+  const temperature = overlay?.temperature ?? TEMPERATURE.teardown;
   try {
     const res = await llm.chat({
       messages: [

@@ -39,6 +39,10 @@ export function TrendingView(): JSX.Element {
   const [pending, setPending] = useState<Record<string, 'collect' | 'apply'>>({});
   /** 已收藏的 cardId 集（本会话内即时反馈，避免重复点收藏） */
   const [collected, setCollected] = useState<Set<string>>(new Set());
+  /** ★ 终审修复波 D：本会话已套用的 cardId 集（镜像 collected 口径）——
+   *  TopicRepo.insert 无 sourceCardId 去重，套用成功即 pending 清空、按钮回可点，
+   *  再点一次就往选题池堆一条重复待立项。前端会话级闸住（后端不加去重，裁决如此）。 */
+  const [applied, setApplied] = useState<Set<string>>(new Set());
 
   const loadSeqRef = useRef(createSequencer());
 
@@ -73,7 +77,9 @@ export function TrendingView(): JSX.Element {
     try {
       await bridge().inspiration.collect(cardId);
       setCollected((s) => new Set(s).add(cardId));
-      setNotice(`已收藏《${entry.title}》进选题池`);
+      // ★ 终审修复波 C（诚实口径）：收藏池的渲染层浏览页是 P2-C 后收口项——
+      //   文案不再暗示「池子随时可翻」，如实标注后续收口。
+      setNotice(`已收藏《${entry.title}》入灵感池（灵感池浏览页 P2-C 后收口）`);
     } catch (e) {
       setErr(errorText(e));
     } finally {
@@ -85,15 +91,17 @@ export function TrendingView(): JSX.Element {
     }
   }
 
-  /** 套用为选题：topic.createFromCard → 待立项选题（premise 由主进程按 trend 派生）。 */
+  /** 套用为选题：topic.createFromCard → 待立项选题（premise 由主进程按 trend 派生）。
+   *  ★ D：成功后置入会话级 applied 集——按钮转「已套用」禁用，重点击不再堆重复选题。 */
   async function apply(entry: ChartEntry): Promise<void> {
     const cardId = entry.cardId;
-    if (!cardId || pending[cardId]) return;
+    if (!cardId || pending[cardId] || applied.has(cardId)) return;
     setPending((m) => ({ ...m, [cardId]: 'apply' }));
     setErr(null);
     setNotice(null);
     try {
       await bridge().topic.createFromCard(cardId);
+      setApplied((s) => new Set(s).add(cardId));
       setNotice(`《${entry.title}》已套用入选题库（待立项）`);
     } catch (e) {
       setErr(errorText(e));
@@ -157,6 +165,7 @@ export function TrendingView(): JSX.Element {
             const cardId = entry.cardId;
             const act = cardId ? pending[cardId] : undefined;
             const isCollected = cardId ? collected.has(cardId) : false;
+            const isApplied = cardId ? applied.has(cardId) : false;
             return (
               <article key={cardId ?? `${entry.platform}-${entry.rank}`} className={styles.book}>
                 <div className={styles.bookHead}>
@@ -186,10 +195,10 @@ export function TrendingView(): JSX.Element {
                   </button>
                   <button
                     className={styles.btn}
-                    disabled={!cardId || !!act}
+                    disabled={!cardId || !!act || isApplied}
                     onClick={() => void apply(entry)}
                   >
-                    {act === 'apply' ? '套用中…' : '套用'}
+                    {isApplied ? '已套用' : act === 'apply' ? '套用中…' : '套用'}
                   </button>
                 </div>
               </article>

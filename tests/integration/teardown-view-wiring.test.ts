@@ -30,4 +30,10 @@ describe('拆书报告页接线', () => {
   it('TeardownView 选已导入书只走只读通道（绝不写正文：update/create/import 都不许出现）', () => {
     expect(view).not.toMatch(/chapter\.update|chapter\.create|importMarkdown/);
   });
+  // ★ 终审修复波 T5①：saveDim 的 await 后写入要过时效闸——重点「结构统计」换了报告后，
+  //   旧 saveDim 的迟到响应不许把新报告的该维标成「已存入」（captured-reportId + ref 口径）。
+  it('TeardownView saveDim 有 captured-reportId 时效闸（迟到的旧报告响应不落新报告状态）', () => {
+    expect(view).toMatch(/reportIdRef/);
+    expect(view).toMatch(/capturedReportId/);
+  });
 });

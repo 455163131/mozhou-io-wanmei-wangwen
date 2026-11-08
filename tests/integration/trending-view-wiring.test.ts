@@ -25,4 +25,10 @@ describe('扫榜热榜页接线', () => {
     expect(view).toMatch(/inspiration\.collect|collect/);
     expect(view).toMatch(/createTopicFromCard|套用/);
   });
+  // ★ 终审修复波 D：套用成功≠pending 清空就完事——TopicRepo.insert 无 sourceCardId 去重，
+  //   重点击会堆重复待立项选题。会话级 applied 集镜像 collected 集：成功后按钮「已套用」禁用。
+  it('TrendingView 套用防重：会话级 applied 集 + 成功后「已套用」禁用（镜像 collected 模式）', () => {
+    expect(view).toMatch(/applied/);
+    expect(view).toContain('已套用');
+  });
 });

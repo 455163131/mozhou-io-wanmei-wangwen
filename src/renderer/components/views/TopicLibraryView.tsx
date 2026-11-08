@@ -57,6 +57,10 @@ export function TopicLibraryView(): JSX.Element {
   const { confirm, node: confirmNode } = useConfirm();
 
   const loadSeqRef = useRef(createSequencer());
+  /** ★ 终审修复波 T6①：跨动作一条 sequencer——promote/abandon/openLinked 起手 next()，
+   *  await 回来的 setNotice/setErr 只有仍是最新动作才许落笔（load 同款时效口径）。
+   *  只闸 UI 通知，不闸动作本身：已点下去的立项/放弃照常执行完，clearPending 无条件。 */
+  const actionSeqRef = useRef(createSequencer());
 
   const load = useCallback(async (): Promise<void> => {
     const seq = loadSeqRef.current.next();
@@ -93,6 +97,7 @@ export function TopicLibraryView(): JSX.Element {
   /** 立项（R5）：先既有目录选择器（取消静默），再主进程建/开项目 + 播 premise。 */
   async function promote(t: Topic): Promise<void> {
     if (pending[t.id]) return;
+    const seq = actionSeqRef.current.next();
     markPending(t.id, 'promote');
     setErr(null);
     setNotice(null);
@@ -103,14 +108,16 @@ export function TopicLibraryView(): JSX.Element {
       if (r === null) return; // 防御：UI 已自持 dir，主进程侧取消同样静默
       // ★ T7/BLOCK-T7：premiseKept=true 说明这本书已有非空不同的一句话故事、本次未覆写——
       //   如实补一句提示（可在写作坊自行改订），不静默假装播进去了。
-      setNotice(
-        r.premiseKept
-          ? `《${t.title}》已立项：本书已有一句话故事，未覆盖（可在写作坊自行改订），目录已打开——去「写作坊」继续。`
-          : `《${t.title}》已立项：一句话前提已播进新书，目录已打开——去「写作坊」继续。`,
-      );
+      if (actionSeqRef.current.isCurrent(seq)) {
+        setNotice(
+          r.premiseKept
+            ? `《${t.title}》已立项：本书已有一句话故事，未覆盖（可在写作坊自行改订），目录已打开——去「写作坊」继续。`
+            : `《${t.title}》已立项：一句话前提已播进新书，目录已打开——去「写作坊」继续。`,
+        );
+      }
       await load();
     } catch (e) {
-      setErr(errorText(e));
+      if (actionSeqRef.current.isCurrent(seq)) setErr(errorText(e));
     } finally {
       clearPending(t.id);
     }
@@ -126,15 +133,16 @@ export function TopicLibraryView(): JSX.Element {
       confirmText: '放弃',
     });
     if (!ok) return;
+    const seq = actionSeqRef.current.next();
     markPending(t.id, 'abandon');
     setErr(null);
     setNotice(null);
     try {
       await bridge().topic.abandon(t.id);
-      setNotice(`《${t.title}》已放弃（终态，不可改判）。`);
+      if (actionSeqRef.current.isCurrent(seq)) setNotice(`《${t.title}》已放弃（终态，不可改判）。`);
       await load();
     } catch (e) {
-      setErr(errorText(e));
+      if (actionSeqRef.current.isCurrent(seq)) setErr(errorText(e));
     } finally {
       clearPending(t.id);
     }
@@ -143,14 +151,15 @@ export function TopicLibraryView(): JSX.Element {
   /** 打开已立项关联的书：project.open 既有流（幂等守卫 + opened 推送刷 store）。 */
   async function openLinked(t: Topic, p: Project): Promise<void> {
     if (pending[t.id]) return;
+    const seq = actionSeqRef.current.next();
     markPending(t.id, 'open');
     setErr(null);
     setNotice(null);
     try {
       await bridge().project.open(p.rootDir);
-      setNotice(`已打开《${p.name}》——切到「写作坊」即可继续这本新书。`);
+      if (actionSeqRef.current.isCurrent(seq)) setNotice(`已打开《${p.name}》——切到「写作坊」即可继续这本新书。`);
     } catch (e) {
-      setErr(errorText(e));
+      if (actionSeqRef.current.isCurrent(seq)) setErr(errorText(e));
     } finally {
       clearPending(t.id);
     }

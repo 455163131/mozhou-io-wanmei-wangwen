@@ -144,9 +144,25 @@ export class DemoChartSource implements ChartDataSource {
 
 /* ── 实时源（礼貌直抓）──────────────────────────────────────────── */
 
-/** 常规 UA：如实报明身份，不伪装成任何浏览器/爬虫工具 */
-const USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) MozhouAgent/0.1 (个人桌面写作工具；礼貌抓取，单机低频)';
+/**
+ * UA 的 OS 段按运行平台**如实派生**（终审修复波 T2②）：旧实现不分平台一律写
+ * Windows NT 10.0，等于在 mac/linux 上谎报运行环境。这里只做诚实化，不是规避——
+ * 工具身份段（MozhouAgent/0.1 + 礼貌抓取声明）任何平台都在场且逐字不变。
+ */
+function osToken(platform: string): string {
+  if (platform === 'win32') return 'Windows NT 10.0; Win64; x64';
+  if (platform === 'darwin') return 'Macintosh';
+  if (platform === 'linux') return 'X11; Linux x86_64';
+  return 'generic'; // 其余平台不猜具体名：如实给通用 token
+}
+
+/** 组装如实 UA（platform 可注入便于单测钉；生产缺省 process.platform） */
+export function chartUserAgent(platform: string = process.platform): string {
+  return `Mozilla/5.0 (${osToken(platform)}) MozhouAgent/0.1 (个人桌面写作工具；礼貌抓取，单机低频)`;
+}
+
+/** 常规 UA：如实报明身份与运行平台，不伪装成任何浏览器/爬虫工具 */
+const USER_AGENT = chartUserAgent();
 
 export interface LiveChartSourceDeps {
   /** 注入的 fetch（测试用假实现，绝不碰真网络）；缺省 globalThis.fetch */

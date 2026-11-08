@@ -32,6 +32,9 @@ export function IdeaDrawView(): JSX.Element {
   /** 当前卡正在进行的动作（禁用按钮防连点） */
   const [pending, setPending] = useState<'collect' | 'apply' | null>(null);
   const [collected, setCollected] = useState(false);
+  /** ★ 终审修复波 D：本会话当前卡是否已套用——TopicRepo.insert 无 sourceCardId 去重，
+   *  套用成功后 pending 清空按钮回可点，再点会堆重复待立项。会话级闸住，新抽一张才复位。 */
+  const [applied, setApplied] = useState(false);
 
   const drawSeqRef = useRef(createSequencer());
 
@@ -46,6 +49,7 @@ export function IdeaDrawView(): JSX.Element {
       setCard(r.card);
       setSource(r.source);
       setCollected(r.card.collected === 1);
+      setApplied(false); // 新卡新账：套用闸只闸同一张卡的重复点击
       setPending(null);
       setDrawCount((n) => n + 1);
     } catch (e) {
@@ -64,7 +68,8 @@ export function IdeaDrawView(): JSX.Element {
     try {
       await bridge().inspiration.collect(card.id);
       setCollected(true);
-      setNotice('已收藏进选题池');
+      // ★ 终审修复波 C（诚实口径）：收藏池的渲染层浏览页是 P2-C 后收口项，文案不暗示池子随时可翻。
+      setNotice('已收藏入灵感池（灵感池浏览页 P2-C 后收口）');
     } catch (e) {
       setErr(errorText(e));
     } finally {
@@ -72,14 +77,16 @@ export function IdeaDrawView(): JSX.Element {
     }
   }
 
-  /** 套用为选题：topic.createFromCard → 待立项选题（premise 由主进程按 idea payload 派生）。 */
+  /** 套用为选题：topic.createFromCard → 待立项选题（premise 由主进程按 idea payload 派生）。
+   *  ★ D：成功后本卡转「已套用」禁用，防重点击堆重复选题。 */
   async function apply(): Promise<void> {
-    if (!card || pending) return;
+    if (!card || pending || applied) return;
     setPending('apply');
     setErr(null);
     setNotice(null);
     try {
       await bridge().topic.createFromCard(card.id);
+      setApplied(true);
       setNotice('已套用入选题库（待立项）');
     } catch (e) {
       setErr(errorText(e));
@@ -139,8 +146,8 @@ export function IdeaDrawView(): JSX.Element {
             >
               {collected ? '已收藏' : pending === 'collect' ? '收藏中…' : '收藏'}
             </button>
-            <button className={styles.btn} disabled={!!pending} onClick={() => void apply()}>
-              {pending === 'apply' ? '套用中…' : '套用立项'}
+            <button className={styles.btn} disabled={!!pending || applied} onClick={() => void apply()}>
+              {applied ? '已套用' : pending === 'apply' ? '套用中…' : '套用立项'}
             </button>
           </div>
         </article>

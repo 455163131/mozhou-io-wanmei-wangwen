@@ -83,6 +83,29 @@ describe('inspiration-ipc', () => {
     expect(t.status).toBe('待立项');
   });
 
+  // ★ 终审修复波 A：演示 trend 卡（live=false）不许谎称「从X热榜套用」的真实榜单来源——
+  //   premise 必须带【演示数据】标记；live:true 卡保持原措辞逐字不变（现网口径钉）。
+  it('createTopicFromCard：trend 演示卡（live=false）premise 带【演示数据】标记、不冒充热榜；live=true 保持原措辞', () => {
+    const demo = deps.inspiration.insert({
+      kind: 'trend',
+      title: '演示书',
+      payload: { platform: '番茄', tags: ['悬疑'], live: false },
+      sourceLabel: '番茄',
+    });
+    const t1 = createTopicFromCard(deps, { cardId: demo.id });
+    expect(t1.premise).toContain('【演示数据】');
+    expect(t1.premise).toContain('（悬疑）');
+    expect(t1.premise).not.toContain('热榜');
+    const live = deps.inspiration.insert({
+      kind: 'trend',
+      title: '实时书',
+      payload: { platform: '晋江', live: true },
+      sourceLabel: '晋江',
+    });
+    const t2 = createTopicFromCard(deps, { cardId: live.id });
+    expect(t2.premise).toBe('榜单观察：《实时书》——从晋江热榜套用的趋势选题');
+  });
+
   it('createTopicFromCard：idea 卡取 payload.premise；teardown 卡取 payload.summary', () => {
     const idea = deps.inspiration.insert({ kind: 'idea', title: '脑洞D', payload: { direction: '系统流', premise: '一句前提', temperature: 1, live: false }, sourceLabel: '系统流' });
     expect(createTopicFromCard(deps, { cardId: idea.id }).premise).toBe('一句前提');

@@ -102,7 +102,7 @@ export function removeCard(deps: InspirationIpcDeps, args: unknown): boolean {
 
 /**
  * 卡片 → 待立项选题（套用入口）。title/premise 按 kind 派生：
- * - trend：title=书名；premise=书名＋tags 拼一句（榜单观察口径）
+ * - trend：title=书名；premise=书名＋tags 拼一句（榜单观察口径；live=false 带【演示数据】前缀）
  * - idea：premise=payload.premise（脑洞本来就是一句前提）
  * - teardown：premise=payload.summary（拆书摘要即前提种子）
  * 卡不存在 → E_NOT_FOUND，不落半程 topic。
@@ -119,7 +119,12 @@ export function createTopicFromCard(deps: InspirationIpcDeps, args: unknown): To
     case 'trend': {
       const p = card.payload as TrendPayload;
       const tags = p.tags && p.tags.length > 0 ? `（${p.tags.join('、')}）` : '';
-      premise = `榜单观察：《${card.title}》${tags}——从${p.platform}热榜套用的趋势选题`;
+      // ★ 终审修复波 A（诚实纪律 DRD §7）：live=false 的演示卡不许谎称「从X热榜套用」——
+      //   与 idea 演示兜底的【演示】前缀同款口径，明示来源是演示集而非真实榜单。
+      premise =
+        p.live === false
+          ? `【演示数据】榜单观察：《${card.title}》${tags}——从${p.platform}榜单演示集套用的趋势选题`
+          : `榜单观察：《${card.title}》${tags}——从${p.platform}热榜套用的趋势选题`;
       break;
     }
     case 'idea':

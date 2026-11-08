@@ -35,6 +35,12 @@ describe('选题库页接线', () => {
     expect(view).toMatch(/pending/);
     expect(view).toMatch(/disabled/);
   });
+  // ★ 终审修复波 T6①：promote/abandon/openLinked 的 await 后 setNotice/setErr 要有跨动作闸——
+  //   一条 actionSeqRef sequencer（load 同款口径），旧动作迟到的响应不许盖新通知。
+  it('TopicLibraryView 三动作跨动作 sequencer（notice/err 写入时效闸）', () => {
+    expect(view).toMatch(/actionSeqRef/);
+    expect(view).toMatch(/isCurrent\(seq\)/);
+  });
   it('全局子系统不键 project?.id（选题在立项之前就存在）', () => {
     expect(view).not.toMatch(/project\?\.id/);
   });

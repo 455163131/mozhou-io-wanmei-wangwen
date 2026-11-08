@@ -25,4 +25,9 @@ describe('抽脑洞页接线', () => {
     expect(view).toMatch(/inspiration\.collect|collect/);
     expect(view).toMatch(/createTopicFromCard|套用/);
   });
+  // ★ 终审修复波 D：单卡页同口径——套用成功后「已套用」禁用（新抽一张才复位）。
+  it('IdeaDrawView 套用防重：applied 态 + 成功后「已套用」禁用', () => {
+    expect(view).toMatch(/applied/);
+    expect(view).toContain('已套用');
+  });
 });

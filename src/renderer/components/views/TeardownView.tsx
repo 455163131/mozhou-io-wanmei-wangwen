@@ -50,6 +50,9 @@ export function TeardownView(): JSX.Element {
   const structSeqRef = useRef(createSequencer());
   const readSeqRef = useRef(createSequencer());
   const importSeqRef = useRef(createSequencer());
+  /** ★ 终审修复波 T5①：当前报告 id 的实时镜像——saveDim 拿捕获值对账用。
+   *  runStructure 一旦换报告，旧 saveDim 的迟到响应就不许再把新报告的该维标成「已存入」。 */
+  const reportIdRef = useRef<string | null>(null);
 
   /** 只读取文：chapter.list + chapter.get 既有只读通道，绝不写正文。 */
   const loadChapters = useCallback(async () => {
@@ -93,6 +96,7 @@ export function TeardownView(): JSX.Element {
     try {
       const r = await bridge().teardown.structure(title, text);
       if (!structSeqRef.current.isCurrent(seq)) return;
+      reportIdRef.current = r.reportId;
       setReport(r);
       setRead(null);
       setSavedDims(new Set());
@@ -124,18 +128,23 @@ export function TeardownView(): JSX.Element {
     }
   }, [report]);
 
-  /** 一维存灵感库：同维本会话只许存一次（防重复卡）。 */
+  /** 一维存灵感库：同维本会话只许存一次（防重复卡）。
+   *  ★ T5①：await 回来先对账 captured reportId——中途重跑结构统计换了报告的，
+   *  迟到响应不许把「已存入」记到新报告头上（sequencer 同款时效口径，取更廉价的
+   *  captured-reportId 对账，跨维迟到的仍由 savingDim 单飞闸挡住）。 */
   async function saveDim(dimension: keyof TeardownDims): Promise<void> {
     if (!report || savingDim || savedDims.has(dimension)) return;
+    const capturedReportId = report.reportId;
     setSavingDim(dimension);
     setErr(null);
     setNotice(null);
     try {
-      const card = await bridge().teardown.saveDimension(report.reportId, dimension);
+      const card = await bridge().teardown.saveDimension(capturedReportId, dimension);
+      if (reportIdRef.current !== capturedReportId) return; // 报告已换：旧响应作废，不标新账
       setSavedDims((s) => new Set(s).add(dimension));
       setNotice(`已存入灵感库：「${card.title}」`);
     } catch (e) {
-      setErr(errorText(e));
+      if (reportIdRef.current === capturedReportId) setErr(errorText(e));
     } finally {
       setSavingDim(null);
     }

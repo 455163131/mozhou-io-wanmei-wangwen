@@ -8,10 +8,12 @@
  *
  * ★ 全局子系统：卡片在立项之前就存在，不键 project；repo 由调用方注入（生产走
  *   services.inspirationRepo，测试走 :memory: 库）。llm 只消费 PipelineLlm.chat 子集。
- * ★ 反重复：repo.ideaHistory() 的已抽方向喂回 drawDirection，连抽自然避开旧方向。
+ * ★ 反重复（终审修复波 B）：避开集 = listByKind('idea') 的 sourceLabel（**实际抽中方向**
+ *   的权威落点）**∪** ideaHistory 的 payload.direction（LLM 回显，合法回显同样喂回），
+ *   两路并集喂回 drawDirection——连抽自然避开旧方向，回显漂移也不失守。
  */
 import type { InspirationRepo } from '../db/repos/inspiration-repo';
-import type { PipelineLlm } from '../pipeline/tools';
+import { TEMPERATURE, type PipelineLlm } from '../pipeline/tools';
 import type { PromptOverlay, PromptOverlayRole } from '../pipeline/overlay';
 import { composeIdeaPrompt } from '../pipeline/prompts';
 import { extractJson } from '../agent/host';
@@ -33,9 +35,6 @@ export interface IdeaDrawResult {
   source: 'live' | 'demo';
 }
 
-/** 脑洞内置温度（同构思发散档；可被 idea 覆盖层「温度：」行覆盖）。 */
-const IDEA_TEMPERATURE = 1.05;
-
 /**
  * 抽一张脑洞卡。LLM 成功且过契约 → source='live'；否则演示兜底 source='demo'。
  * 两条路径都落库（演示卡也进 ideaHistory，反重复对演示方向同样生效）。
@@ -43,10 +42,17 @@ const IDEA_TEMPERATURE = 1.05;
 export async function drawIdea(deps: IdeaDeps): Promise<IdeaDrawResult> {
   const { llm, repo } = deps;
   const rand = deps.rand ?? Math.random;
-  const dir = drawDirection(repo.ideaHistory().map((h) => h.direction), rand);
+  // 避开集两路并集（终审修复波 B）：sourceLabel 是实际抽中方向的权威落点，
+  // payload.direction 是 LLM 回显——合法回显（如演示池内方向）也值得避开，
+  // 但漂移回显（模型自造词）绝不能顶掉权威值挡路。
+  const avoided = [
+    ...repo.ideaHistory().map((h) => h.direction),
+    ...repo.listByKind('idea').map((c) => c.sourceLabel),
+  ];
+  const dir = drawDirection(avoided, rand);
   const overlay = (await deps.getOverlay?.('idea')) ?? null;
   const system = composeIdeaPrompt(dir, overlay);
-  const temperature = overlay?.temperature ?? IDEA_TEMPERATURE;
+  const temperature = overlay?.temperature ?? TEMPERATURE.idea;
 
   try {
     const res = await llm.chat({
@@ -74,7 +80,7 @@ export async function drawIdea(deps: IdeaDeps): Promise<IdeaDrawResult> {
     const payload: IdeaPayload = {
       direction: dir,
       premise: `【演示】围绕「${dir}」的一句话故事（未配置模型，演示占位）`,
-      temperature: IDEA_TEMPERATURE,
+      temperature: TEMPERATURE.idea,
       live: false,
     };
     const card = repo.insert({ kind: 'idea', title: payload.premise, payload, sourceLabel: dir });

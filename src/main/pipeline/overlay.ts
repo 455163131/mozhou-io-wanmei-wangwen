@@ -6,8 +6,8 @@
  *   文件格式、说明头文本与全部解释性措辞均为原创，未复制任何外部文本。
  *
  * ★ 设计要点（对齐计划的全局约束）：
- *   · 覆盖层只覆盖 concept / architect / writer 三角色（其余角色待质检闭环接入，
- *     类型层面直接不给他们开口的机会）；
+ *   · 覆盖层覆盖 concept / architect / writer 三合成器 + idea / teardown 两发生器
+ *     （P2-C T4/T5 接入，共五角——见下方 PromptOverlayRole；其余角色不开类型入口）；
  *   · 落点是数据目录下 `<dataDir>/prompt-overlays/<role>.md`——是文件不是表，
  *     不进 SQLite、不加迁移；dataDir 由调用方注入（本模块不 import electron，
  *     与 data-dir.ts 同口径的"纯函数可测"纪律，测试直接喂 tmp 目录）。
