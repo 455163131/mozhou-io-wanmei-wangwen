@@ -281,6 +281,20 @@ export interface MzBridge {
       dimension: string,
     ): Promise<IpcInvokeMap['teardown:save-dimension']['res']>;
   };
+
+  // ── 发布排期（P2-D T6）：计划保存/清单 + 服务端推导队列 + 暂存/人工标记五通道 ──
+  // 桥不加工：zod 边界、归属闸、再清洗与项目内落盘全在 publish/publish-ipc.ts。
+  publish: {
+    /** 新建/编辑排期计划（projectId 不在形里——服务端取当前项目，越权他书不可能） */
+    planSave(payload: IpcInvokeMap['publish:plan-save']['req']): Promise<IpcInvokeMap['publish:plan-save']['res']>;
+    planList(includeArchived?: boolean): Promise<IpcInvokeMap['publish:plan-list']['res']>;
+    /** 队列服务端推导（P2D-R1：体量机检吃正文，页面只读回的结果） */
+    queue(planId: string): Promise<IpcInvokeMap['publish:queue']['res']>;
+    /** chapterIds 即已批准集（P2D-R2）；服务端逐章独立再清洗后写项目内暂存文件 */
+    stage(planId: string, chapterIds: string[]): Promise<IpcInvokeMap['publish:stage']['res']>;
+    /** 人工标记「这章确实发出去了」；未暂存 E_STAGING_STATE，重复标记幂等 */
+    markPublished(planId: string, chapterId: string): Promise<IpcInvokeMap['publish:mark-published']['res']>;
+  };
 }
 
 /** 全部 invoke 通道（与 shared/types/ipc.ts 同源，禁止手写字符串） */
@@ -391,6 +405,12 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'topic:list',
   'topic:promote',
   'topic:abandon',
+  // P2-D 发布排期（T6）：计划/队列/暂存/标记五通道
+  'publish:plan-save',
+  'publish:plan-list',
+  'publish:queue',
+  'publish:stage',
+  'publish:mark-published',
 ];
 
 /** 全部订阅通道 */

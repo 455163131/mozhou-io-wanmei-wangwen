@@ -16,15 +16,17 @@
  * import 另一侧都会形成组件间的横向依赖（外壳 ↔ 面板本来是父子关系）。
  */
 
-/** 十四种工作模式（id 与命令面板的 `mode:*` 命令、App 的 onRun 分派逐字同源；
+/** 十五种工作模式（id 与命令面板的 `mode:*` 命令、App 的 onRun 分派逐字同源；
  *  ★ P2-B T4：资产组的「伏笔台账」从 soon 占位转正为真 mode；
  *  ★ P2-B T6：资产组的「人物记忆」同样原地转正；
  *  ★ P2-C T3：灵感组的「扫榜热榜」同样原地转正；
  *  ★ P2-C T4：灵感组的「抽脑洞」同样原地转正；
  *  ★ P2-C T5：灵感组的「拆书报告」同样原地转正；
  *  ★ P2-C T6：灵感组的「选题库」同样原地转正——灵感线四页收口；
- *  ★ P2-D T5：输出组的「导出中心」同样原地转正） */
-export type WorkMode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen' | 'prompt' | 'foreshadow' | 'characters' | 'trends' | 'idea' | 'teardown' | 'topics' | 'export';
+ *  ★ P2-D T5：输出组的「导出中心」同样原地转正；
+ *  ★ P2-D T6：输出组**新增**「发布排期」真 mode——它没有过 soon 占位行，
+ *     是 P2-UI T2 四组 IA 定稿里本就排定的发布线页，不是 soon 转正（SOON 钉不动）。 */
+export type WorkMode = 'write' | 'plan' | 'lore' | 'review' | 'dash' | 'gen' | 'prompt' | 'foreshadow' | 'characters' | 'trends' | 'idea' | 'teardown' | 'topics' | 'export' | 'publish';
 
 /**
  * 显示名。四字档是展开态导航的宽度账（`--mz-layout-rail-expanded-w` 184px 里
@@ -54,6 +56,8 @@ export const MODE_LABELS: Record<WorkMode, string> = {
   topics: '选题库',
   // ★ P2-D T5：导出中心页（四字档，同 soon 时期的路标名，导航行原地转正）。
   export: '导出中心',
+  // ★ P2-D T6：发布排期页（四字档，新增真 mode——非 soon 转正，路标名也是它）。
+  publish: '发布排期',
 };
 
 /**

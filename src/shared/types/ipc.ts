@@ -23,6 +23,7 @@ import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
 import type { Draft, DraftStatus, CanonEntry } from './pipeline';
 import type { CardKind, ChartFetchResult, InspirationCard, Platform, TeardownDims, TeardownStructure, Topic, TopicStatus } from './inspiration';
 import type { ExportHistoryRow, ExportPreviewRes, ExportRunReq, ExportRunRes } from './export';
+import type { PublishPlan, PublishPlanSaveReq, PublishQueueRes, StageOutcome, StagingRow } from './publish';
 
 // ───────────────────────── 请求/响应载荷 ─────────────────────────
 
@@ -439,6 +440,18 @@ export interface IpcInvokeMap {
    * 单向终局由 TopicRepo.setStatus 守卫——终态改判抛 E_TOPIC_STATE，不静默吞。
    */
   'topic:abandon': { req: { topicId: string }; res: Topic };
+
+  // ── P2-D 发布排期五通道（T6）：契约单源 @shared/types/publish ──────────
+  // 队列**服务端推导**入队（P2D-R1：体量机检吃正文，渲染层拿不到就不许装算得出）；
+  // stage 的 chapterIds 即已批准集（P2D-R2），服务端独立再清洗后只写项目根
+  // staging/<platformId>/ 下的暂存新文件——零网络、零正文写（红线负对照钉）。
+  /** projectId 不在 req——服务端取当前项目，越权他书 by construction 不可能 */
+  'publish:plan-save': { req: PublishPlanSaveReq; res: PublishPlan };
+  'publish:plan-list': { req: { includeArchived?: boolean }; res: PublishPlan[] };
+  'publish:queue': { req: { planId: string }; res: PublishQueueRes };
+  'publish:stage': { req: { planId: string; chapterIds: string[] }; res: StageOutcome };
+  /** 人工标记发布（UI 走 useConfirm 非 danger 档）；未暂存 → E_STAGING_STATE */
+  'publish:mark-published': { req: { planId: string; chapterId: string }; res: StagingRow };
 }
 
 /**
@@ -712,6 +725,12 @@ export const IPC_CHANNELS = [
   'topic:list',
   'topic:promote',
   'topic:abandon',
+  // P2-D 发布排期（T6）：计划两枚 + 队列推导一枚 + 暂存/标记两枚（服务端推导，零网络零正文写）
+  'publish:plan-save',
+  'publish:plan-list',
+  'publish:queue',
+  'publish:stage',
+  'publish:mark-published',
 ] as const;
 
 export type IpcChannel = keyof IpcInvokeMap;

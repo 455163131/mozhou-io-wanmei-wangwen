@@ -48,6 +48,8 @@ import { listTopics, promoteTopicIpc, abandonTopic } from '../inspiration/topic-
 // ── P2-D 导出（T3）：业务语义全在 export/export-ipc.ts（scope 三级+字节诚实预览+历史落库），这里只登记通道 ──
 import * as exportIpc from '../export/export-ipc';
 import { ExportHistoryRepo } from '../db/repos/export-history-repo';
+// ── P2-D 发布排期（T6）：业务语义全在 publish/publish-ipc.ts（服务端推导入队+批准即提交+项目内暂存写），这里只登记通道 ──
+import * as publishIpc from '../publish/publish-ipc';
 
 type Handler<K extends IpcChannel> = (
   payload: IpcInvokeMap[K]['req'],
@@ -683,6 +685,17 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   handle('export:run', (p, s) => exportIpc.runExportIpc(exportDeps(s), p), services);
   handle('export:preview', (p, s) => exportIpc.previewExportIpc(exportDeps(s), p), services);
   handle('export:history', (p, s) => exportIpc.historyIpc(exportDeps(s), p), services);
+
+  // ── P2-D 发布排期（T6）：计划两枚 + 队列推导一枚 + 暂存/标记两通道 ──
+  // 业务口径（zod 边界、plan 归属闸、服务端再清洗、staging 只写项目根内）全在
+  // publish/publish-ipc.ts，deps 由 services.publishDeps() 活闭包装配，这里一行式
+  // 委托（canon/overlay/inspiration/export 同款模式）。零网络零正文写红线由
+  // tests/unit/publish-redline-negative.test.ts 的 DIRS 负对照钉守。
+  handle('publish:plan-save', (p, s) => publishIpc.savePlanIpc(s.publishDeps(), p), services);
+  handle('publish:plan-list', (p, s) => publishIpc.listPlansIpc(s.publishDeps(), p), services);
+  handle('publish:queue', (p, s) => publishIpc.queueIpc(s.publishDeps(), p), services);
+  handle('publish:stage', (p, s) => publishIpc.stageIpc(s.publishDeps(), p), services);
+  handle('publish:mark-published', (p, s) => publishIpc.markPublishedIpc(s.publishDeps(), p), services);
 
   registerExpertIpc(services);
   registerFlavorIpc(services);

@@ -102,6 +102,9 @@ const COMMANDS: Command[] = [
   // ★ P2-D T5：导出中心转正为真 mode，进面板（id 集 20→21 与 shell-r1 A 组双向同步）。
   //   同样不占数字快捷键（⌘1–⌘4 纪律不变）。
   { id: 'mode:export', label: `切换到 ${MODE_LABELS.export}`, group: '模式', alias: 'dao chu zhong xin export' },
+  // ★ P2-D T6：发布排期为**新增**真 mode，进面板（id 集 21→22 与 shell-r1 A 组双向同步）。
+  //   同样不占数字快捷键（⌘1–⌘4 纪律不变）。
+  { id: 'mode:publish', label: `切换到 ${MODE_LABELS.publish}`, group: '模式', alias: 'fa bu pai qi publish schedule' },
 
   { id: 'panel:tree', label: '显示 / 隐藏 章节树', group: '面板', keys: '⌘1', alias: 'tree chapter zhangjieshu' },
   { id: 'panel:rail', label: '显示 / 隐藏 AI 面板', group: '面板', keys: '⌘2', alias: 'rail ai panel' },

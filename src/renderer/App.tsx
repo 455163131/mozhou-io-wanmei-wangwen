@@ -49,6 +49,7 @@ import { IdeaDrawView } from './components/views/IdeaDrawView';
 import { TeardownView } from './components/views/TeardownView';
 import { TopicLibraryView } from './components/views/TopicLibraryView';
 import { ExportView } from './components/views/ExportView';
+import { PublishView } from './components/views/PublishView';
 import type { LlmStatus } from '@shared/types/provider';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
 import { MODE_LABELS, type WorkMode } from '@shared/constants/modes';
@@ -159,6 +160,9 @@ const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
       { kind: 'mode', id: 'dash', label: MODE_LABELS.dash, d: 'M4 14a8 8 0 0116 0' },
       // ★ P2-D T5：导出中心从 soon 占位转正为真 mode（icon path 原样保留）。
       { kind: 'mode', id: 'export', label: MODE_LABELS.export, d: 'M12 3v10m0 0l-3-3m3 3l3-3M5 19h14' },
+      // ★ P2-D T6：发布排期**新增**为真 mode（非 soon 转正——输出组第二条实项）。
+      //   图标 = 日历通用几何（排期语义）；label 四字档（R41 展开态 184px 的标签账）。
+      { kind: 'mode', id: 'publish', label: MODE_LABELS.publish, d: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z' },
     ],
   },
   // ★ P2-A T4（DRD §4.1 系统组）：输出组之后的第 5 组，一条实项「提示词与技能」。
@@ -598,6 +602,7 @@ export function App(): JSX.Element {
               {mode === 'teardown' && <TeardownView />}
               {mode === 'topics' && <TopicLibraryView />}
               {mode === 'export' && <ExportView />}
+              {mode === 'publish' && <PublishView />}
             </main>
           )}
         </div>
@@ -640,7 +645,9 @@ export function App(): JSX.Element {
               case 'mode:review': case 'mode:dash': case 'mode:gen': case 'mode:prompt':
               case 'mode:foreshadow': case 'mode:characters': case 'mode:trends':
               case 'mode:idea': case 'mode:teardown': case 'mode:topics': case 'mode:export':
+              case 'mode:publish':
                 // ★ P2-D T5：导出中心转正进本组合并分派尾（setMode(id.slice(5))，不占数字快捷键）。
+                // ★ P2-D T6：发布排期为新 mode，追加进同一合并组尾（同上口径，不占数字快捷键）。
                 setMode(id.slice(5) as Mode);
                 break;
               case 'panel:tree':

@@ -234,6 +234,15 @@ const bridge: MzBridge = {
     read: (reportId) => invoke('teardown:read', { reportId }),
     saveDimension: (reportId, dimension) => invoke('teardown:save-dimension', { reportId, dimension }),
   },
+
+  // ── P2-D 发布排期（T6）：五通道 req/res 原样转发（zod 边界与业务全在 publish-ipc，桥不加工）──
+  publish: {
+    planSave: (payload) => invoke('publish:plan-save', payload),
+    planList: (includeArchived) => invoke('publish:plan-list', { includeArchived }),
+    queue: (planId) => invoke('publish:queue', { planId }),
+    stage: (planId, chapterIds) => invoke('publish:stage', { planId, chapterIds }),
+    markPublished: (planId, chapterId) => invoke('publish:mark-published', { planId, chapterId }),
+  },
 };
 
 contextBridge.exposeInMainWorld('mz', bridge);

@@ -35,3 +35,24 @@ export interface StagedEntry { chapterId: string; path: string; contentHash: str
 export interface SkippedEntry { chapterId: string; reason: string }
 export interface StageOutcome { staged: StagedEntry[]; skipped: SkippedEntry[] }
 export interface StagingRow { id: string; planId: string; chapterId: string; contentHash: string; stagedAt: number; publishedAt: number | null }
+
+/**
+ * publish:plan-save req（P2-D T6）。**projectId 不在 req 里**——服务端取当前项目，
+ * 越权他书 by construction 不可能（P2D anchor）；带 id 编辑同样过归属校验。
+ * intervalDays 仅 cadence='custom' 时有意义，其余节奏由 repo 按 CADENCE_DAYS 派生。
+ */
+export interface PublishPlanSaveReq {
+  id?: string;
+  platform: string;
+  cadence: Cadence;
+  intervalDays?: number;
+  /** 当日本地正午 ms（P2D-R5：UI 侧 date input × 正午换算，纯加法排期不吃 DST） */
+  startAt: number;
+}
+
+/** publish:queue res（P2-D T6）——队列**服务端推导**（P2D-R1：渲染层拿不到正文就不许装算得出体量）。 */
+export interface PublishQueueRes {
+  plan: PublishPlan;
+  items: PublishQueueItem[];
+  warnings: string[];
+}

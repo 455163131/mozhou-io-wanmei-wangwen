@@ -31,7 +31,12 @@ import { join } from 'node:path';
 //   （ExportPayload 旧形废除），四处齐改铁律对被改形的 export:run 同样生效，
 //   故 export:run 补登哨兵（plan 预检误称其「已在 CH」——CH 实为 31 枚不含它，
 //   controller 修账）；preview/history 两枚新通道同批；行为钉在 tests/unit/export-ipc.test.ts。
-const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove', 'overlay:get', 'overlay:save', 'overlay:remove', 'skills:list', 'skills:match', 'ledger:patch', 'ledger:remove', 'charstate:list', 'charstate:set', 'trending:fetch', 'inspiration:list', 'inspiration:collect', 'inspiration:remove', 'topic:create-from-card', 'idea:draw', 'teardown:structure', 'teardown:read', 'teardown:save-dimension', 'topic:list', 'topic:promote', 'topic:abandon', 'export:run', 'export:preview', 'export:history'];
+// ★ P2-D T6：发布排期五通道（publish:plan-save / plan-list / queue / stage / mark-published）入列，
+//   总 39 通道——本任务 plan 台账写的是「33→38」，那是预检 P2D-R1 增补 publish:queue 时的旧基线；
+//   T3 期间 controller 已把 export:run 补登进 CH（commit 59d437c，基线实为 34），故此处 34+5=39，
+//   与 plan 终值 38 的差就是那笔修账，不另开第二轮账。四处齐改铁律对五通道同样生效；
+//   行为钉在 tests/unit/publish-ipc.test.ts，页面接线钉在 tests/integration/publish-view-wiring.test.ts。
+const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove', 'overlay:get', 'overlay:save', 'overlay:remove', 'skills:list', 'skills:match', 'ledger:patch', 'ledger:remove', 'charstate:list', 'charstate:set', 'trending:fetch', 'inspiration:list', 'inspiration:collect', 'inspiration:remove', 'topic:create-from-card', 'idea:draw', 'teardown:structure', 'teardown:read', 'teardown:save-dimension', 'topic:list', 'topic:promote', 'topic:abandon', 'export:run', 'export:preview', 'export:history', 'publish:plan-save', 'publish:plan-list', 'publish:queue', 'publish:stage', 'publish:mark-published'];
 const FILES = ['src/shared/types/ipc.ts', 'src/preload/api.ts', 'src/preload/index.ts', 'src/main/ipc/register.ts'];
 
 describe('pipeline IPC 四处契约哨兵', () => {

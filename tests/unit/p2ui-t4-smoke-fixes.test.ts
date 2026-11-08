@@ -273,6 +273,9 @@ const SOLID_BUTTON_CENSUS = [
   // ★ P2-A T4：PromptView 保存 CTA（金实底 × accent-ink 反色字，hover 生效对与
   //   GenView 同档——accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
   'components/views/PromptView.module.css#btnPrimary',
+  // ★ P2-D T6：发布排期页「暂存已批准 N 章」CTA（金实底 × accent-ink 反色字，与 ExportView/
+  //   PromptView 同族同档，hover 生效对 accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
+  'components/views/PublishView.module.css#btnPrimary',
   'components/views/ReviewView.module.css#btnPri',
   // ★ P2-C T5：拆书报告页「结构统计（秒出·零token）」CTA（金实底 × accent-ink 反色字，与 ForeshadowView/
   //   CharacterView/TrendingView/IdeaDrawView 同族同档，hover 生效对 accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
