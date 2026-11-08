@@ -21,9 +21,6 @@ import {
   locateChapterIssues,
   locateIssues,
 } from '../tools/impl/analyze';
-import { atomicWrite, ensureDir, resolveInProject } from '../fs/project-fs';
-import { join } from 'node:path';
-import { promises as fs } from 'node:fs';
 import type { StyleProfile, MetricSpec } from '@shared/types/project';
 // ── 专家团（阶段三）──
 import { EXPERT_ROLES, defaultRolesFor } from '../expert/roles';
@@ -48,6 +45,9 @@ import { drawIdea } from '../inspiration/idea-service';
 import { teardownStructureIpc, teardownReadIpc, teardownSaveDimensionIpc } from '../inspiration/teardown-service';
 // ── P2-C 灵感线（T6）：选题库生命周期业务语义全在 inspiration/topic-service.ts（R5 立项形+状态机+演示边界），这里只登记通道 ──
 import { listTopics, promoteTopicIpc, abandonTopic } from '../inspiration/topic-service';
+// ── P2-D 导出（T3）：业务语义全在 export/export-ipc.ts（scope 三级+字节诚实预览+历史落库），这里只登记通道 ──
+import * as exportIpc from '../export/export-ipc';
+import { ExportHistoryRepo } from '../db/repos/export-history-repo';
 
 type Handler<K extends IpcChannel> = (
   payload: IpcInvokeMap[K]['req'],
@@ -668,43 +668,21 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     return s.rebuildBaseline(p.chapterIds);
   }, services);
 
-  // ── export ──
-  handle('export:run', async (p, s) => {
-    if (!s.project) throw new MzError('E_INVALID_ARGS', '未打开项目');
-    const metas = services.chapterRepo.listMeta(s.project.id);
-    const targets = p.chapterIds.length ? metas.filter((m) => p.chapterIds.includes(m.id)) : metas;
-    const bodies = services.chapterRepo.getBodies(s.project.id, targets.map((m) => m.id));
-
-    let content: string;
-    if (p.kind === 'md') {
-      content = targets
-        .map((m) => `# ${m.title || `第${m.id}章`}\n\n${bodies.get(m.id) ?? ''}`)
-        .join('\n\n---\n\n');
-    } else if (p.kind === 'csv') {
-      const rows = ['章节号,标题,字数,状态'];
-      for (const m of targets) {
-        const chars = (bodies.get(m.id) ?? '').replace(/\s/g, '').length;
-        rows.push(`${m.id},${csvEscape(m.title)},${chars},${m.status}`);
-      }
-      content = rows.join('\n');
-    } else {
-      // zip：简化为拼接（不引压缩库，打包时少一个原生依赖）
-      content = targets
-        .map((m) => `${m.id}.md\n${'='.repeat(40)}\n${bodies.get(m.id) ?? ''}`)
-        .join('\n\n');
-    }
-
-    // ★ 路径规范化防目录穿越（架构 T10）
-    const dir = p.dest === 'external'
-      ? app.getPath('documents')
-      : s.project.rootDir;
-    await ensureDir(dir);
-    const fname = `${s.project.name}_${p.kind}.${p.kind === 'csv' ? 'csv' : p.kind === 'zip' ? 'txt' : 'md'}`;
-    const fullPath = resolveInProject(dir, fname);
-    await atomicWrite(fullPath, content);
-    const st = await fs.stat(fullPath);
-    return { path: fullPath, bytes: st.size };
-  }, services);
+  // ── P2-D 导出（T3）：三通道业务语义全在 export/export-ipc.ts ──
+  // （scope 三级解析 + 单一构建的字节诚实预览 + 成败都入历史 + 落名安全化）。
+  // 这里一行式委托（canon/overlay/inspiration 同款模式）。旧内联块（md/csv/假 zip
+  // 拼接与 csvEscape）按 P2D-R4 整体退役：csv 不在新 format 枚举，zip 是真容器。
+  // dest='external' 写文档目录根（★4，永不自动）；'project' 写项目根（★2）。
+  let exportHistoryRepo: ExportHistoryRepo | null = null; // db 进程内不变：懒化单例即可
+  const exportDeps = (s: AppServices): exportIpc.ExportIpcDeps => ({
+    getProject: () => s.project,
+    chapters: s.chapterRepo,
+    documentsDir: app.getPath('documents'),
+    history: (exportHistoryRepo ??= new ExportHistoryRepo(s.db)),
+  });
+  handle('export:run', (p, s) => exportIpc.runExportIpc(exportDeps(s), p), services);
+  handle('export:preview', (p, s) => exportIpc.previewExportIpc(exportDeps(s), p), services);
+  handle('export:history', (p, s) => exportIpc.historyIpc(exportDeps(s), p), services);
 
   registerExpertIpc(services);
   registerFlavorIpc(services);
@@ -1132,10 +1110,6 @@ function registerFlavorIpc(services: AppServices): void {
   );
 }
 
-function csvEscape(s: string): string {
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 /** 只读工具用的假上下文（无 run、不落快照） */
 function fakeCtx(): {
   runId: string;
@@ -1156,5 +1130,3 @@ function fakeCtx(): {
     logger: () => undefined,
   };
 }
-
-export { join };

@@ -41,8 +41,9 @@ export interface ChaptersDocInput {
 
 /**
  * XML 文本转义，& 必须先行（否则会把后加的实体再转一层）。
- * 覆盖 & < > " ' 五字符；'→&apos; 非 XML 1.0 预定义实体，
- * 但 XHTML 文档类型（实体集）与主流 XML 处理器均接受，EPUB/OPF 工具链惯用。
+ * 覆盖 & < > " ' 五字符；'→&apos; **是** XML 1.0 预定义实体（五个之一，
+ * 当年缺它的是 HTML4），XHTML 文档类型与主流 XML 处理器均原生接受，
+ * EPUB/OPF 工具链惯用。（P2-D T3 修正：原注释假前提，见分支账 T2 minor-①。）
  */
 export function escapeXml(s: string): string {
   return s

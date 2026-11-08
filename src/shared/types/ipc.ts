@@ -22,6 +22,7 @@ import type { RunState, RunBudget, TerminationReason, RunStats, StepRecord } fro
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
 import type { Draft, DraftStatus, CanonEntry } from './pipeline';
 import type { CardKind, ChartFetchResult, InspirationCard, Platform, TeardownDims, TeardownStructure, Topic, TopicStatus } from './inspiration';
+import type { ExportHistoryRow, ExportPreviewRes, ExportRunReq, ExportRunRes } from './export';
 
 // ───────────────────────── 请求/响应载荷 ─────────────────────────
 
@@ -74,13 +75,8 @@ export interface ConfigureLlmPayload {
   reprobe?: boolean;
 }
 
-export interface ExportPayload {
-  kind: 'md' | 'csv' | 'zip';
-  chapterIds: string[];
-  /** 'project' 写项目内（★2）；'external' 写项目外（★4，hardStop，永不自动） */
-  dest: 'project' | 'external';
-  destPath?: string;
-}
+// ★ P2-D T3：旧 ExportPayload（kind md/csv/zip + 假 zip 拼接 + csv）随
+//   export-ipc 重建退役（P2D-R4）——导出契约单份在 ./export.ts。
 
 // ───────────────────────── invoke 通道 ─────────────────────────
 
@@ -226,7 +222,11 @@ export interface IpcInvokeMap {
   'style:profile': { req: void; res: StyleProfile | null };
   'style:rebuild': { req: { chapterIds?: string[] }; res: StyleProfile };
 
-  'export:run': { req: ExportPayload; res: { path: string; bytes: number } };
+  // ── P2-D 导出三通道（T3）：契约单源 @shared/types/export ──
+  // preview 复用 ExportRunReq 形（少一处漂移）：dest 字段预览时被忽略，字节与 dest 无关。
+  'export:run': { req: ExportRunReq; res: ExportRunRes };
+  'export:preview': { req: ExportRunReq; res: ExportPreviewRes };
+  'export:history': { req: { limit?: number }; res: ExportHistoryRow[] };
 
   // ── 专家团（阶段三：UI 手动触发入口）────────────────────────────────
   /** 手动触发一次专家团评审（不依赖 Agent） */
@@ -657,6 +657,9 @@ export const IPC_CHANNELS = [
   'style:profile',
   'style:rebuild',
   'export:run',
+  // P2-D 导出重建（T3）两枚新通道（★P2D-R4：假 zip/csv 退役，预览与历史上线）
+  'export:preview',
+  'export:history',
   // 专家团（阶段三）
   'expert:review',
   'expert:history',

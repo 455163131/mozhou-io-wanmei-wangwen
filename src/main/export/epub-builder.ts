@@ -38,7 +38,7 @@ function renderXhtml(doc: ChaptersDoc, index: number): string {
 <link rel="stylesheet" type="text/css" href="style.css"/>
 </head>
 <body>
-<h1>${label}</h1>
+<h1 id="${ch.anchor}">${label}</h1>
 ${paras}
 </body>
 </html>

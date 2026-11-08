@@ -49,8 +49,12 @@ export function isInsideProject(rootDir: string, candidate: string): boolean {
  *   rename 的目录项可能先于文件内容落盘，结果是**一个 0 字节或截断的章节文件**
  *   ——恰好是本函数注释声称要杜绝的那个失败。参照 novelWriter 的存储实现：
  *   「写临时文件 → 成功后删旧 → 替换」，且落盘后再替换。
+ *
+ * ★ P2-D T3：content 扩为 `string | Buffer`——导出线（epub/docx/zip）产的是
+ *   二进制 Buffer。tmp+writeFile+fsync+rename 的原子性对两种形态同样成立
+ *   （Buffer 走同一 write 路径，'utf8' 编码参数对 Buffer 无副作用）。
  */
-export async function atomicWrite(path: string, content: string): Promise<void> {
+export async function atomicWrite(path: string, content: string | Buffer): Promise<void> {
   const tmp = `${path}.tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const fh = await fs.open(tmp, 'w');

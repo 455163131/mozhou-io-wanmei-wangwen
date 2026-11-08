@@ -45,6 +45,13 @@ describe('book-doc 与容器 builder', () => {
     expect(names).toContain('EPUB/toc.ncx');
     expect(names).toContain('EPUB/chapter-1.xhtml');
     const x1 = es.find((e) => e.name === 'EPUB/chapter-1.xhtml')!.data.toString();
+    // ★ P2-D T3 携带修复（红钉先行）：ncx 的 navPoint src 指向 chapter-N.xhtml#chN，
+    //   xhtml 必须真带 id="${ch.anchor}" 锚点，否则 fragment 悬空、旧阅读器跳章失效。
+    expect(x1).toContain('<h1 id="ch1">');
+    const x2 = es.find((e) => e.name === 'EPUB/chapter-2.xhtml')!.data.toString();
+    expect(x2).toContain('<h1 id="ch2">');
+    const ncx = es.find((e) => e.name === 'EPUB/toc.ncx')!.data.toString();
+    expect(ncx).toContain('src="chapter-1.xhtml#ch1"');
     // 真值核定：parasOf 只按空行运行（/\n\s*\n/）切段，段内单个 \n 是软换行、不切段。
     // 所以 ch1 的样本是【2 段】而非 brief 占位的 3——'第一段。\n第二段。' 合成一个
     // <p>，中间软换行渲染为段内一个 <br/>；'第三段（空行分开）。' 独立成第二个 <p>。

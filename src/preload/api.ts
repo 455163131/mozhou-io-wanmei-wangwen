@@ -136,8 +136,10 @@ export interface MzBridge {
     rebuild(chapterIds?: string[]): Promise<IpcInvokeMap['style:rebuild']['res']>;
   };
 
-  // 导出
+  // 导出（P2-D T3 三通道：run 换 ExportRunReq 形后此签名自动跟形；preview 复用同形，dest 被忽略）
   exportArtifact(payload: IpcInvokeMap['export:run']['req']): Promise<IpcInvokeMap['export:run']['res']>;
+  exportPreview(payload: IpcInvokeMap['export:preview']['req']): Promise<IpcInvokeMap['export:preview']['res']>;
+  exportHistory(limit?: number): Promise<IpcInvokeMap['export:history']['res']>;
 
   // ── 专家团（阶段三：UI 手动触发入口，不依赖 Agent）──
   expert: {
@@ -334,6 +336,9 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'style:profile',
   'style:rebuild',
   'export:run',
+  // P2-D 导出重建（T3）
+  'export:preview',
+  'export:history',
   // 专家团
   'expert:review',
   'expert:history',

@@ -148,6 +148,8 @@ const bridge: MzBridge = {
   },
 
   exportArtifact: (payload) => invoke('export:run', payload),
+  exportPreview: (payload) => invoke('export:preview', payload),
+  exportHistory: (limit) => invoke('export:history', { limit }),
 
   // ── 专家团（UI 手动触发，不依赖 Agent）──
   expert: {
