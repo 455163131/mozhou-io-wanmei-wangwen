@@ -978,7 +978,7 @@ ExportView 要素（照 TrendingView 结构，project-scoped——键 `project?.
 **Interfaces:**
 - Consumes: T1 三 Repo、T4 纯函数、`PLATFORM_RULES`、`sha256 = createHash('sha256')`。
 - Produces: `PublishIpcDeps = { getProject: () => { id; name; rootDir; platform: string | null; language: 'zh'|'en' } | null; plans: PublishPlanRepo; staging: StagingRepo; chapters: ChapterRepo }`；五 handler。
-  - **getProject 的 platform/language 字段**：实现者先读 ProjectRepo/project.ts 真形（platform 列 v12、language P1-B）取真字段名；若 project 行无 language 列（核实！缺省 'zh'——注释写明依据）。
+  - **getProject 的 platform/language 字段**：预检已核实——取数走既有 `ProjectRepo.pipelineParams(projectId)`（chapter-repo.ts:535，v12/v14 真列，返回 `{genre, platform, chapterWords, language}`），PublishView/queueIpc/stageIpc 的 platform+language 一律经它，**不新开列不新开 getter**；project.platform 可能是展示名（'Webnovel'）或 id（ctx 匹配历史口径二者收），rule 匹配用 `r.id===p || r.name===p` 双判——与 buildPipelineCtx 同式，漂移为零。
 
 - [ ] **Step 1: 写失败测试**
 
