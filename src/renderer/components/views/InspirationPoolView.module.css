@@ -1,0 +1,220 @@
+/**
+ * 灵感池页样式（P2-E ①）。
+ * 布局：头部（标题 + 刷新）→ 五档 Tab（已收藏/全部/热榜/脑洞/拆书）→ 卡片网格。
+ * 色与间距一律只走 --mz- 令牌——theme-ink C 组钉死零裸色；design-tokens-usage A 组钉死
+ * 字号/圆角/间距不许裸 px。本页无实底 CTA：刷新走描边档 .btn，删除走只描边不实底的
+ * .btnDanger（ForeshadowView/TopicLibraryView 同族），非实底不入 SOLID_BUTTON_CENSUS。
+ * 演示徽标走 warn 档（TrendingView「演示数据」黄标同语义），收藏徽标走 accent 淡晕档。
+ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-4);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2h);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-h3);
+  color: var(--mz-text-primary);
+}
+
+.sub {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* ── 五档 Tab：淡晕选中档，非实底（同 TopicLibraryView .tab/.tabOn）── */
+
+.tabs {
+  display: flex;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mz-space-1);
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-secondary);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-sm);
+}
+
+.tab:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+  color: var(--mz-text-primary);
+}
+
+.tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tabOn {
+  background: var(--mz-accent-soft);
+  border-color: var(--mz-border-accent);
+  color: var(--mz-text-primary);
+}
+
+.errRow {
+  color: var(--mz-sem-err-fg);
+  font-size: var(--mz-fs-xs);
+  margin: 0;
+}
+
+.noticeRow {
+  color: var(--mz-sem-pass-fg);
+  font-size: var(--mz-fs-xs);
+  margin: 0;
+}
+
+.empty {
+  background: var(--mz-bg-inset);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-4);
+  color: var(--mz-text-tertiary);
+  font-size: var(--mz-fs-sm);
+  line-height: 1.8;
+  margin: 0;
+}
+
+/* ── 卡片网格（自适应三列起步，窄窗回落，同 TopicLibraryView）── */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16em, 1fr));
+  gap: var(--mz-space-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-2);
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-3);
+  min-width: 0;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-1);
+  flex-wrap: wrap;
+}
+
+.cardTitle {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-sm);
+  color: var(--mz-text-primary);
+  font-weight: var(--mz-fw-semibold);
+  overflow-wrap: anywhere;
+}
+
+/* kind 徽记：中性淡描边档（类别是事实标注，不是状态） */
+.kindTag {
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-sm);
+  padding: 0 var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-secondary);
+}
+
+/* 已收藏徽记：accent 淡晕档（与 tabOn 同族） */
+.collectedTag {
+  background: var(--mz-accent-soft);
+  border-radius: var(--mz-radius-sm);
+  padding: 0 var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-primary);
+}
+
+/* 演示数据徽记：warn 档（DRD §7 诚实纪律，同 TrendingView 黄标语义） */
+.demoTag {
+  background: var(--mz-sem-warn-bg);
+  border: 1px solid var(--mz-sem-warn-border);
+  border-radius: var(--mz-radius-sm);
+  padding: 0 var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-sem-warn-fg);
+}
+
+/* 内容摘要：衬线正文档，长句折行不炸卡 */
+.cardSummary {
+  margin: 0;
+  font-family: var(--mz-font-serif);
+  font-size: var(--mz-fs-xs);
+  line-height: 1.8;
+  color: var(--mz-text-body);
+  overflow-wrap: anywhere;
+}
+
+.cardFoot {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+}
+
+.meta {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+}
+
+/* ── 按钮两档（均非实底，不入台账）── */
+
+.btn {
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-primary);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 删除 = 危险档但**不实底**：淡描边 + err 字色；真危险确认由 ConfirmDialog 承担 */
+.btnDanger {
+  border: 1px solid var(--mz-sem-err-border);
+  background: transparent;
+  color: var(--mz-sem-err-fg);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+
+.btnDanger:hover:not(:disabled) {
+  border-color: var(--mz-sem-err-fg);
+}
+
+.btnDanger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

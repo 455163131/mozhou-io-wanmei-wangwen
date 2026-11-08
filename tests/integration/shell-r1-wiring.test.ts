@@ -148,10 +148,12 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
    * （mode:export，同样不占数字快捷键；soon-export 行原地替换后 soon 只剩 长期记忆 1 条）。
    * ★ P2-D T6：输出组新增「发布排期」为**新**真 mode（不是 soon 转正——它没有过占位行），
    * id 集 21→22（mode:publish，同样不占数字快捷键；SOON 钉不动，仍只剩 长期记忆 1 条）。
+   * ★ P2-E ①：灵感组新增「灵感池」为**新**真 mode（P2-C 遗留的卡片浏览收口页，
+   * 消费既有 inspiration:list/remove 双通道），id 集 22→23（mode:pool，不占数字快捷键）。
    */
   it('★ T2 钉死清单：面板与分派逐字等于 id 集；soon 项不进面板', () => {
     const EXPECTED = [
-      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen', 'mode:prompt', 'mode:foreshadow', 'mode:characters', 'mode:trends', 'mode:idea', 'mode:teardown', 'mode:topics', 'mode:export', 'mode:publish',
+      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen', 'mode:prompt', 'mode:foreshadow', 'mode:characters', 'mode:trends', 'mode:idea', 'mode:teardown', 'mode:topics', 'mode:export', 'mode:publish', 'mode:pool',
       'panel:tree', 'panel:rail', 'panel:status',
       'view:focus', 'view:rail-width',
       'app:open', 'app:settings',

@@ -50,6 +50,7 @@ import { TeardownView } from './components/views/TeardownView';
 import { TopicLibraryView } from './components/views/TopicLibraryView';
 import { ExportView } from './components/views/ExportView';
 import { PublishView } from './components/views/PublishView';
+import { InspirationPoolView } from './components/views/InspirationPoolView';
 import type { LlmStatus } from '@shared/types/provider';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
 import { MODE_LABELS, type WorkMode } from '@shared/constants/modes';
@@ -63,7 +64,7 @@ type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
  *
  *   创作=[写作坊 / 大纲管理 / 生成·导演台 / 审稿报告(R36 回补)]  —— 产出与定稿的入口
  *   资产=[世界观设定 / 人物记忆(P2-B T6 转正) / 伏笔台账(P2-B T4 转正) / 长期记忆·设计中]
- *   灵感=[扫榜热榜(P2-C T3 转正) / 抽脑洞(P2-C T4 转正) / 拆书报告(P2-C T5 转正) / 选题库(P2-C T6 转正)]
+ *   灵感=[扫榜热榜(P2-C T3 转正) / 抽脑洞(P2-C T4 转正) / 拆书报告(P2-C T5 转正) / 选题库(P2-C T6 转正) / 灵感池(P2-E 新建)]
  *   输出=[统计账本 / 导出中心(P2-D T5 转正) / 发布排期(P2-D T6 新建)]
  *   系统=[提示词与技能]（★ P2-A T4 新增第 5 组，一条实项，不占数字快捷键）
  *
@@ -151,6 +152,9 @@ const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
       { kind: 'mode', id: 'teardown', label: MODE_LABELS.teardown, d: 'M12 4v16M5 6a2 2 0 012-2h3v18H7a2 2 0 00-2 2V6m14 0a2 2 0 00-2-2h-3v18h3a2 2 0 012 2V6' },
       // ★ P2-C T6：选题库从 soon 占位转正为真 mode（icon path 原样保留）——灵感线四页收口。
       { kind: 'mode', id: 'topics', label: MODE_LABELS.topics, d: 'M4 6h16M4 12h16M4 18h10' },
+      // ★ P2-E ①：灵感池为**新增**真 mode（P2-C 遗留的卡片浏览收口页，非 soon 转正）。
+      //   图标 = 收纳盒通用几何；label 三字档（R41 展开态 184px 的标签账）。
+      { kind: 'mode', id: 'pool', label: MODE_LABELS.pool, d: 'M4 8l2-4h12l2 4M4 8h16v12H4V8m6 4h4' },
     ],
   },
   {
@@ -603,6 +607,7 @@ export function App(): JSX.Element {
               {mode === 'topics' && <TopicLibraryView />}
               {mode === 'export' && <ExportView />}
               {mode === 'publish' && <PublishView />}
+              {mode === 'pool' && <InspirationPoolView />}
             </main>
           )}
         </div>
@@ -645,9 +650,10 @@ export function App(): JSX.Element {
               case 'mode:review': case 'mode:dash': case 'mode:gen': case 'mode:prompt':
               case 'mode:foreshadow': case 'mode:characters': case 'mode:trends':
               case 'mode:idea': case 'mode:teardown': case 'mode:topics': case 'mode:export':
-              case 'mode:publish':
+              case 'mode:publish': case 'mode:pool':
                 // ★ P2-D T5：导出中心转正进本组合并分派尾（setMode(id.slice(5))，不占数字快捷键）。
                 // ★ P2-D T6：发布排期为新 mode，追加进同一合并组尾（同上口径，不占数字快捷键）。
+                // ★ P2-E ①：灵感池为新 mode，追加进同一合并组尾（同上口径，不占数字快捷键）。
                 setMode(id.slice(5) as Mode);
                 break;
               case 'panel:tree':
