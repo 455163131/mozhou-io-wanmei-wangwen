@@ -36,11 +36,37 @@ function invalid(channel: string, issue: z.ZodError): never {
 
 /* ── trending:fetch ────────────────────────────────────────────── */
 
-/** 抓榜：platform 过枚举后委托数据源；回落演示时 error 带真因（数据源自带） */
+/**
+ * 抓榜：platform 过枚举后委托数据源；回落演示时 error 带真因（数据源自带）。
+ * P2-C T3/R9：每条 entry 幂等落 kind='trend' 卡并回填 cardId——UI 收藏/套用
+ * 直接拿 cardId 走 inspiration:collect / topic:create-from-card。
+ * dedup key = `platform|url`（url 空 → `platform|title|author`），存 payload.sourceKey；
+ * 命中旧卡原样返回（热度刷新不改写旧卡，卡=首抓快照）。不开新 IPC 通道（CH 保持 24）。
+ */
 export async function fetchTrending(deps: InspirationIpcDeps, args: unknown): Promise<ChartFetchResult> {
   const parsed = PlatformArgSchema.safeParse(args);
   if (!parsed.success) invalid('trending:fetch', parsed.error);
-  return deps.charts.fetch(parsed.data.platform as Platform);
+  const platform = parsed.data.platform as Platform;
+  const result = await deps.charts.fetch(platform);
+  for (const entry of result.entries) {
+    const sourceKey = `${platform}|${entry.url || `${entry.title}|${entry.author}`}`;
+    const card = deps.inspiration.upsertTrend({
+      title: entry.title,
+      sourceLabel: platform,
+      payload: {
+        platform,
+        author: entry.author,
+        heat: entry.heat ?? undefined,
+        rank: entry.rank,
+        tags: entry.tags,
+        url: entry.url || undefined,
+        live: entry.live,
+        sourceKey,
+      },
+    });
+    entry.cardId = card.id;
+  }
+  return result;
 }
 
 /* ── inspiration:list / collect / remove ───────────────────────── */

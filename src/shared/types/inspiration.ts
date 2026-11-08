@@ -24,6 +24,9 @@ export type Platform = '番茄' | '晋江' | '起点';
  * ★ heat 只在页面**确有可信热度数字**时才填（如番茄「在读：27.7万」），
  *   否则一律 null——DRD §7 拒绝无依据的热度数字，宁缺毋假。
  * ★ live 区分实时抓取（true）与演示兜底（false），UI 据此打「演示数据」徽标。
+ * ★ cardId（P2-C T3/R9）：parse/demo 产出不填；trending:fetch 幂等落库
+ *   kind='trend' 卡后回填——UI 收藏/套用直接拿它走 inspiration:collect /
+ *   topic:create-from-card。可选字段，旧调用方向后兼容。
  */
 export interface ChartEntry {
   rank: number;
@@ -34,6 +37,7 @@ export interface ChartEntry {
   tags: string[];
   url: string;
   live: boolean;
+  cardId?: string;
 }
 
 /**
@@ -60,6 +64,8 @@ export const TrendPayloadSchema = z.object({
   tags: z.array(z.string()).optional(),
   url: z.string().optional(),
   live: z.boolean(),
+  /** P2-C T3/R9：幂等去重键 `platform|url`（url 空 → `platform|title|author`）；旧卡可无 */
+  sourceKey: z.string().optional(),
 });
 export type TrendPayload = z.infer<typeof TrendPayloadSchema>;
 

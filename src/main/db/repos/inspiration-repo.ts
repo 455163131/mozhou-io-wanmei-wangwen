@@ -8,7 +8,7 @@
  */
 import type { Database } from 'better-sqlite3';
 import { MzError } from '@shared/types/ipc';
-import type { CardKind, CardPayload, InspirationCard } from '@shared/types/inspiration';
+import type { CardKind, CardPayload, InspirationCard, TrendPayload } from '@shared/types/inspiration';
 
 interface CardRow {
   id: string;
@@ -89,6 +89,32 @@ export class InspirationRepo {
   get(id: string): InspirationCard | null {
     const r = this.db.prepare('SELECT * FROM inspiration_cards WHERE id = ?').get(id) as CardRow | undefined;
     return r ? toCard(r) : null;
+  }
+
+  /**
+   * 按 sourceKey 找 trend 卡（P2-C T3/R9）。payload 是 JSON TEXT，不加列、
+   * 不迁移、不用 json_extract——JS 扫 listByKind('trend') 即可（榜单卡量级小）。
+   * 找不到回 null；旧卡无 sourceKey 不参与匹配。
+   */
+  findTrendBySourceKey(sourceKey: string): InspirationCard | null {
+    for (const c of this.listByKind('trend')) {
+      if ((c.payload as TrendPayload).sourceKey === sourceKey) return c;
+    }
+    return null;
+  }
+
+  /**
+   * 幂等落 trend 卡（P2-C T3/R9）：payload.sourceKey 命中旧卡 → 原样返回
+   * （热度刷新**不改写**旧卡——卡=首抓快照，UI 展示当次抓取的热度）；
+   * 未命中 → insert kind='trend'。sourceKey 为空时不做去重（避免把无键旧卡挤掉）。
+   */
+  upsertTrend(c: { title: string; payload: TrendPayload; sourceLabel: string }): InspirationCard {
+    const key = c.payload.sourceKey;
+    if (key) {
+      const existing = this.findTrendBySourceKey(key);
+      if (existing) return existing;
+    }
+    return this.insert({ kind: 'trend', title: c.title, payload: c.payload, sourceLabel: c.sourceLabel });
   }
 
   /**
