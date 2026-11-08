@@ -21,6 +21,7 @@ import type { Checkpoint, RollbackResult } from './checkpoint';
 import type { RunState, RunBudget, TerminationReason, RunStats, StepRecord } from './agent';
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
 import type { Draft, DraftStatus, CanonEntry } from './pipeline';
+import type { CardKind, ChartFetchResult, InspirationCard, Platform, Topic } from './inspiration';
 
 // ───────────────────────── 请求/响应载荷 ─────────────────────────
 
@@ -371,6 +372,29 @@ export interface IpcInvokeMap {
     req: { text: string; role: 'writer' | 'architect' };
     res: { ids: string[]; titles: string[] };
   };
+
+  // ── P2-C 灵感线（T2：扫榜热榜 + 卡片/选题池五通道）─────────────────
+  /**
+   * 抓榜。数据源礼貌直抓（robots 先行/缓存/限速），失败**如实回落演示集**：
+   * source='demo' 时 error 带真因，entries 全部 live:false——绝不冒充实时数据。
+   * 全局通道：不要求已打开项目（灵感卡片在立项之前就存在）。
+   */
+  'trending:fetch': { req: { platform: Platform }; res: ChartFetchResult };
+  /**
+   * 卡片列表：kind=三类 → 按类取；kind='collected' → 选题池取数口；
+   * 缺省 → 三类合并（新在前）。
+   */
+  'inspiration:list': { req: { kind?: CardKind | 'collected' }; res: InspirationCard[] };
+  /** 收藏进选题池（setCollected(id,true)）；卡不存在 → E_NOT_FOUND */
+  'inspiration:collect': { req: { cardId: string }; res: InspirationCard };
+  /** 删卡（幂等：不存在回 false 不抛，canon:remove 同款口径） */
+  'inspiration:remove': { req: { cardId: string }; res: boolean };
+  /**
+   * 套用入口：卡片 → 待立项选题。title/premise 按 kind 派生
+   * （trend=书名＋tags 拼一句；idea=payload.premise；teardown=payload.summary），
+   * sourceCardId 记来源卡。
+   */
+  'topic:create-from-card': { req: { cardId: string }; res: Topic };
 }
 
 /**
@@ -625,6 +649,12 @@ export const IPC_CHANNELS = [
   'overlay:remove',
   'skills:list',
   'skills:match',
+  // P2-C 灵感线（T2）
+  'trending:fetch',
+  'inspiration:list',
+  'inspiration:collect',
+  'inspiration:remove',
+  'topic:create-from-card',
 ] as const;
 
 export type IpcChannel = keyof IpcInvokeMap;

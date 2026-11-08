@@ -63,6 +63,10 @@ import { DEFAULT_FLAVOR_BASELINE, type FlavorBaseline } from '@shared/ai-flavor/
 import { FLAVOR_FEATURE_VERSION } from '@shared/ai-flavor/engine';
 import { buildFlavorBaseline, DEFAULT_MIN_CHAPTERS, type BuildResult } from './flavor/baseline-builder';
 import type { WritePolicyConfig } from '@shared/types/tool';
+// P2-C 灵感线（T2）：卡片/选题 repo + 榜单数据源（礼貌直抓 + 演示兜底）
+import { InspirationRepo } from './db/repos/inspiration-repo';
+import { TopicRepo } from './db/repos/topic-repo';
+import { DemoChartSource, LiveChartSource, makeChartSource, type ChartDataSource } from './inspiration/chart-source';
 
 export class AppServices {
   readonly db: MzDatabase;
@@ -77,6 +81,16 @@ export class AppServices {
   readonly flavorBaselineRepo: FlavorBaselineRepo;
   /** 账本（§4 第 13 条：此前只有 migrate 建的表，没有任何读写方） */
   readonly ledgerRepo: LedgerRepo;
+  /** 灵感卡片（P2-C：全局子系统，不带项目隔离） */
+  readonly inspirationRepo: InspirationRepo;
+  /** 选题池（P2-C：卡片收藏 → 选题 → 立项的收口） */
+  readonly topicRepo: TopicRepo;
+  /**
+   * 榜单数据源（P2-C T2）：live 优先、失败回落演示并带真因。
+   * LiveChartSource 内置礼貌闸门（robots 先行/缓存 TTL/同平台限速/常规 UA），
+   * 任何抓取失败都如实回落，绝不用演示数据冒充实时榜单（F3）。
+   */
+  readonly chartSource: ChartDataSource;
   /** 日增量账（§4 第 3 条：今日新增 / 连更 / 本月净增的唯一数据源） */
   readonly dailyWrites: DailyWriteRepo;
   /**
@@ -123,6 +137,10 @@ export class AppServices {
     this.flavorRepo = new FlavorRepo(this.db);
     this.flavorBaselineRepo = new FlavorBaselineRepo(this.db);
     this.ledgerRepo = new LedgerRepo(this.db);
+    // P2-C 灵感线（T2）：全局子系统三件套——卡片 repo / 选题 repo / 榜单数据源
+    this.inspirationRepo = new InspirationRepo(this.db);
+    this.topicRepo = new TopicRepo(this.db);
+    this.chartSource = makeChartSource({ live: new LiveChartSource(), demo: new DemoChartSource() });
     this.backup = new BackupManager(app.getPath('userData'));
 
     // ★ L3 备份时机之二：空闲 30 分钟。修复前 `startIdleWatcher` 全项目无调用者，

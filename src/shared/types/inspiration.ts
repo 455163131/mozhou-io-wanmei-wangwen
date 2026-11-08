@@ -14,6 +14,38 @@
  */
 import { z } from 'zod';
 
+/* ── 扫榜热榜（T2）──────────────────────────────────────────────── */
+
+/** 榜单平台（三站点直抓；zod 边界校验用 z.enum 同集合，见 inspiration-ipc.ts） */
+export type Platform = '番茄' | '晋江' | '起点';
+
+/**
+ * 榜单条目。
+ * ★ heat 只在页面**确有可信热度数字**时才填（如番茄「在读：27.7万」），
+ *   否则一律 null——DRD §7 拒绝无依据的热度数字，宁缺毋假。
+ * ★ live 区分实时抓取（true）与演示兜底（false），UI 据此打「演示数据」徽标。
+ */
+export interface ChartEntry {
+  rank: number;
+  title: string;
+  author: string;
+  platform: Platform;
+  heat: number | null;
+  tags: string[];
+  url: string;
+  live: boolean;
+}
+
+/**
+ * 榜单抓取结果。回落演示集时 source='demo' 且 error 带**真因**
+ * （robots 禁止 / 非 200 / 解析失败 / 网络错），绝不静默换数据。
+ */
+export interface ChartFetchResult {
+  entries: ChartEntry[];
+  source: 'live' | 'demo';
+  error?: string;
+}
+
 /* ── 卡片 ──────────────────────────────────────────────────────── */
 
 /** 卡片种类：扫榜热榜 / 抽脑洞 / 拆书报告 */

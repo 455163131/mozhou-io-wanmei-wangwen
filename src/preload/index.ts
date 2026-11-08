@@ -205,6 +205,19 @@ const bridge: MzBridge = {
     list: () => invoke('skills:list'),
     match: (text, role) => invoke('skills:match', { text, role }),
   },
+
+  // ── P2-C 灵感线（T2）：扫榜 + 卡片池 + 选题套用 ──
+  trending: {
+    fetch: (platform) => invoke('trending:fetch', { platform }),
+  },
+  inspiration: {
+    list: (kind) => invoke('inspiration:list', { kind }),
+    collect: (cardId) => invoke('inspiration:collect', { cardId }),
+    remove: (cardId) => invoke('inspiration:remove', { cardId }),
+  },
+  topic: {
+    createFromCard: (cardId) => invoke('topic:create-from-card', { cardId }),
+  },
 };
 
 contextBridge.exposeInMainWorld('mz', bridge);

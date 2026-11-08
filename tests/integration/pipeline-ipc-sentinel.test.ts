@@ -20,7 +20,9 @@ import { join } from 'node:path';
 //   共写一本账的入口与登记通道同受四处齐改铁律约束。
 // ★ P2-B T5：状态矩阵通道两枚（charstate:list / charstate:set）入列，总 19 通道——
 //   v15 章×人物快照的读写入口同样四处齐改，一个都不许漏。
-const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove', 'overlay:get', 'overlay:save', 'overlay:remove', 'skills:list', 'skills:match', 'ledger:patch', 'ledger:remove', 'charstate:list', 'charstate:set'];
+// ★ P2-C T2：灵感线五通道（trending:fetch / inspiration:list/collect/remove /
+//   topic:create-from-card）入列，总 24 通道——扫榜与卡片/选题池的入口同样四处齐改。
+const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove', 'overlay:get', 'overlay:save', 'overlay:remove', 'skills:list', 'skills:match', 'ledger:patch', 'ledger:remove', 'charstate:list', 'charstate:set', 'trending:fetch', 'inspiration:list', 'inspiration:collect', 'inspiration:remove', 'topic:create-from-card'];
 const FILES = ['src/shared/types/ipc.ts', 'src/preload/api.ts', 'src/preload/index.ts', 'src/main/ipc/register.ts'];
 
 describe('pipeline IPC 四处契约哨兵', () => {

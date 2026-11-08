@@ -40,6 +40,8 @@ import * as pipelineIpc from '../pipeline/ipc';
 import * as canonIpc from '../pipeline/canon-ipc';
 // ── 提示词覆盖层与技能表（P2-A T3）：业务语义全在 pipeline/overlay-ipc.ts，这里只登记通道 ──
 import * as overlayIpc from '../pipeline/overlay-ipc';
+// ── P2-C 灵感线（T2）：业务语义全在 inspiration/inspiration-ipc.ts（zod 边界+premise 派生），这里只登记通道 ──
+import * as inspirationIpc from '../inspiration/inspiration-ipc';
 
 type Handler<K extends IpcChannel> = (
   payload: IpcInvokeMap[K]['req'],
@@ -727,6 +729,21 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   handle('overlay:remove', (p) => overlayIpc.overlayRemove(app.getPath('userData'), p), services);
   handle('skills:list', () => overlayIpc.skillsList(), services);
   handle('skills:match', (p) => overlayIpc.skillsMatch(p), services);
+
+  // ── P2-C 灵感线（T2）：扫榜 + 卡片池 + 选题套用五通道 ──
+  // 业务口径（zod 边界、robots 回落真因、premise 按 kind 派生）全在
+  // inspiration/inspiration-ipc.ts，这里一行式委托（canon/overlay 同款模式）。
+  // 全局子系统：不要求已打开项目——灵感卡片在立项之前就存在。
+  const inspDeps = (s: AppServices): inspirationIpc.InspirationIpcDeps => ({
+    inspiration: s.inspirationRepo,
+    topics: s.topicRepo,
+    charts: s.chartSource,
+  });
+  handle('trending:fetch', async (p, s) => inspirationIpc.fetchTrending(inspDeps(s), p), services);
+  handle('inspiration:list', (p, s) => inspirationIpc.listCards(inspDeps(s), p), services);
+  handle('inspiration:collect', (p, s) => inspirationIpc.collectCard(inspDeps(s), p), services);
+  handle('inspiration:remove', (p, s) => inspirationIpc.removeCard(inspDeps(s), p), services);
+  handle('topic:create-from-card', (p, s) => inspirationIpc.createTopicFromCard(inspDeps(s), p), services);
 }
 
 // ══════════════════════════════════════════════════════════════════════

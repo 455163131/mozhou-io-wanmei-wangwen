@@ -226,6 +226,27 @@ export interface MzBridge {
       role: IpcInvokeMap['skills:match']['req']['role'],
     ): Promise<IpcInvokeMap['skills:match']['res']>;
   };
+
+  // ── 扫榜热榜（P2-C T2）：礼貌直抓，失败如实回落演示集（source/error 说明真因）──
+  trending: {
+    fetch(platform: IpcInvokeMap['trending:fetch']['req']['platform']): Promise<IpcInvokeMap['trending:fetch']['res']>;
+  };
+
+  // ── 灵感卡片池（P2-C T2）：全局子系统，不要求已打开项目 ──
+  inspiration: {
+    /** kind=三类按类取；'collected'=选题池；缺省=三类合并（新在前） */
+    list(kind?: IpcInvokeMap['inspiration:list']['req']['kind']): Promise<IpcInvokeMap['inspiration:list']['res']>;
+    /** 收藏进选题池；卡不存在 → E_NOT_FOUND */
+    collect(cardId: string): Promise<IpcInvokeMap['inspiration:collect']['res']>;
+    /** 删卡（幂等：不存在回 false） */
+    remove(cardId: string): Promise<IpcInvokeMap['inspiration:remove']['res']>;
+  };
+
+  // ── 选题（P2-C T2）：卡片套用入口 ──
+  topic: {
+    /** 卡片 → 待立项选题（premise 按 kind 派生，sourceCardId 挂钩） */
+    createFromCard(cardId: string): Promise<IpcInvokeMap['topic:create-from-card']['res']>;
+  };
 }
 
 /** 全部 invoke 通道（与 shared/types/ipc.ts 同源，禁止手写字符串） */
@@ -317,6 +338,12 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'overlay:remove',
   'skills:list',
   'skills:match',
+  // P2-C 灵感线（T2）
+  'trending:fetch',
+  'inspiration:list',
+  'inspiration:collect',
+  'inspiration:remove',
+  'topic:create-from-card',
 ];
 
 /** 全部订阅通道 */
