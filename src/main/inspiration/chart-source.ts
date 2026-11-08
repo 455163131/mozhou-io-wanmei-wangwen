@@ -175,11 +175,26 @@ export interface LiveChartSourceDeps {
   minIntervalMs?: number;
   /** robots 放行检查器；缺省查离线政策快照（见文件头说明），注入可覆写 */
   robotsChecker?: RobotsChecker;
+  /**
+   * 单次页面抓取的超时（毫秒）；缺省 15s。
+   * ★ 修复前 fetch **只在调用方传 signal 时**才可中断——`fetchTrending` 从不传，
+   *   于是站点黑洞（丢包不回 RST）时这次抓取永挂，扫榜页永远停在「抓取中」。
+   *   礼貌抓取不设超时等于把自己的界面挂死，超时不是对抗性行为。
+   */
+  fetchTimeoutMs?: number;
 }
 
 interface CacheSlot {
   at: number;
   entries: ChartEntry[];
+}
+
+/** 合并调用方 signal 与超时 signal：任一触发即中断（Node 20+ 的 AbortSignal.any） */
+function combineSignals(...signals: Array<AbortSignal | undefined>): AbortSignal {
+  const list = signals.filter((s): s is AbortSignal => s !== undefined);
+  if (list.length === 0) return new AbortController().signal;
+  if (list.length === 1) return list[0];
+  return AbortSignal.any(list);
 }
 
 /** 按 content-type / meta 声明的字符集解码正文（晋江是 GBK，utf-8 直解会花） */
@@ -206,6 +221,7 @@ export class LiveChartSource implements ChartDataSource {
   private readonly cacheTtlMs: number;
   private readonly minIntervalMs: number;
   private readonly robotsChecker: RobotsChecker | null;
+  private readonly fetchTimeoutMs: number;
   private readonly cache = new Map<Platform, CacheSlot>();
   private readonly lastFetchAt = new Map<Platform, number>();
 
@@ -215,6 +231,7 @@ export class LiveChartSource implements ChartDataSource {
     this.cacheTtlMs = deps.cacheTtlMs ?? 300_000;
     this.minIntervalMs = deps.minIntervalMs ?? 60_000;
     this.robotsChecker = deps.robotsChecker ?? null;
+    this.fetchTimeoutMs = deps.fetchTimeoutMs ?? 15_000;
   }
 
   async fetch(platform: Platform, opts?: { signal?: AbortSignal }): Promise<ChartFetchResult> {
@@ -257,10 +274,21 @@ export class LiveChartSource implements ChartDataSource {
           Accept: 'text/html,application/xhtml+xml',
           'Accept-Language': 'zh-CN,zh;q=0.9',
         },
-        signal: opts?.signal,
+        // ★ 调用方 signal 与超时 signal 合并：任一触发即中断（缺省也有超时，见 deps 注释）
+        signal: combineSignals(opts?.signal, AbortSignal.timeout(this.fetchTimeoutMs)),
         redirect: 'follow',
       });
     } catch (e) {
+      // 中断分两种：调用方取消（opts.signal）与本次抓取超时（内部 signal）——
+      // 超时如实说超时，不冒充「站点拒绝」，也不静默当网络错。
+      const name = e instanceof Error ? e.name : '';
+      if ((name === 'AbortError' || name === 'TimeoutError') && !opts?.signal?.aborted) {
+        throw new Error(
+          `榜单抓取超时（${platform}）：${
+            this.fetchTimeoutMs < 1000 ? `${this.fetchTimeoutMs} 毫秒` : `${Math.round(this.fetchTimeoutMs / 1000)} 秒`
+          }内未响应，已放弃本次抓取`,
+        );
+      }
       throw new Error(`榜单抓取失败（${platform}）：${e instanceof Error ? e.message : String(e)}`);
     }
     if (!res.ok) {

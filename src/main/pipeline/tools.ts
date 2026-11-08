@@ -40,6 +40,13 @@ export interface PipelineLlm {
     messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
     temperature?: number;
     maxTokens?: number;
+    /**
+     * 调用点预算（透传给 LlmClient，见 @shared/types/provider ChatRequest）。
+     * ★ 短产出路径（抽脑洞/拆书精读）必须自带紧预算：客户端缺省 120s×4 次尝试
+     *   在端点黑洞时最坏 ≈8 分钟才落兜底，用户只看到「抽卡中…」。
+     */
+    timeoutMs?: number;
+    maxRetries?: number;
   }): Promise<{ content: string; usage: { input: number; output: number } }>;
 }
 

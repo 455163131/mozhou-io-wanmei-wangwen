@@ -14,6 +14,7 @@
  */
 import type { InspirationRepo } from '../db/repos/inspiration-repo';
 import { TEMPERATURE, type PipelineLlm } from '../pipeline/tools';
+import { SHORT_OUTPUT_BUDGET } from '../llm/client';
 import type { PromptOverlay, PromptOverlayRole } from '../pipeline/overlay';
 import { composeIdeaPrompt } from '../pipeline/prompts';
 import { extractJson } from '../agent/host';
@@ -61,6 +62,10 @@ export async function drawIdea(deps: IdeaDeps): Promise<IdeaDrawResult> {
         { role: 'user', content: `方向：${dir}。产出一个脑洞，只输出 JSON。` },
       ],
       temperature,
+      // ★ 紧预算（老板报障「抽半天没反应」的修复点）：一句话脑洞不值得等 120s×4 次。
+      //   到点即抛 → 下面的演示兜底立刻接手，用户最多等半分钟就看到结果与真因。
+      timeoutMs: SHORT_OUTPUT_BUDGET.timeoutMs,
+      maxRetries: SHORT_OUTPUT_BUDGET.maxRetries,
     });
     const parsed = IdeaSchema.safeParse(extractJson(res.content));
     if (!parsed.success) throw new Error('脑洞产出未过 IdeaSchema 契约');

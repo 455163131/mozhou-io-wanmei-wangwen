@@ -76,6 +76,13 @@ export interface LlmClientConfig {
   timeoutMs?: number;
 }
 
+/**
+ * 短产出路径的调用预算（抽脑洞 / 拆书精读：一句话到一段 JSON，不是写一章）。
+ * ★ 单一来源：两条路径共用这两个数，改一处即同改——此前它们各自吃客户端缺省的
+ *   120s×4 次尝试，端点黑洞时最坏 ≈8 分钟才落演示兜底（老板报障「抽半天没反应」）。
+ */
+export const SHORT_OUTPUT_BUDGET = { timeoutMs: 30_000, maxRetries: 1 } as const;
+
 export interface LlmStats {
   requests: number;
   retries: number;
@@ -117,12 +124,13 @@ export class LlmClient {
     return key || undefined;
   }
 
-  /** 发起一次对话请求（含退避重试） */
+  /** 发起一次对话请求（含退避重试）。★ 调用点可用 req.maxRetries 收敛重试预算（0=只试一次）。 */
   async chat(req: ChatRequest): Promise<ChatResponse> {
     let attempt = 0;
     let lastErr: LlmError | undefined;
+    const maxRetries = req.maxRetries ?? 3;
 
-    while (attempt <= 3) {
+    while (attempt <= maxRetries) {
       try {
         return await this.chatOnce(req);
       } catch (e) {
@@ -132,7 +140,7 @@ export class LlmClient {
         if (lastErr.kind === 'auth' || lastErr.kind === 'aborted') throw lastErr;
         attempt++;
         this.stats.retries++;
-        if (attempt > 3) break;
+        if (attempt > maxRetries) break;
         // 指数退避：500ms / 1s / 2s
         const delay = 500 * Math.pow(2, attempt - 1);
         await sleep(delay);
@@ -144,7 +152,7 @@ export class LlmClient {
   private async chatOnce(req: ChatRequest): Promise<ChatResponse> {
     const started = Date.now();
     const controller = new AbortController();
-    const timeoutMs = this.cfg.timeoutMs ?? 120_000;
+    const timeoutMs = req.timeoutMs ?? this.cfg.timeoutMs ?? 120_000;
 
     // 合并调用方的 signal 与超时 signal
     const onAbort = (): void => controller.abort();

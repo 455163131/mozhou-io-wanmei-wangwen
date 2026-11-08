@@ -121,6 +121,18 @@ export interface ChatRequest {
   signal?: AbortSignal;
   /** 强制非流式：规划/评估需要完整 JSON，流式拼接反而更麻烦 */
   stream?: boolean;
+  /**
+   * 单次请求超时（毫秒）。缺省用客户端级 `timeoutMs`，再缺省 120s。
+   * ★ 为什么要按调用点传：120s×4 次尝试对「写一章」是合理保险，对「抽一个脑洞」
+   *   是灾难——端点黑洞时用户要等 ≈8 分钟才看到演示兜底（老板报障「抽半天没反应」
+   *   的根因）。短产出路径自己声明紧预算，不动全局缺省。
+   */
+  timeoutMs?: number;
+  /**
+   * 重试次数上限（0 = 只试一次）。缺省 3（既有口径：共 4 次尝试）。
+   * 与 timeoutMs 同理：重试是给偶发抖动的，不是给黑洞端点放大等待的。
+   */
+  maxRetries?: number;
 }
 
 export interface ChatResponse {

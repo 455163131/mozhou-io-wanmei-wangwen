@@ -30,6 +30,7 @@ import type { TeardownDims, TeardownStructure, InspirationCard } from '@shared/t
 import type { TeardownRepo } from '../db/repos/teardown-repo';
 import type { InspirationRepo } from '../db/repos/inspiration-repo';
 import { TEMPERATURE, type PipelineLlm } from '../pipeline/tools';
+import { SHORT_OUTPUT_BUDGET } from '../llm/client';
 import type { PromptOverlay, PromptOverlayRole } from '../pipeline/overlay';
 import { composeTeardownPrompt } from '../pipeline/prompts';
 import { extractJson } from '../agent/host';
@@ -201,6 +202,9 @@ export async function teardownRead(
         { role: 'user', content: structureBrief(report.bookTitle, structure) },
       ],
       temperature,
+      // ★ 紧预算（同 idea-service）：八维 JSON 是短产出，黑洞端点不许让用户等 8 分钟。
+      timeoutMs: SHORT_OUTPUT_BUDGET.timeoutMs,
+      maxRetries: SHORT_OUTPUT_BUDGET.maxRetries,
     });
     const parsed = TeardownDimsSchema.safeParse(extractJson(res.content));
     if (!parsed.success) throw new Error('精读产出未过 TeardownDimsSchema 契约');
