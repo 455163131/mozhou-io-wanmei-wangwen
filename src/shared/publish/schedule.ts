@@ -65,6 +65,6 @@ export function buildQueue(
 /** 单章机检结论明细（buildQueue 已填 meetsSize，本函数供 UI 展明细文案）。 */
 export function validateChapter(item: PublishQueueItem): string[] {
   if (item.minSize === 0) return ['平台规则未在册：体量目标与惯例请人工核对'];
-  if (!item.meetsSize) return [`体量低于目标 ${item.minSize}${item.sizeUnit}`];
+  if (!item.meetsSize) return [`低于平台目标 ${item.minSize}${item.sizeUnit}`];
   return [];
 }

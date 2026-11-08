@@ -4,15 +4,18 @@
  * ★ 契约声明 ★
  * 1. **预览=服务端同函数**：发布预览与暂存落库前清洗必须调用本模块同一
  *    cleanForPublish——预览所见即所发，不允许"预览一套、正文另一套"。
- * 2. **确定性 + 幂等**：四规则按固定顺序单遍执行（zero-width → horiz-rule →
+ * 2. **确定性 + 幂等**：五规则按固定顺序执行（zero-width → horiz-rule →
  *    md-emphasis → whitespace →〔仅 overseas〕html-tags），同输入永远同输出，
  *    且 clean(clean(x)) 与 clean(x) 逐字节相同、二次跑 edits 为空。
- *    顺序不变式：后序规则不引入前序可修形状（零宽先清避免规则线被零宽打断
- *    后漏认；html-tags 垫底，剥标签不会再把围栏/规则行形状"洗"出来）。
- *    html-tags pass 剥完标签立即复归一空白：标签可能遮住行尾空白或让换行并串
- *    （如「a␣␣\<br〉␣␣」「a\n\n\<br〉\n\nb」），复归一守全文幂等契约。
- *    残余理论边角：「---\*\*x\*\*---」这类 md 剥完恰好露出规则行的输入，
- *    单遍管道不回头再修（brief 固定单遍序；实测正文语料无此形状，YAGNI 观察项）。
+ *    顺序不变式：后序规则不引入前序可修形状——两处**例外已就地闭合**：
+ *    ① md-emphasis 剥完强调可能**裸露整行规则/围栏**（反包形 '**---**'、
+ *    '__---__'、'**```**'、'正文\n**---**\n正文' 及空行并串变体；注意正包形
+ *    '---**x**---' 剥后剩 '---x---' 非规则行，经实测本就安全）——md 道有编辑
+ *    时补跑 horiz 再补跑 whitespace（行删除会并串空行）；
+ *    ② html-tags 剥标签可能裸露行尾空白并把换行并串（'a␣␣<br>␣␣'、
+ *    'a\n\n<br>\n\n\n\nb'）——html 道同理立即复归一空白。
+ *    两处补跑都只调用已有规则道（零新规则名、主链顺序概念不变），
+ *    T4 评审修复波经实测钉死（tests/unit/publish-clean.test.ts 幂等矩阵）。
  * 3. **不处理全半角**：全半角/标点风格属平台注记人工项，不做自动改写（YAGNI）。
  *
  * edits 审计口径：每条 edit 记 { rule, at, before, after }，at 为该规则
@@ -68,7 +71,12 @@ function passHorizRule(text: string, edits: CleanEdit[]): string {
 
 function passMdEmphasis(text: string, edits: CleanEdit[]): string {
   // args: [整段, 标记, 内容, offset, 全文] —— after 即成对符之间的内容本体
-  return runPass(text, 'md-emphasis', MD_EMPHASIS_RE, edits, (args) => args[2] as string);
+  const stripped = runPass(text, 'md-emphasis', MD_EMPHASIS_RE, edits, (args) => args[2] as string);
+  if (stripped === text) return stripped;
+  // 剥强调可能裸露整行规则/围栏（反包形 '**---**'——horiz 道已越过不回头，
+  // 二次跑会在这里产 edit 改输出，破幂等契约）；行删除又可能并串空行，
+  // 故补跑 horiz 再补跑 whitespace。只调已有规则道，零新规则名（T4 评审 Important-1）。
+  return passWhitespace(passHorizRule(stripped, edits), edits);
 }
 
 function passWhitespace(text: string, edits: CleanEdit[]): string {

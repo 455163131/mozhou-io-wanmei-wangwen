@@ -32,6 +32,26 @@ describe('cleanForPublish 确定性四规则', () => {
       expect(cleanForPublish(once.cleaned, m).edits).toHaveLength(0);
     }
   });
+  it('幂等·跨道重暴露族（T4 评审 Important-1）：整行强调包规则/围栏体，二次跑零编辑零变化', () => {
+    // 这些形状在第一遍 md-emphasis 剥完后**裸露出整行规则/围栏**——
+    // 已跑过的 horiz 道不回头的单遍管道会在二次跑产 edit 并改输出，破契约。
+    const shapes = ['**---**', '__---__', '**```**', '正文\n**---**\n正文', 'a\n\n**---**\n\nb'];
+    for (const m of ['cn', 'overseas'] as const) {
+      for (const s of shapes) {
+        const once = cleanForPublish(s, m);
+        expect(cleanForPublish(once.cleaned, m).edits, `${m}/${JSON.stringify(s)}`).toHaveLength(0);
+        expect(cleanForPublish(once.cleaned, m).cleaned).toBe(once.cleaned);
+      }
+    }
+  });
+  it('幂等·html-tags 复归一防线专钉（T4 评审 Minor-1：无复归一则此二形破约）', () => {
+    const shapes = ['a  <br>  ', 'a\n\n<br>\n\n\n\nb'];
+    for (const s of shapes) {
+      const once = cleanForPublish(s, 'overseas');
+      expect(cleanForPublish(once.cleaned, 'overseas').edits, JSON.stringify(s)).toHaveLength(0);
+      expect(cleanForPublish(once.cleaned, 'overseas').cleaned).toBe(once.cleaned);
+    }
+  });
   it('edits 携 before/after 可审', () => {
     const r = cleanForPublish('尾空白   ', 'cn');
     expect(r.edits[0].before).toBe('尾空白   ');
