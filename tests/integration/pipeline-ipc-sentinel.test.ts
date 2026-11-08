@@ -27,10 +27,11 @@ import { join } from 'node:path';
 //   总 28 通道——结构统计（零token）/八维精读/存灵感库的入口同样四处齐改，一个都不许漏。
 // ★ P2-C T6：选题库生命周期三通道（topic:list / topic:promote / topic:abandon）入列，
 //   总 31 通道——立项（建/开项目+播 premise，R5）/放弃/三态取数的入口同样四处齐改，一个都不许漏。
-// ★ P2-D T3：导出重建两枚新通道（export:preview / export:history）入列，总 33 通道——
-//   预览/历史与重建的 export:run 同受四处齐改铁律约束（export:run 本就在四处在册，
-//   此处按 plan 钉只补两枚；三通道行为钉在 tests/unit/export-ipc.test.ts）。
-const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove', 'overlay:get', 'overlay:save', 'overlay:remove', 'skills:list', 'skills:match', 'ledger:patch', 'ledger:remove', 'charstate:list', 'charstate:set', 'trending:fetch', 'inspiration:list', 'inspiration:collect', 'inspiration:remove', 'topic:create-from-card', 'idea:draw', 'teardown:structure', 'teardown:read', 'teardown:save-dimension', 'topic:list', 'topic:promote', 'topic:abandon', 'export:preview', 'export:history'];
+// ★ P2-D T3：导出重建三通道入列，总 34 通道——本任务的 req/res 契约换了形
+//   （ExportPayload 旧形废除），四处齐改铁律对被改形的 export:run 同样生效，
+//   故 export:run 补登哨兵（plan 预检误称其「已在 CH」——CH 实为 31 枚不含它，
+//   controller 修账）；preview/history 两枚新通道同批；行为钉在 tests/unit/export-ipc.test.ts。
+const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove', 'overlay:get', 'overlay:save', 'overlay:remove', 'skills:list', 'skills:match', 'ledger:patch', 'ledger:remove', 'charstate:list', 'charstate:set', 'trending:fetch', 'inspiration:list', 'inspiration:collect', 'inspiration:remove', 'topic:create-from-card', 'idea:draw', 'teardown:structure', 'teardown:read', 'teardown:save-dimension', 'topic:list', 'topic:promote', 'topic:abandon', 'export:run', 'export:preview', 'export:history'];
 const FILES = ['src/shared/types/ipc.ts', 'src/preload/api.ts', 'src/preload/index.ts', 'src/main/ipc/register.ts'];
 
 describe('pipeline IPC 四处契约哨兵', () => {
