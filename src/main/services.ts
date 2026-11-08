@@ -66,7 +66,7 @@ import type { WritePolicyConfig } from '@shared/types/tool';
 // P2-C 灵感线（T2）：卡片/选题 repo + 榜单数据源（礼貌直抓 + 演示兜底）
 import { InspirationRepo } from './db/repos/inspiration-repo';
 import { TopicRepo } from './db/repos/topic-repo';
-import { DemoChartSource, LiveChartSource, makeChartSource, type ChartDataSource } from './inspiration/chart-source';
+import { DemoChartSource, LiveChartSource, makeChartSource, createRobotsTxtChecker, type ChartDataSource } from './inspiration/chart-source';
 
 export class AppServices {
   readonly db: MzDatabase;
@@ -140,7 +140,12 @@ export class AppServices {
     // P2-C 灵感线（T2）：全局子系统三件套——卡片 repo / 选题 repo / 榜单数据源
     this.inspirationRepo = new InspirationRepo(this.db);
     this.topicRepo = new TopicRepo(this.db);
-    this.chartSource = makeChartSource({ live: new LiveChartSource(), demo: new DemoChartSource() });
+    // 生产注入运行时 robots 检查器（真拉 /robots.txt 逐 pathname 判定，F3「robots.txt 尊重」
+    // 取当前政策而非冻结快照）；LiveChartSource 的离线快照默认仅供测试/离线注入用。
+    this.chartSource = makeChartSource({
+      live: new LiveChartSource({ robotsChecker: createRobotsTxtChecker() }),
+      demo: new DemoChartSource(),
+    });
     this.backup = new BackupManager(app.getPath('userData'));
 
     // ★ L3 备份时机之二：空闲 30 分钟。修复前 `startIdleWatcher` 全项目无调用者，

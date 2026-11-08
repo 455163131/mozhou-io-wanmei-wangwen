@@ -106,26 +106,30 @@ function robotsTextAllows(text: string, pathname: string): boolean {
 }
 
 /**
- * 运行时 robots 检查器工厂：真拉 <origin>/robots.txt 判 Disallow，按 origin 缓存。
+ * 运行时 robots 检查器工厂：真拉 <origin>/robots.txt，按 origin 缓存** robots 文本**
+ * （不是首个 pathname 的布尔结论），每次调用按当前 pathname 重新判 Disallow——
+ * 同站不同路径各自裁定（/topten.php 放行不代表 /sp 放行）。
  * fail-closed：网络失败 / 非 200 / 内容不是 robots 文本 → 一律禁止（不重试轰炸）。
  */
 export function createRobotsTxtChecker(fetchImpl: typeof fetch = globalThis.fetch): RobotsChecker {
-  const cache = new Map<string, boolean>();
+  const cache = new Map<string, string | null>(); // origin → robots 文本；null = 不可读（fail-closed）
   return async (url: string) => {
     const parsed = new URL(url);
-    const hit = cache.get(parsed.origin);
-    if (hit !== undefined) return hit;
-    let allowed = false;
-    try {
-      const res = await fetchImpl(`${parsed.origin}/robots.txt`, {
-        headers: { 'User-Agent': USER_AGENT, Accept: 'text/plain,*/*' },
-      });
-      allowed = res.ok ? robotsTextAllows(await res.text(), parsed.pathname) : false;
-    } catch {
-      allowed = false; // 拉不到 robots → 禁止（礼貌优先于功能）
+    let text: string | null;
+    if (cache.has(parsed.origin)) {
+      text = cache.get(parsed.origin) ?? null;
+    } else {
+      try {
+        const res = await fetchImpl(`${parsed.origin}/robots.txt`, {
+          headers: { 'User-Agent': USER_AGENT, Accept: 'text/plain,*/*' },
+        });
+        text = res.ok ? await res.text() : null;
+      } catch {
+        text = null; // 拉不到 robots → 禁止（礼貌优先于功能）
+      }
+      cache.set(parsed.origin, text);
     }
-    cache.set(parsed.origin, allowed);
-    return allowed;
+    return text !== null && robotsTextAllows(text, parsed.pathname);
   };
 }
 
@@ -217,13 +221,18 @@ export class LiveChartSource implements ChartDataSource {
       return { entries: cached.entries, source: 'live' };
     }
 
-    // ③ 限速：最小间隔内不重抓，宁可回过期缓存（宁慢勿扰）
+    // ③ 限速：最小间隔内不重抓——**无论有无缓存**都先闸（F3 限速不留空档）。
+    //   有过期缓存宁可回它（宁慢勿扰）；无缓存则诚实抛限速真因，由 makeChartSource
+    //   回落演示集。旧实现仅在 cached 存在时闸，失败路径（无缓存）会零间隔重打网络。
     const last = this.lastFetchAt.get(platform);
-    if (cached && last !== undefined && t - last < this.minIntervalMs) {
-      return { entries: cached.entries, source: 'live' };
+    if (last !== undefined && t - last < this.minIntervalMs) {
+      if (cached) return { entries: cached.entries, source: 'live' };
+      throw new Error(`榜单抓取限速（${platform}）：距上次抓取不足 ${Math.round(this.minIntervalMs / 1000)} 秒，稍后再试`);
     }
 
-    // ④ 抓页面：常规 UA + 标准 Accept 头，无任何对抗性设置；失败抛真因
+    // ④ 抓页面：常规 UA + 标准 Accept 头，无任何对抗性设置；失败抛真因。
+    //   先记本次尝试时刻再发请求——失败也计入限速间隔，杜绝失败后零间隔重试。
+    this.lastFetchAt.set(platform, t);
     let res: Response;
     try {
       res = await this.fetchImpl(site.chartUrl, {
@@ -238,7 +247,6 @@ export class LiveChartSource implements ChartDataSource {
     } catch (e) {
       throw new Error(`榜单抓取失败（${platform}）：${e instanceof Error ? e.message : String(e)}`);
     }
-    this.lastFetchAt.set(platform, this.now());
     if (!res.ok) {
       // 被挡（403/4xx/5xx）是诚实失败：直报状态码，不做任何绕过（F3）
       throw new Error(`榜单抓取失败（${platform}）：HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ''}`);

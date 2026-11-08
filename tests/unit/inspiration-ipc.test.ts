@@ -61,6 +61,12 @@ describe('inspiration-ipc', () => {
     expect(() => collectCard(deps, { cardId: 123 })).toThrowError(MzError);
   });
 
+  it('collectCard：卡不存在 → E_NOT_FOUND（repo 抛，原样出去，不静默）', () => {
+    const e = (() => { try { collectCard(deps, { cardId: 'ic-不存在' }); return null; } catch (err) { return err as MzError; } })();
+    expect(e).toBeInstanceOf(MzError);
+    expect(e!.code).toBe('E_NOT_FOUND');
+  });
+
   it('createTopicFromCard：trend 卡 premise = 书名＋tags 拼一句，sourceCardId 挂钩，状态待立项', () => {
     const c = deps.inspiration.insert({
       kind: 'trend',
