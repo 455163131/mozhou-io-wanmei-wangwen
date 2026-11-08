@@ -132,3 +132,20 @@ HEAD **7306ba8**，分支 `p0-generation-pipeline` **38 commits 未合并未推�
 - **裁决 R44-R48**：正本在 `.superpowers/sdd/2026-11-06-p2b-ledgers-memory/progress.md`（controller 维护）——R44 不建平行账（复用 ledger_*，只有章×人矩阵开 v15 新表）；R45 T7 只动 user 侧装配、写手 system 字节稳定不碰；R46 渲染层接线用源码扫描钉、可测逻辑下沉 shared 纯函数；R47 计划文本缺陷按契约方向修正；R48 debtSeries 判章末口径。
 - **实测计数（2026-11-06 P2-B 收口复测，四处声明逐字相等）**：invoke **80**（76→80，P2-B 新开 `ledger:patch`/`ledger:remove`/`charstate:set`/`charstate:list` 4 条）、push **17**（无新增）、命令面板 **16**（+2 页各一条）、迁移 **v15**；coverage 门 lines **66.73%**/functions **81.86%**（65.55→66.73 只涨未跌）；全量 **1453 passed / 1 skip**、三 tsconfig typecheck 0 错、lint 0 错 1 警（既有 PromptView non-null 警告，progress 已记）、smoke 3/3。
 - **下一步**：**P2-C 灵感线四页**、**P2-D 导出与发布线**（既定顺序）；终审波输入继续累积（各 task report 的 minor deferred 全在 sdd ledger）。
+
+## 12. P2-C 灵感线四页（2026-11-07 收口）
+
+- **七任务全部落地**（分支 p2c-inspiration-line，base c8ad6e3 计划入档 → HEAD）：
+  - T1（4cbe9f0）迁移 **v16** 灵感三表（inspiration_cards/topics/teardown_reports，**全局子系统不带 project_id**——卡片在立项之前就存在，唯一项目挂钩点是 topics.project_id 可空列）+ 三 Repo + shared 类型（CardPayload 按 kind 判别）；
+  - T2（4b6d047 + 礼貌修复波 4ecebe1）扫榜后端：礼貌直抓 + 解析纯函数 + 5 通道 + 演示集兜底；
+  - T3（962af17 + 00ad267）`trending:fetch` **R9 幂等落 trend 卡并回填 cardId** + 扫榜热榜页（平台 Tab + 3×3 书卡 + 实时/演示逐卡明示 + 收藏/套用）+ trends mode 接线；
+  - T4（795ab54）抽脑洞：24 方向种子池 + `ideaHistory` 反重复 + `idea` 覆盖层角色 + 演示兜底（live:false 明示）+ 页；
+  - T5（ee8f90d）拆书报告：结构统计**零 token 秒出**（复用 `distillReferenceWork`（digest，danger-1 只读 + LCS≤20 版权守卫原样生效）+ `analyze`（metrics-engine 纯计算），入参没有 llm 就是这条承诺的可执行证据）；八维精读走 `teardown` 角色，失败如实回落「演示·未精读」统计句，绝不冒充模型精读；
+  - T6（e488abf）选题库三态生命周期 + 迁移 **v17** `projects.premise` 真列（**PD-1**，老板批准：premise 列覆盖 spec 原「草稿播种」法）+ 立项播 premise + 页；
+  - T7（本提交）端到端验收（`tests/integration/p2c-acceptance.test.ts` 六场景：演示兜底/套用立项链 project/收藏入库/三态互斥/**R9 幂等 sourceKey 同 key 同 id 异 url 异 id**）+ **BLOCK-T7 premise 覆写守卫** + 终值复核 + 文档入账。
+- **三叉裁决 F1/F2/F3**：**F1** 灵感河（聚合流页）延后，不在 P2-C 任何任务；**F2** 全量角色不导入——只新增 `idea`/`teardown` 两角色，四处同步（PromptOverlayRole/OverlayRole/OVERLAY_ROLES/TEMPERATURE），重复联合钉 T4 立 T5 扩；**F3** 扫榜=礼貌直抓+**无反爬军备**——抓取失败是正常结果：如实报真因 + 回落演示集并明示 `live:false`（chart-source 负对照钉住「不许把演示伪装成实时」，责任边界不回避）。
+- **R45 安全（两新角色）**：idea/teardown 只作用于**各自生成通道的 user/system**，写手 system 字节稳定不碰——脑洞与拆书都不进写作装配链，R45 纪律零违反。
+- **R9 幂等 + cardId 裁决**：trend 卡以 `payload.sourceKey = platform|url` 去重（url 空退 `platform|title|author`），命中旧卡**原样返回不改写**（卡=首抓快照，热度刷新只更新展示不更新历史）；`trending:fetch` res 回填 cardId，UI 收藏/套用免二跳。
+- **BLOCK-T7（T6 评审阻断，T7 修复）**：`promoteTopic` 此前无条件 `setPremise` 会静默覆写目标书既有 premise（空 premise 选题更能抹空）。现先 `getPremise`：空或相等→照旧（同 topic 重复套用幂等路径不破，`premiseKept:false` 钉死）；非空且不同→**不写 premise**、立项照常（置已立项+linkProject），返回 `{projectId, topic, premiseKept:true}`，`topic:promote` res 类型同步扩（api.ts 走 `IpcInvokeMap` 引用式零单独改动），TopicLibraryView 成功 notice 如实补「本书已有一句话故事，未覆盖（可在写作坊自行改订）」。TDD 先红两守卫用例（覆写复现 + premiseKept undefined）后转绿。另收 minor②：upgrade-realdb-smoke 的 `vAfter===12` 陈旧手抄数改为 `Math.max(...MIGRATIONS.map(m=>m.version))` 同口径断言。
+- **实测计数（2026-11-07 T7 终值复测，四处声明逐字相等）**：invoke **92**（`IpcInvokeMap` 92 键 = `IPC_CHANNELS` 92 项 = `INVOKE_CHANNELS` 92 项 = `register.ts` handle 92 次；80→92 为 P2-C 新开 12 条）、push **17**（无新增）、命令面板 **20**（+4 灵感 mode；soon 占位剩 **2**：长期记忆/导出中心）、迁移 **v17**；IPC 四处哨兵 CH **31**、SOLID_BUTTON_CENSUS **17**（四页 CTA 全入册）、shell-r1 钉死 id 集 **20**。coverage lines **68.85%**/functions **83.58%**（66.73→68.85、81.86→83.58 只涨未跌）；全量 **1589 passed / 1 skip（116 文件）**、三 tsconfig typecheck 0 错、lint 0 错 0 警、smoke 3/3。
+- **下一步**：**P2-D 导出与发布线**（既定顺序）。灵感线四页自此与 P2-B 台账同口径「不是装饰品」：扫榜/脑洞/拆书的卡片经收藏→套用→选题库→立项，把 premise 真播进 `projects.premise` 并被 ctx 装配优先消费。

@@ -101,7 +101,13 @@ export function TopicLibraryView(): JSX.Element {
       if (!dir) return; // 取消是正常结果（第 29 条），静默返回不记错误
       const r = await bridge().topic.promote(t.id, dir);
       if (r === null) return; // 防御：UI 已自持 dir，主进程侧取消同样静默
-      setNotice(`《${t.title}》已立项：一句话前提已播进新书，目录已打开——去「写作坊」继续。`);
+      // ★ T7/BLOCK-T7：premiseKept=true 说明这本书已有非空不同的一句话故事、本次未覆写——
+      //   如实补一句提示（可在写作坊自行改订），不静默假装播进去了。
+      setNotice(
+        r.premiseKept
+          ? `《${t.title}》已立项：本书已有一句话故事，未覆盖（可在写作坊自行改订），目录已打开——去「写作坊」继续。`
+          : `《${t.title}》已立项：一句话前提已播进新书，目录已打开——去「写作坊」继续。`,
+      );
       await load();
     } catch (e) {
       setErr(errorText(e));

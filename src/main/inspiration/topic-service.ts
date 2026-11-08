@@ -51,17 +51,23 @@ export interface PromoteDeps {
 /**
  * 立项三步（一次做完，顺序即因果）：播 premise → 置已立项 → 回填 project 关联。
  * 状态闸门在读侧前置：非「待立项」直接 E_TOPIC_STATE，premise 不落半程。
+ * ★ T7/BLOCK-T7 覆写守卫（保立项成功、拒数据丢失）：先读 getPremise——
+ *   existing 为空或与选题 premise 相等 → 照旧写（同 topic 重复套用的幂等路径不破）；
+ *   existing 非空且不同 → **不写 premise**（空 premise 选题也不能抹空旧值），
+ *   其余照常（置已立项 + linkProject）。premiseKept=true 仅指后者，供 UI 如实提示。
  */
-export function promoteTopic(deps: PromoteDeps): { projectId: string; topic: Topic } {
+export function promoteTopic(deps: PromoteDeps): { projectId: string; topic: Topic; premiseKept: boolean } {
   const cur = deps.repo.get(deps.topicId);
   if (!cur) throw new MzError('E_TOPIC_STATE', `选题不存在：${deps.topicId}`);
   if (cur.status !== '待立项') {
     throw new MzError('E_TOPIC_STATE', `不允许的状态流转：${cur.status} → 已立项（立项只对「待立项」开放）`);
   }
-  deps.projects.setPremise(deps.projectId, cur.premise);
+  const existing = deps.projects.getPremise(deps.projectId);
+  const premiseKept = existing !== '' && existing !== cur.premise;
+  if (!premiseKept) deps.projects.setPremise(deps.projectId, cur.premise);
   deps.repo.setStatus(deps.topicId, '已立项');
   const topic = deps.repo.linkProject(deps.topicId, deps.projectId);
-  return { projectId: deps.projectId, topic };
+  return { projectId: deps.projectId, topic, premiseKept };
 }
 
 /* ── IPC 业务函数（register.ts 一行式委托，canon-ipc 同款模式）──── */
@@ -87,11 +93,12 @@ export function listTopics(repo: TopicRepo, args: unknown): Topic[] {
 /**
  * topic:promote（R5：handler 先建/开项目，再 promoteTopic 播 premise）。
  * res 为 null 的唯一路径是**用户取消目录选择**——不抛错、选题原样不动。
+ * premiseKept（T7/BLOCK-T7）：true = 目标书已有非空不同 premise，本次未覆写。
  */
 export async function promoteTopicIpc(
   deps: PromoteIpcDeps,
   args: unknown,
-): Promise<{ projectId: string; topic: Topic } | null> {
+): Promise<{ projectId: string; topic: Topic; premiseKept: boolean } | null> {
   const parsed = PromoteArgSchema.safeParse(args);
   if (!parsed.success) invalid('topic:promote', parsed.error);
   const { topicId, dir } = parsed.data;

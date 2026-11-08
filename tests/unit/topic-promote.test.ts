@@ -5,6 +5,8 @@
 // 对同步返回值合法（R8：await 非 Promise 直接透传，照写）。
 // 追加组：topic:list/promote/abandon 三个 IPC 业务函数的真库行为
 // （promoteTopicIpc 的「先建/开项目再播 premise」与取消目录选择的 null 口径）。
+// ★ T7/BLOCK-T7 守卫组：premise 覆写守卫两条——向已有非空不同 premise 的书立项
+//   不覆写（premiseKept=true、立项照常）；同 premise 二次立项幂等（premiseKept=false 钉死）。
 // 红线：全程 :memory:，不碰真实 %APPDATA% 库；/tmp/* 只是 root_dir 字符串列值，
 // 本文件链路无任何 fs 写入。
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -33,6 +35,33 @@ describe('v17 premise 列 + 选题库立项', () => {
     expect(projects.getPremise(r.projectId)).toBe('被害者重生复仇');
     expect(topics.get(t.id)?.status).toBe('已立项');
     expect(topics.get(t.id)?.projectId).toBe(r.projectId);
+  });
+
+  /* ── ★T7/BLOCK-T7：premise 覆写守卫（TDD 先红两条）────────────────── */
+
+  it('BLOCK-T7 守卫②：向已有非空不同 premise 的书再立项 → 不覆写 premise，premiseKept=true，立项照常', () => {
+    const proj = projects.create('旧书', '/tmp/keep');
+    projects.setPremise(proj.id, '既有的一句话故事');
+    const t = topics.insert({ title: '新书', premise: '另一个前提' });
+    const r = promoteTopic({ topicId: t.id, repo: topics, projects, projectId: proj.id });
+    // 数据丢失被拒：premise 保持旧值（修复前的形状是静默覆写成「另一个前提」）
+    expect(projects.getPremise(proj.id)).toBe('既有的一句话故事');
+    // 立项成功照旧：状态 + 关联都不受守卫影响
+    expect(topics.get(t.id)?.status).toBe('已立项');
+    expect(topics.get(t.id)?.projectId).toBe(proj.id);
+    expect(r.premiseKept).toBe(true);
+  });
+
+  it('BLOCK-T7 守卫①：同 premise 二次立项（幂等）→ getPremise 不变、premiseKept=false 钉死', () => {
+    const proj = projects.create('书A', '/tmp/keep-a');
+    const t1 = topics.insert({ title: 'X', premise: '同一句前提' });
+    const r1 = promoteTopic({ topicId: t1.id, repo: topics, projects, projectId: proj.id });
+    expect(projects.getPremise(proj.id)).toBe('同一句前提');
+    expect(r1.premiseKept).toBe(false); // ①情形（空/相等）恒 false——不是 true 也不是 undefined，钉死一并收
+    const t2 = topics.insert({ title: 'Y', premise: '同一句前提' });
+    const r2 = promoteTopic({ topicId: t2.id, repo: topics, projects, projectId: proj.id });
+    expect(projects.getPremise(proj.id)).toBe('同一句前提');
+    expect(r2.premiseKept).toBe(false);
   });
   it('ctx premise 优先取项目列，空列回退 adopted concept logline（向后兼容）', async () => {
     const proj = projects.create('书', '/tmp/y');

@@ -427,8 +427,13 @@ export interface IpcInvokeMap {
    * dir 来自入参，缺省走 project:pick-dir 式原生目录选择；随后复用
    * services.openProject 既有流拿 projectId，promoteTopic 置已立项 + linkProject。
    * ★ res 可为 null：用户取消目录选择是正常结果不是错误（project:pick-dir 同口径）。
+   * ★ premiseKept（T7/BLOCK-T7 覆写守卫）：true = 该书已有非空不同 premise，
+   *   本次**未覆写**（立项照常），UI 须如实提示「已有一句话故事，未覆盖」。
    */
-  'topic:promote': { req: { topicId: string; dir?: string }; res: { projectId: string; topic: Topic } | null };
+  'topic:promote': {
+    req: { topicId: string; dir?: string };
+    res: { projectId: string; topic: Topic; premiseKept: boolean } | null;
+  };
   /**
    * 放弃（危险动作，UI 走 useConfirm 二次确认）：待立项 → 已放弃。
    * 单向终局由 TopicRepo.setStatus 守卫——终态改判抛 E_TOPIC_STATE，不静默吞。
