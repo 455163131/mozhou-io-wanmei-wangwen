@@ -150,10 +150,12 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
    * id 集 21→22（mode:publish，同样不占数字快捷键；SOON 钉不动，仍只剩 长期记忆 1 条）。
    * ★ P2-E ①：灵感组新增「灵感池」为**新**真 mode（P2-C 遗留的卡片浏览收口页，
    * 消费既有 inspiration:list/remove 双通道），id 集 22→23（mode:pool，不占数字快捷键）。
+   * ★ P2-E ②：资产组「长期记忆」从最后一个 soon 占位转正为真 mode，id 集 23→24
+   * （mode:longterm，不占数字快捷键；SOON 钉 1→0——占位机制保留，行数清零）。
    */
   it('★ T2 钉死清单：面板与分派逐字等于 id 集；soon 项不进面板', () => {
     const EXPECTED = [
-      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen', 'mode:prompt', 'mode:foreshadow', 'mode:characters', 'mode:trends', 'mode:idea', 'mode:teardown', 'mode:topics', 'mode:export', 'mode:publish', 'mode:pool',
+      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen', 'mode:prompt', 'mode:foreshadow', 'mode:characters', 'mode:trends', 'mode:idea', 'mode:teardown', 'mode:topics', 'mode:export', 'mode:publish', 'mode:pool', 'mode:longterm',
       'panel:tree', 'panel:rail', 'panel:status',
       'view:focus', 'view:rail-width',
       'app:open', 'app:settings',

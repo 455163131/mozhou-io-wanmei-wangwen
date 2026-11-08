@@ -611,6 +611,12 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
   const SOON = [...appTsx.matchAll(/kind:\s*'soon',\s*id:\s*'([\w-]+)',\s*label:\s*'([^']+)'/g)].map(
     (m) => ({ id: m[1], label: m[2] }),
   );
+  /**
+   * ★ P2-E ②：长期记忆转正后 soon 行清零，D 组宽度账改按**契约上限**现算——
+   * 「将来若再挂 soon 行，≤4 字标签必须装得下」这笔账不随清零失效。
+   * 有活行时仍按活行最宽标签算（更紧的账优先）。
+   */
+  const SOON_LABEL_MAX = 4;
   const CHIP = /styles\.soonTag\}>([^<]+)</.exec(appTsx)?.[1] ?? '';
 
   /**
@@ -863,7 +869,7 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
     return {
       budget: (gap: number, reserve = 0): number => fixed - 2 * gap - reserve,
       need: (chars: number): number => chars * labelFs * (1 + tracking),
-      widest: Math.max(...SOON.map((s) => [...s.label].length)),
+      widest: SOON.length > 0 ? Math.max(...SOON.map((s) => [...s.label].length)) : SOON_LABEL_MAX,
       gapSoon,
       gapMode,
       gapSoonDecl,
@@ -879,14 +885,16 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
     return { ideal: budget(gapSoon) - n, worst: budget(gapSoon, scrollbarW) - n };
   }
 
-  it('soon 占位项确实存在，且标签逐条 ≤4 字（R40 裁决的契约）', () => {
+  it('★ P2-E ② 后 soon 占位清零；占位机制（disabled + 设计中 chip）保留待将来复用', () => {
     // ★ P2-B T4：伏笔台账转正，soon 行 8→7；★ P2-B T6：人物记忆转正，soon 行 7→6；
     // ★ P2-C T3：扫榜热榜转正，soon 行 6→5；★ P2-C T4：抽脑洞转正，soon 行 5→4；
     // ★ P2-C T5：拆书报告转正，soon 行 4→3；★ P2-C T6：选题库转正，soon 行 3→2；
-    // ★ P2-D T5：导出中心转正，soon 行 2→1（剩 长期记忆 一条；下限 1 的防呆哨保留
-    // ——最后一条 soon 行被删掉时这条断言空转的形状要被抓出来）。
-    expect(SOON.length, '★ P2-D T5 后 NAV_GROUPS 的 soon 行应为 1 条').toBe(1);
-    expect(SOON.length, 'NAV_GROUPS 里一个 soon 项都没扫到，这条断言空转').toBeGreaterThanOrEqual(1);
+    // ★ P2-D T5：导出中心转正，soon 行 2→1；★ P2-E ②：长期记忆转正，soon 行 1→0。
+    // 防呆哨换形：行数清零后，「机制还在」由渲染分支与 chip 两条代码钉承担（不空转）。
+    expect(SOON.length, '★ P2-E ② 后 NAV_GROUPS 的 soon 行应为 0 条').toBe(0);
+    expect(appTsx, 'soon 渲染分支被顺手删了——将来再挂占位行就没有 disabled 形态').toMatch(
+      /kind === 'soon'[\s\S]{0,160}disabled/,
+    );
     for (const s of SOON) {
       const n = [...s.label].length;
       expect(n, `${s.id} 的标签「${s.label}」有 ${n} 字，超出 soon 行的预算（契约 ≤4）`).toBeLessThanOrEqual(4);
@@ -906,7 +914,7 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
     expect(
       n,
       `${widest} 字 soon 标签要 ${n.toFixed(2)}px，但 soon 行账面只剩 ${budget(gapSoon).toFixed(2)}px：` +
-        `「${SOON.find((s) => [...s.label].length === widest)?.label}」会被 .railLabel 的 ellipsis 截掉`,
+        `「${SOON.find((s) => [...s.label].length === widest)?.label ?? `${widest} 字契约标签`}」会被 .railLabel 的 ellipsis 截掉`,
     ).toBeLessThanOrEqual(budget(gapSoon));
     expect(
       ideal,
@@ -916,7 +924,7 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
     expect(
       worst,
       `最坏档（含 ${scrollbarW}px 滚动条预留）余量 ${worst.toFixed(2)}px < ${SLACK_MIN}px 下限：` +
-        `导航列一滚动，「${SOON.find((s) => [...s.label].length === widest)?.label}」又会回到真机截断那一档` +
+        `导航列一滚动，「${SOON.find((s) => [...s.label].length === widest)?.label ?? `${widest} 字契约标签`}」又会回到真机截断那一档` +
         `（R42 取证时真机就是 3.64px）`,
     ).toBeGreaterThanOrEqual(SLACK_MIN);
   });

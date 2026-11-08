@@ -406,11 +406,14 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   // ── ledger ──
   handle('ledger:query', (p, s) => {
     // ★P2-B T4：补 foreshadows 一路（伏笔台账页的取数通道，不新开平行 IPC）
-    if (!s.project) return { conflicts: [], characters: [], foreshadows: [] };
+    // ★P2-E ②：再补 timeline/numbers 两路（长期记忆页的事件流/数字锚点，同一本账）
+    if (!s.project) return { conflicts: [], characters: [], foreshadows: [], timeline: [], numbers: [] };
     return {
       characters: s.characters(s.project.id, p.subject),
       conflicts: s.conflicts(s.project.id, p.kind === 'all' ? undefined : p.kind),
       foreshadows: s.foreshadows(s.project.id),
+      timeline: s.timeline(s.project.id),
+      numbers: s.numbers(s.project.id),
     };
   }, services);
 

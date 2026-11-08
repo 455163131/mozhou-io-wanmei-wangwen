@@ -30,7 +30,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { bridge, errorText } from '../../hooks/use-mz-bridge';
 import { createSequencer } from '../../lib/sequenced';
-import { useProjectStore } from '../../store';
+import { useProjectStore, useSnapshotHandoff } from '../../store';
 import type { CharState, CharacterProfile } from '@shared/types/ledger';
 import { MODE_LABELS } from '@shared/constants/modes';
 import { nextId } from '@shared/util/id';
@@ -111,6 +111,25 @@ export function CharacterView(): JSX.Element {
     loadSeqRef.current.next();
     void load();
   }, [pid, load]);
+
+  /**
+   * ★ P2-E ②：长期记忆页「载入编辑器」的交接草稿在这里消费——取数完成（busy=false）
+   * 后开既有 cell 弹窗预填快照，take 读一次即清；保存仍走 charstate:set 由作者确认。
+   * 人物已删/跨书草稿找不到人：如实报错不静默吞（草稿已被 take 清掉，不会反复弹）。
+   */
+  const handoffDraft = useSnapshotHandoff((s) => s.draft);
+  useEffect(() => {
+    if (!handoffDraft || busy) return;
+    const d = useSnapshotHandoff.getState().take();
+    if (!d) return;
+    const ch = chars.find((c) => c.id === d.characterId);
+    if (!ch) {
+      setErr('快照对应的人物已不存在（可能已被删除或属于另一本书），未载入编辑器。');
+      return;
+    }
+    setSelId(ch.id);
+    setModal({ kind: 'cell', characterId: ch.id, characterName: ch.name, chapterNo: d.chapterNo, snapshot: d.snapshot });
+  }, [handoffDraft, busy, chars]);
 
   /** 没选中就回落第一位（原型口径）；删书清空后为 null。 */
   const sel = chars.find((c) => c.id === selId) ?? chars[0] ?? null;

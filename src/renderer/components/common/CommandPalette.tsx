@@ -60,9 +60,9 @@ interface Command {
  *   P2-B T6 起 16 条、P2-C T3 起 17 条）：
  *   - `mode:*` 全保留（R36 后审稿进了创作组导航、P2-A T4 后提示词与技能
  *     进了系统组、P2-B T4 后伏笔台账转正、P2-B T6 后人物记忆转正、P2-C T3 后
- *     扫榜热榜转正——面板条目与 id 集双向同步于 shell-r1 A 组钉死清单，现 17 条；
- *     面板仍是它们的⌘K 快路）；
- *   - 左导航的 soon 占位项（长期记忆/导出中心/…）**不进面板**：
+ *     扫榜热榜转正——面板条目与 id 集双向同步于 shell-r1 A 组钉死清单；
+ *     P2-E 后 soon 占位清零、真 mode 17 条，面板仍是它们的⌘K 快路）；
+ *   - 左导航若再挂 soon 占位项，**不进面板**：
  *     它们是 disabled 的「设计中」路标，没有可执行动作，进面板就是骗用户点；
  *   - label 跟随新显示名（写作坊/大纲管理/…），alias 保留旧名关键词——
  *     老用户搜「仪表盘」仍要能命中「统计账本」。清单与 onRun 的双向逐字
@@ -108,6 +108,9 @@ const COMMANDS: Command[] = [
   // ★ P2-E ①：灵感池为**新增**真 mode，进面板（id 集 22→23 与 shell-r1 A 组双向同步）。
   //   同样不占数字快捷键（⌘1–⌘4 纪律不变）。
   { id: 'mode:pool', label: `切换到 ${MODE_LABELS.pool}`, group: '模式', alias: 'inspiration pool 灵感池 卡片 ling gan chi' },
+  // ★ P2-E ②：长期记忆转正为真 mode，进面板（id 集 23→24 与 shell-r1 A 组双向同步）。
+  //   同样不占数字快捷键（⌘1–⌘4 纪律不变）。
+  { id: 'mode:longterm', label: `切换到 ${MODE_LABELS.longterm}`, group: '模式', alias: 'longterm memory 长期记忆 事件流 chang qi ji yi' },
 
   { id: 'panel:tree', label: '显示 / 隐藏 章节树', group: '面板', keys: '⌘1', alias: 'tree chapter zhangjieshu' },
   { id: 'panel:rail', label: '显示 / 隐藏 AI 面板', group: '面板', keys: '⌘2', alias: 'rail ai panel' },

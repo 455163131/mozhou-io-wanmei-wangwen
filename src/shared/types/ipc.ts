@@ -16,7 +16,7 @@ import type {
 } from './project';
 import type { ChapterAnalysis, HealthReport, IssueLocation, LocatedIssue, RuleInfo } from './health';
 import type { ChangeSet, ToolSpec } from './tool';
-import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, LedgerCounts, Foreshadow, CharState } from './ledger';
+import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, LedgerCounts, Foreshadow, CharState, TimelineEvent, NumberAnchor } from './ledger';
 import type { Checkpoint, RollbackResult } from './checkpoint';
 import type { RunState, RunBudget, TerminationReason, RunStats, StepRecord } from './agent';
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
@@ -175,8 +175,10 @@ export interface IpcInvokeMap {
   'health:rules': { req: { layer?: string }; res: RuleInfo[] };
 
   /** ★P2-B T4：res 补 foreshadows——伏笔台账页（mode:foreshadow）要读同一本账，
-   *  不新开平行通道；kind 过滤语义不变（conflicts 按 kind 筛，characters/foreshadows 全量回）。 */
-  'ledger:query': { req: LedgerQuery; res: { conflicts: LedgerConflict[]; characters: CharacterProfile[]; foreshadows: Foreshadow[] } };
+   *  不新开平行通道；kind 过滤语义不变（conflicts 按 kind 筛，其余全量回）。
+   *  ★P2-E ②：res 再补 timeline/numbers——长期记忆页（mode:longterm）的事件流
+   *  与数字锚点同样读这本账（repo 方法早在，只缺 IPC 出口），仍零新通道。 */
+  'ledger:query': { req: LedgerQuery; res: { conflicts: LedgerConflict[]; characters: CharacterProfile[]; foreshadows: Foreshadow[]; timeline: TimelineEvent[]; numbers: NumberAnchor[] } };
   'ledger:upsert': { req: { entries: LedgerEntries }; res: LedgerCounts };
   // ── 手改通道（★P2-B T3：Agent 与作者共写一本账）───────────────────
   /**

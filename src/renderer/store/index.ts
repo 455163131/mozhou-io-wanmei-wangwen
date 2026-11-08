@@ -385,3 +385,32 @@ export const useSettingsStore = create<SettingsState>()(
     })),
   ),
 );
+// ───────────────────────── snapshot-handoff（P2-E ②，本地态，不落盘） ─────────────────────────
+
+/**
+ * 长期记忆页 → 人物记忆页矩阵编辑器的跨页交接。
+ * offer 只写草稿；take 读一次即清——CharacterView 取数完成后开既有 cell 弹窗，
+ * 不自动落库（保存仍走 charstate:set，由作者确认）。草稿不持久化：
+ * 应用重启即丢，这是「待编辑」而非「账」，丢了不欠数据。
+ */
+export interface SnapshotDraft {
+  characterId: string;
+  chapterNo: number;
+  snapshot: string;
+}
+
+interface SnapshotHandoffState {
+  draft: SnapshotDraft | null;
+  offer: (d: SnapshotDraft) => void;
+  take: () => SnapshotDraft | null;
+}
+
+export const useSnapshotHandoff = create<SnapshotHandoffState>()((set, get) => ({
+  draft: null,
+  offer: (d) => set({ draft: d }),
+  take: () => {
+    const d = get().draft;
+    if (d) set({ draft: null });
+    return d;
+  },
+}));

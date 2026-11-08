@@ -51,6 +51,7 @@ import { TopicLibraryView } from './components/views/TopicLibraryView';
 import { ExportView } from './components/views/ExportView';
 import { PublishView } from './components/views/PublishView';
 import { InspirationPoolView } from './components/views/InspirationPoolView';
+import { LongTermView } from './components/views/LongTermView';
 import type { LlmStatus } from '@shared/types/provider';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
 import { MODE_LABELS, type WorkMode } from '@shared/constants/modes';
@@ -63,7 +64,7 @@ type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
  * ★ P2-UI T2（DRD §4.1）：左导航从「六个并列按钮」重排为**四组 IA**。
  *
  *   创作=[写作坊 / 大纲管理 / 生成·导演台 / 审稿报告(R36 回补)]  —— 产出与定稿的入口
- *   资产=[世界观设定 / 人物记忆(P2-B T6 转正) / 伏笔台账(P2-B T4 转正) / 长期记忆·设计中]
+ *   资产=[世界观设定 / 人物记忆(P2-B T6 转正) / 伏笔台账(P2-B T4 转正) / 长期记忆(P2-E ② 转正)]
  *   灵感=[扫榜热榜(P2-C T3 转正) / 抽脑洞(P2-C T4 转正) / 拆书报告(P2-C T5 转正) / 选题库(P2-C T6 转正) / 灵感池(P2-E 新建)]
  *   输出=[统计账本 / 导出中心(P2-D T5 转正) / 发布排期(P2-D T6 新建)]
  *   系统=[提示词与技能]（★ P2-A T4 新增第 5 组，一条实项，不占数字快捷键）
@@ -110,7 +111,7 @@ type NavItem =
  *   双向钉在 tests/integration/shell-r1-wiring.test.ts A 组。
  *   （★ P2-B T4 伏笔台账转正后 soon 行剩 7 条；★ P2-B T6 人物记忆再转正，
  *   剩 6 条；★ P2-C T3 扫榜热榜再转正，剩 5 条；P2-C T4/T5/T6 与 P2-D T5 续转，
- *   现剩 1 条：长期记忆。）
+ *   剩 1 条；★ P2-E ② 长期记忆转正，soon 行清零——占位机制保留待将来复用。）
  */
 
 /** 导航条目（icon path 与品牌定稿的 SVG sprite 同源） */
@@ -137,7 +138,8 @@ const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
       { kind: 'mode', id: 'characters', label: MODE_LABELS.characters, d: 'M12 12a4 4 0 100-8 4 4 0 000 8M5 20a7 7 0 0114 0' },
       // ★ P2-B T4：伏笔台账从 soon 占位转正为真 mode（icon path 原样保留）。
       { kind: 'mode', id: 'foreshadow', label: MODE_LABELS.foreshadow, d: 'M6 4h12v16l-6-4-6 4V4z' },
-      { kind: 'soon', id: 'soon-longterm', label: '长期记忆', d: 'M12 4l2.3 4.7 5.2.7-3.8 3.7.9 5.2-4.6-2.5-4.6 2.5.9-5.2L5.5 9.4l5.2-.7L12 4z' },
+      // ★ P2-E ②：长期记忆从最后一个 soon 占位转正为真 mode（icon path 原样保留）。
+      { kind: 'mode', id: 'longterm', label: MODE_LABELS.longterm, d: 'M12 4l2.3 4.7 5.2.7-3.8 3.7.9 5.2-4.6-2.5-4.6 2.5.9-5.2L5.5 9.4l5.2-.7L12 4z' },
     ],
   },
   {
@@ -608,6 +610,7 @@ export function App(): JSX.Element {
               {mode === 'export' && <ExportView />}
               {mode === 'publish' && <PublishView />}
               {mode === 'pool' && <InspirationPoolView />}
+              {mode === 'longterm' && <LongTermView />}
             </main>
           )}
         </div>
@@ -650,10 +653,10 @@ export function App(): JSX.Element {
               case 'mode:review': case 'mode:dash': case 'mode:gen': case 'mode:prompt':
               case 'mode:foreshadow': case 'mode:characters': case 'mode:trends':
               case 'mode:idea': case 'mode:teardown': case 'mode:topics': case 'mode:export':
-              case 'mode:publish': case 'mode:pool':
+              case 'mode:publish': case 'mode:pool': case 'mode:longterm':
                 // ★ P2-D T5：导出中心转正进本组合并分派尾（setMode(id.slice(5))，不占数字快捷键）。
                 // ★ P2-D T6：发布排期为新 mode，追加进同一合并组尾（同上口径，不占数字快捷键）。
-                // ★ P2-E ①：灵感池为新 mode，追加进同一合并组尾（同上口径，不占数字快捷键）。
+                // ★ P2-E ①②：灵感池（新 mode）与长期记忆（soon 转正）追加进同一合并组尾（同上口径）。
                 setMode(id.slice(5) as Mode);
                 break;
               case 'panel:tree':
