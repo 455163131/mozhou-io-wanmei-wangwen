@@ -92,4 +92,12 @@ describe('发布排期页接线', () => {
     expect(view).toMatch(/\$\{ord\} 章/);
     expect(view).toMatch(/《\$\{title\}》|\$\{title\}/);
   });
+
+  it('★ 终审 Important-1：清洗预览取正文失败必须收回批准（批准=看过 diff 的门不放行）', () => {
+    // catch 里 setApprovedIds 收回 + setErr 真因同落——source 钉取「取正文失败」签名到
+    // setApprovedIds 的近距离邻接（R46 不挂载，行为面由服务端再清洗兜底数据正确性）。
+    expect(view).toMatch(/取正文失败[\s\S]{0,220}setApprovedIds/);
+    // 表内 skipRow 文案走序+题（T7 minor 同族收口）
+    expect(view).toMatch(/已跳过队列第 \{item\.ord\} 章《\{item\.title\}》/);
+  });
 });

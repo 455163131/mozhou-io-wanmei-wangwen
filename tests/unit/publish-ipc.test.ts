@@ -248,7 +248,8 @@ describe('publish-ipc · stageIpc（批准即提交 + 服务端独立再清洗�
       expect(entry.edits).toBeGreaterThan(0);
     }
     expect(readdirSync(join(root, 'staging', 'webnovel'))).toHaveLength(2);
-    // 文件名形如 <pad4(章id数字)>_<安全标题>.txt
+    // 文件名形如 <pad4(队列序)>_<安全章id>_<安全标题>.txt（T7 消歧形；
+    // 此钉只核「四位数字开头 + 有点段」的宽形，精确策略钉在同文件 collision 用例）
     expect(readdirSync(join(root, 'staging', 'webnovel')).every((f) => /^\d{4}_.+\.txt$/.test(f))).toBe(true);
     // 库侧同批落 staging 行（未发布态）
     const rows = staging.listByPlan(plan.id);

@@ -19,7 +19,8 @@
  *   staging 账本的 {chapterId, publishedAt} 两字段投影。chip 三档：有行且
  *   publishedAt=null → 暂存；publishedAt 非 null → 已发布；无行 → 待排。
  *   重载/刷新后状态如实恢复，杀掉旧会话快照的「未暂存」假阳性。stage/mark
- *   响应仍做乐观并显（零延迟回显），mark 尾重走 load 链以服务端账本复同步——
+ *   响应仍做乐观并显（零延迟回显），stage 与 mark 尾**皆**重走 load 链以服务端
+ *   账本复同步——
  *   取舍选 refetch 而非本地并集：账本单一真源，页面不自账（此注记取代旧
  *   「显示是会话快照」取舍声明）。
  *
@@ -274,7 +275,13 @@ export function PublishView(): JSX.Element {
       if (!actionSeqRef.current.isCurrent(seq)) return;
       setDiffs((prev) => ({ ...prev, [chapterId]: cleanForPublish(ch.body, market) }));
     } catch (e) {
-      if (actionSeqRef.current.isCurrent(seq)) setErr(errorText(e));
+      if (actionSeqRef.current.isCurrent(seq)) {
+        // 取正文失败=批准不成立：收回勾选（终审 Important-1——「批准=看过 diff」的
+        // 门不许对没看成 diff 的章放行；不收回则该章仍进 stage 提交集且
+        // diff 格永远谎称「正在取」）。真因同时上错误行。
+        setApprovedIds((prev) => prev.filter((x) => x !== chapterId));
+        setErr(errorText(e));
+      }
     } finally {
       if (actionSeqRef.current.isCurrent(seq)) setActionBusy(false);
     }
@@ -595,7 +602,7 @@ export function PublishView(): JSX.Element {
                       </tr>
                       {skips[item.chapterId] && (
                         <tr className={styles.skipRow}>
-                          <td colSpan={7}>已跳过第 {item.chapterId} 章：{skips[item.chapterId]}</td>
+                          <td colSpan={7}>已跳过队列第 {item.ord} 章《{item.title}》：{skips[item.chapterId]}</td>
                         </tr>
                       )}
                       {approved && (
@@ -634,12 +641,13 @@ export function PublishView(): JSX.Element {
             </table>
           )}
 
-          {/* 表外 skipped 兜底：id 不在队列表（如暂存时才存在的形状）也要把真因摆出来，不吞 */}
+          {/* 表外 skipped 兜底：id 不在队列表（如暂存时才存在的形状）也要把真因摆出来，不吞。
+              这里天生查不到序/题（filter 就是滤掉在队列表显过的），裸 id 即最诚实的指称。 */}
           {Object.entries(skips)
             .filter(([id]) => !queue.items.some((i) => i.chapterId === id))
             .map(([id, reason]) => (
               <p key={id} className={styles.warnRow}>
-                已跳过第 {id} 章：{reason}
+                已跳过第 {id} 章（不在当前队列）：{reason}
               </p>
             ))}
         </section>

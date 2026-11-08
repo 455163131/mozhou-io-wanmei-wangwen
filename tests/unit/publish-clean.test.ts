@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { cleanForPublish } from '@shared/publish/clean';
 
-describe('cleanForPublish 确定性四规则', () => {
+describe('cleanForPublish 确定性清洗（主链四道 + overseas 第五道）', () => {
   it('①零宽/控制字符剥除（\n\t 保留）', () => {
     const r = cleanForPublish('第一段\u200B隐藏\uFEFF。\n\t缩进保留');
     expect(r.cleaned).toBe('第一段隐藏。\n\t缩进保留');
