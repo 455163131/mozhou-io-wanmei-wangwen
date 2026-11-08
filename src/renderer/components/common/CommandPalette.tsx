@@ -93,6 +93,9 @@ const COMMANDS: Command[] = [
   // ★ P2-C T4：抽脑洞转正为真 mode，进面板（id 集 17→18 与 shell-r1 A 组双向同步）。
   //   同样不占数字快捷键（⌘1–⌘4 纪律不变）。
   { id: 'mode:idea', label: `切换到 ${MODE_LABELS.idea}`, group: '模式', alias: 'idea brainstorm 抽脑洞 chou nao dong' },
+  // ★ P2-C T5：拆书报告转正为真 mode，进面板（id 集 18→19 与 shell-r1 A 组双向同步）。
+  //   同样不占数字快捷键（⌘1–⌘4 纪律不变）。
+  { id: 'mode:teardown', label: `切换到 ${MODE_LABELS.teardown}`, group: '模式', alias: 'teardown book 拆书 chai shu bao gao' },
 
   { id: 'panel:tree', label: '显示 / 隐藏 章节树', group: '面板', keys: '⌘1', alias: 'tree chapter zhangjieshu' },
   { id: 'panel:rail', label: '显示 / 隐藏 AI 面板', group: '面板', keys: '⌘2', alias: 'rail ai panel' },

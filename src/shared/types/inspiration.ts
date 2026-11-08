@@ -152,6 +152,14 @@ export const TeardownDimsSchema = z.object({
 });
 export type TeardownDims = z.infer<typeof TeardownDimsSchema>;
 
+/**
+ * 演示兜底的统一标记（P2-C T5）。
+ * ★ 为什么放 shared：这个字样同时出现在主进程演示 dims（teardown-service）与
+ *   渲染层徽标/维度卡（TeardownView）——两侧各手抄一份就是本仓反复出的多副本病，
+ *   口径只许有一份（同 MODE_LABELS 收口先例）。
+ */
+export const TEARDOWN_DEMO_MARK = '演示·未精读';
+
 export interface TeardownReport {
   id: string;
   bookTitle: string;
@@ -160,4 +168,68 @@ export interface TeardownReport {
   /** 八维提炼；insert 时为 null，setDimensions 后回填 */
   dimensions: TeardownDims | null;
   createdAt: number;
+}
+
+/* ── 拆书结构统计（T5 零token 复用 digest + analyze 的落库形状）────── */
+
+/**
+ * ★ 为什么在这里重declare 而不是 import digest 的 Bench/DigestResult：
+ *   分层纪律——shared 不 import main（OverlayRole 与 PromptOverlay 同款口径，
+ *   两侧结构同一，漂移由三 typecheck 立红）。字段形状与
+ *   @main/tools/impl/digest 的 Bench / struct / hooks / roles 逐一对应，
+ *   analyze 切片只取展示需要的六项（口径同 metrics-engine.AnalyzeResult）。
+ */
+
+/** 节奏基准（digest Bench 的结构同一镜像；null = 蒸馏失败如实缺席） */
+export interface TeardownBench {
+  avgSent: number;
+  sentCv: number;
+  avgPara: number;
+  sentsPerPara: number;
+  dialogRatio: number;
+  triRepeat: number;
+  ttr: number;
+  chapters: number;
+  chars: number;
+}
+
+/** 结构节拍（digest struct 切片） */
+export interface TeardownStructStat {
+  sceneCount: number;
+  chapterLenPattern: 'uniform' | 'growing' | 'shrinking' | 'mixed';
+  hookDensity: number;
+}
+
+/** 钩子样例（digest hooks 切片，quote ≤16 字，LCS 合规守卫已在上游把关） */
+export interface TeardownHookStat {
+  chapterId: string;
+  at: number;
+  quote: string;
+  kind: string;
+}
+
+/** 人物粗提（digest roles 切片；推断型，可信度低于统计） */
+export interface TeardownRoleStat {
+  name: string;
+  mentions: number;
+  firstChapter: string;
+}
+
+/** metrics-engine.analyze 的展示切片（零 token 纯统计） */
+export interface TeardownAnalyzeSlice {
+  chars: number;
+  paras: number;
+  sents: number;
+  dialogRatio: number;
+  avgSent: number;
+  openType: string;
+}
+
+/** teardown_reports.structure_json 的 T5 定形（R3 伪码逐字落地） */
+export interface TeardownStructure {
+  bench: TeardownBench | null;
+  struct: TeardownStructStat | null;
+  hooks: TeardownHookStat[];
+  roles: TeardownRoleStat[];
+  analyze: TeardownAnalyzeSlice;
 }

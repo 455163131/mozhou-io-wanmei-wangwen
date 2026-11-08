@@ -221,6 +221,13 @@ const bridge: MzBridge = {
   idea: {
     draw: () => invoke('idea:draw'),
   },
+
+  // ── P2-C 灵感线（T5）：拆书报告——结构统计零token / 八维精读 / 一维存灵感库 ──
+  teardown: {
+    structure: (title, text) => invoke('teardown:structure', { title, text }),
+    read: (reportId) => invoke('teardown:read', { reportId }),
+    saveDimension: (reportId, dimension) => invoke('teardown:save-dimension', { reportId, dimension }),
+  },
 };
 
 contextBridge.exposeInMainWorld('mz', bridge);

@@ -82,8 +82,9 @@ export interface PipelineHandlers {
 /* ── 常量 ──────────────────────────────────────────────────────── */
 
 /** 角色温度：构思要发散、架构要收敛、写手居中。P2-A T2：可被覆盖层「温度：」行逐角色覆盖。
- *  ★ P2-C T4：idea（抽脑洞）同构思档 1.05——脑洞要发散。 */
-const TEMPERATURE = { concept: 1.05, architect: 0.7, writer: 0.9, idea: 1.05 } as const;
+ *  ★ P2-C T4：idea（抽脑洞）同构思档 1.05——脑洞要发散。
+ *  ★ P2-C T5：teardown（拆书精读）收敛档 0.7——拆解要贴着证据走（消费者在 teardown-service）。 */
+const TEMPERATURE = { concept: 1.05, architect: 0.7, writer: 0.9, idea: 1.05, teardown: 0.7 } as const;
 
 /**
  * 写手装配预算窗口的回退值（tokens）。R11：窗口优先取 deps.budget()

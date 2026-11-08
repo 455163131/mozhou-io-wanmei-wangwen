@@ -44,6 +44,8 @@ import * as overlayIpc from '../pipeline/overlay-ipc';
 import * as inspirationIpc from '../inspiration/inspiration-ipc';
 // ── P2-C 灵感线（T4）：抽脑洞业务语义全在 inspiration/idea-service.ts（反重复+演示兜底），这里只登记通道 ──
 import { drawIdea } from '../inspiration/idea-service';
+// ── P2-C 灵感线（T5）：拆书报告业务语义全在 inspiration/teardown-service.ts（零token复用+八维角色+演示兜底），这里只登记通道 ──
+import { teardownStructureIpc, teardownReadIpc, teardownSaveDimensionIpc } from '../inspiration/teardown-service';
 
 type Handler<K extends IpcChannel> = (
   payload: IpcInvokeMap[K]['req'],
@@ -749,6 +751,12 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   // 抽脑洞（T4）：deps 由 services.ideaDeps() 装配（llm chat 子集 + inspirationRepo + idea 覆盖层），
   // 业务口径（反重复选方向、zod 契约、演示兜底）全在 idea-service.ts，这里一行式委托。
   handle('idea:draw', (_p, s) => drawIdea(s.ideaDeps()), services);
+  // 拆书报告（T5）：deps 由 services.teardownDeps() 装配（teardownRepo/inspirationRepo +
+  // llm chat 子集 + teardown 覆盖层）。结构统计零 token；精读演示兜底；存维度回卡自带 id。
+  // 业务口径（zod 边界、digest 复用、live/demo 如实）全在 teardown-service.ts，这里一行式委托。
+  handle('teardown:structure', (p, s) => teardownStructureIpc(s.teardownDeps(), p), services);
+  handle('teardown:read', (p, s) => teardownReadIpc(s.teardownDeps(), p), services);
+  handle('teardown:save-dimension', (p, s) => teardownSaveDimensionIpc(s.teardownDeps(), p), services);
 }
 
 // ══════════════════════════════════════════════════════════════════════

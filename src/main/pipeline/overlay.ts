@@ -22,9 +22,9 @@ import { dirname, join } from 'node:path';
 
 /* ── 类型与落点 ────────────────────────────────────────────────── */
 
-/** 覆盖层开放的角色（concept/architect/writer 三合成器 + idea 脑洞发生器，R42：不开假入口）。
- *  ★ P2-C T4：加 idea（抽脑洞）；teardown 留给 T5。与 ipc.ts OverlayRole 成员逐字同步。 */
-export type PromptOverlayRole = 'concept' | 'architect' | 'writer' | 'idea';
+/** 覆盖层开放的角色（concept/architect/writer 三合成器 + idea 脑洞发生器 + teardown 拆书精读师，R42：不开假入口）。
+ *  ★ P2-C T4：加 idea（抽脑洞）；★ P2-C T5：加 teardown（拆书报告）。与 ipc.ts OverlayRole 成员逐字同步。 */
+export type PromptOverlayRole = 'concept' | 'architect' | 'writer' | 'idea' | 'teardown';
 
 /**
  * 一份覆盖层的解析结果。

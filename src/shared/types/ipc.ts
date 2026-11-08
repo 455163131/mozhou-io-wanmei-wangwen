@@ -21,7 +21,7 @@ import type { Checkpoint, RollbackResult } from './checkpoint';
 import type { RunState, RunBudget, TerminationReason, RunStats, StepRecord } from './agent';
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
 import type { Draft, DraftStatus, CanonEntry } from './pipeline';
-import type { CardKind, ChartFetchResult, InspirationCard, Platform, Topic } from './inspiration';
+import type { CardKind, ChartFetchResult, InspirationCard, Platform, TeardownDims, TeardownStructure, Topic } from './inspiration';
 
 // ───────────────────────── 请求/响应载荷 ─────────────────────────
 
@@ -402,6 +402,19 @@ export interface IpcInvokeMap {
    * topic:create-from-card。
    */
   'idea:draw': { req: void; res: { card: InspirationCard; source: 'live' | 'demo' } };
+  /**
+   * 拆书结构统计（P2-C T5）：**零 token**——复用 digest 蒸馏 + metrics-engine 统计
+   * 秒出结构卡并落 teardown_reports。不碰 LLM、不写正文（选书走只读通道）。
+   * 全局通道：不要求已打开项目。
+   */
+  'teardown:structure': { req: { title: string; text: string }; res: { reportId: string; structure: TeardownStructure } };
+  /**
+   * 八维精读（P2-C T5，按需花 token）：LLM+契约过 → source='live'；
+   * 无 Key/产出坏 → 演示兜底 source='demo'（可确定维度走统计，其余标「演示·未精读」）。
+   */
+  'teardown:read': { req: { reportId: string }; res: { dims: TeardownDims; source: 'live' | 'demo' } };
+  /** 一维存灵感库（P2-C T5）：kind='teardown' 卡，回卡自带 id（收藏/套用直接拿它） */
+  'teardown:save-dimension': { req: { reportId: string; dimension: string }; res: InspirationCard };
 }
 
 /**
@@ -409,7 +422,7 @@ export interface IpcInvokeMap {
  * shared 不 import main（分层纪律），同名口径靠 register.ts 的 Handler 类型
  * 在编译期钉死：两处任一侧漂移，三 typecheck 立红。
  */
-export type OverlayRole = 'concept' | 'architect' | 'writer' | 'idea';
+export type OverlayRole = 'concept' | 'architect' | 'writer' | 'idea' | 'teardown';
 
 /** 覆盖层解析结果 DTO（同上映射：与 main 侧 PromptOverlay 结构同一） */
 export interface PromptOverlayInfo {
@@ -664,6 +677,10 @@ export const IPC_CHANNELS = [
   'topic:create-from-card',
   // P2-C 灵感线（T4）：抽脑洞
   'idea:draw',
+  // P2-C 灵感线（T5）：拆书报告三通道（结构统计零token / 八维精读 / 存灵感库）
+  'teardown:structure',
+  'teardown:read',
+  'teardown:save-dimension',
 ] as const;
 
 export type IpcChannel = keyof IpcInvokeMap;

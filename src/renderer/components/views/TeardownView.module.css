@@ -1,0 +1,312 @@
+/**
+ * 拆书报告页样式（P2-C T5）。
+ * 布局：头部（标题 + 数据态徽标）+ 取文区（书名 + 粘贴框 + 三个动作）+
+ *       结构统计区（数字格 + 钩子样例 + 人物粗提）+ 八维精读区（八张小卡，每卡一维 + 存灵感库）。
+ * 色与间距一律只走 --mz- 令牌——theme-ink C 组钉死零裸色；design-tokens-usage A 组钉死
+ * 字号/圆角/间距不许裸 px。实底按钮仅 btnPrimary 一颗类（用于「结构统计」与「AI 精读八维」
+ * 两个 CTA，金 × accent-ink），已登记进 SOLID_BUTTON_CENSUS；取文/存灵感库走描边档 .btn，
+ * 非实底，不入台账。
+ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-4);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2h);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-h3);
+  color: var(--mz-text-primary);
+}
+
+.sub {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* ── 数据态徽标：实时（青）/ 演示·未精读（黄）——DRD §7 明示，绝不冒充模型精读 ── */
+
+.badgeLive {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-sem-con-fg);
+  background: var(--mz-sem-con-bg);
+  border: 1px solid var(--mz-sem-con-border);
+  border-radius: var(--mz-radius-xs);
+  padding: var(--mz-space-half) var(--mz-space-2);
+  letter-spacing: var(--mz-tracking-wide);
+}
+
+.badgeDemo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-sem-warn-fg);
+  background: var(--mz-sem-warn-bg);
+  border: 1px solid var(--mz-sem-warn-border);
+  border-radius: var(--mz-radius-xs);
+  padding: var(--mz-space-half) var(--mz-space-2);
+  letter-spacing: var(--mz-tracking-wide);
+}
+
+/* ── 取文区 ── */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-2);
+}
+
+.bookTitle {
+  font-size: var(--mz-fs-sm);
+  max-width: 320px;
+}
+
+.paste {
+  font-family: var(--mz-font-serif);
+  font-size: var(--mz-fs-sm);
+  line-height: 1.8;
+  resize: vertical;
+}
+
+.ops {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+}
+
+.err {
+  color: var(--mz-sem-err-fg);
+  font-size: var(--mz-fs-xs);
+  margin: 0;
+}
+
+.notice {
+  color: var(--mz-sem-pass-fg);
+  font-size: var(--mz-fs-xs);
+  margin: 0;
+}
+
+.empty {
+  background: var(--mz-bg-inset);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-4);
+  color: var(--mz-text-tertiary);
+  font-size: var(--mz-fs-sm);
+  line-height: 1.8;
+  margin: 0;
+}
+
+/* ── 分区 ── */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-2);
+}
+
+.sectionHead {
+  margin: 0;
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-h3);
+  color: var(--mz-text-primary);
+  font-weight: var(--mz-fw-semibold);
+}
+
+.subHead {
+  margin: 0;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+  font-weight: var(--mz-fw-medium);
+}
+
+/* 演示真因：如实展示未配置模型/产出未过契约，不静默冒充实时精读 */
+.fallbackNote {
+  margin: 0;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-sem-warn-fg);
+  line-height: 1.8;
+}
+
+/* ── 结构统计数字格 ── */
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 9em);
+  gap: var(--mz-space-2);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-2);
+  min-width: 0;
+}
+
+.statKey {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+}
+
+.statVal {
+  font-family: var(--mz-font-numeric);
+  font-size: var(--mz-fs-sm);
+  color: var(--mz-text-primary);
+}
+
+.hookList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+}
+
+.hook {
+  font-family: var(--mz-font-serif);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-body);
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.hookKind {
+  margin-left: var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+}
+
+.roleList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mz-space-2);
+}
+
+.role {
+  background: var(--mz-bg-inset);
+  color: var(--mz-text-secondary);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-xs);
+  padding: 0 var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+}
+
+/* ── 八维卡 ── */
+
+.dimGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16em, 1fr));
+  gap: var(--mz-space-2);
+}
+
+.dimCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-3);
+  min-width: 0;
+}
+
+.dimHead {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+}
+
+.dimName {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-sm);
+  color: var(--mz-accent);
+  font-weight: var(--mz-fw-semibold);
+}
+
+.dimDemoTag {
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-sem-warn-fg);
+}
+
+.dimText {
+  margin: 0;
+  font-family: var(--mz-font-serif);
+  font-size: var(--mz-fs-xs);
+  line-height: 1.8;
+  color: var(--mz-text-body);
+  overflow-wrap: anywhere;
+}
+
+.dimOps {
+  display: flex;
+  gap: var(--mz-space-2);
+  margin-top: var(--mz-space-1);
+}
+
+/* ── 按钮：btn 描边档（只读取文 / 每维存灵感库）；btnPrimary 金实底（两大 CTA，入台账）── */
+
+.btn {
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-primary);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  /* 主 CTA = 金底深字（ink 档香槟金 × 深墨字，与 ForeshadowView/CharacterView/
+     TrendingView/IdeaDrawView 同档） */
+  border: 1px solid var(--mz-accent);
+  background: var(--mz-accent);
+  color: var(--mz-accent-ink);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+  font-weight: var(--mz-fw-semibold);
+}
+
+/* 特异性 (0,3,1) 严格压过 global.css 的 button:hover:not(:disabled) (0,2,1)，
+   hover 仍走实底档——p2ui-t4-smoke-fixes C 组台账里的 TeardownView#btnPrimary */
+.btnPrimary:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+  border-color: var(--mz-accent-hover);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

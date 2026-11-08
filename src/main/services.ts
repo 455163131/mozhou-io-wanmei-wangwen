@@ -67,6 +67,9 @@ import type { WritePolicyConfig } from '@shared/types/tool';
 import { InspirationRepo } from './db/repos/inspiration-repo';
 // P2-C 灵感线（T4）：抽脑洞依赖契约（生产装配 ideaDeps() 返回它）
 import type { IdeaDeps } from './inspiration/idea-service';
+// P2-C 灵感线（T5）：拆书 repo + IPC 依赖契约（生产装配 teardownDeps() 返回它）
+import { TeardownRepo } from './db/repos/teardown-repo';
+import type { TeardownIpcDeps } from './inspiration/teardown-service';
 import { TopicRepo } from './db/repos/topic-repo';
 import { DemoChartSource, LiveChartSource, makeChartSource, createRobotsTxtChecker, type ChartDataSource } from './inspiration/chart-source';
 
@@ -87,6 +90,8 @@ export class AppServices {
   readonly inspirationRepo: InspirationRepo;
   /** 选题池（P2-C：卡片收藏 → 选题 → 立项的收口） */
   readonly topicRepo: TopicRepo;
+  /** 拆书报告（P2-C T5：结构统计落库 + 八维回填；全局子系统，不带项目隔离） */
+  readonly teardownRepo: TeardownRepo;
   /**
    * 榜单数据源（P2-C T2）：live 优先、失败回落演示并带真因。
    * LiveChartSource 内置礼貌闸门（robots 先行/缓存 TTL/同平台限速/常规 UA），
@@ -142,6 +147,8 @@ export class AppServices {
     // P2-C 灵感线（T2）：全局子系统三件套——卡片 repo / 选题 repo / 榜单数据源
     this.inspirationRepo = new InspirationRepo(this.db);
     this.topicRepo = new TopicRepo(this.db);
+    // P2-C 灵感线（T5）：拆书报告 repo（v16 三表中的 teardown_reports 至此才有消费方）
+    this.teardownRepo = new TeardownRepo(this.db);
     // 生产注入运行时 robots 检查器（真拉 /robots.txt 逐 pathname 判定，F3「robots.txt 尊重」
     // 取当前政策而非冻结快照）；LiveChartSource 的离线快照默认仅供测试/离线注入用。
     this.chartSource = makeChartSource({
@@ -421,6 +428,21 @@ export class AppServices {
     return {
       llm: { chat: (req) => this.llm.chat({ ...req, stream: false }) },
       repo: this.inspirationRepo,
+      getOverlay: async (role) => (await loadOverlay(app.getPath('userData'), role)).overlay,
+    };
+  }
+
+  /**
+   * P2-C T5：拆书报告依赖装配（照 ideaDeps 形状）。结构统计不碰 llm（零 token），
+   * llm chat 子集只供八维精读消费（stream:false——精读要完整 JSON）；td/ins 复用
+   * 同一对 repo（拆书卡与扫榜/脑洞卡同表异 kind）；getOverlay 走 teardown 角色，
+   * 落点与生成链同一数据目录。全是活闭包——重配 provider、改覆盖层都自动跟上。
+   */
+  teardownDeps(): TeardownIpcDeps {
+    return {
+      td: this.teardownRepo,
+      ins: this.inspirationRepo,
+      llm: { chat: (req) => this.llm.chat({ ...req, stream: false }) },
       getOverlay: async (role) => (await loadOverlay(app.getPath('userData'), role)).overlay,
     };
   }

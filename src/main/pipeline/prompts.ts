@@ -178,6 +178,28 @@ export function composeIdeaPrompt(direction: string, overlay?: PromptOverlay | n
     .join('\n'), overlay);
 }
 
+/* ── 拆书精读（P2-C T5）────────────────────────────────────────────── */
+
+/**
+ * 拆书精读师 system（T5）：对给定范文（或其零 token 结构统计）产出八维拆解。
+ * ★ 不进写手路径——composeWriterPrompt 的字节稳定钉（R45）原样不动；本合成器
+ *   只服务 teardown-service 的按需精读。措辞原创（AGPL 红线同本文件头），
+ *   JSON 字段名（定位/结构/节奏/爽点钩子/伏笔/人物/文风/可借鉴）由
+ *   TeardownDimsSchema 契约强制规定，属接口要素的功能性例外。
+ * 覆盖层收尾照 composeConceptPrompt 形状：withOverlay 把「附加要求」原样追加末尾。
+ */
+export function composeTeardownPrompt(overlay?: PromptOverlay | null): string {
+  return withOverlay([
+    '你是拆书精读师，对给定范文产出八维拆解：定位/结构/节奏/爽点钩子/伏笔/人物/文风/可借鉴。',
+    '每维一句话，基于文本证据，不空泛：统计口径给出的数字要接住，引文样例要当证据用；拿不准的维度宁可写「证据不足」，不许编。',
+    '【JSON 硬约束】八个键缺一不可，全部非空短句：',
+    '输出 JSON：{"定位":"…","结构":"…","节奏":"…","爽点钩子":"…","伏笔":"…","人物":"…","文风":"…","可借鉴":"…"}',
+    '只准输出纯 JSON——不要代码围栏、不要任何多余文字，严格照此执行。',
+  ]
+    .filter(Boolean)
+    .join('\n'), overlay);
+}
+
 /* ── 全书架构师 ────────────────────────────────────────────────── */
 
 /**

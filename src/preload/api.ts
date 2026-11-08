@@ -253,6 +253,22 @@ export interface MzBridge {
     /** 抽一张脑洞卡（回卡自带 id，收藏/套用直接拿它）；source 明示 live/demo */
     draw(): Promise<IpcInvokeMap['idea:draw']['res']>;
   };
+
+  // ── 拆书报告（P2-C T5）：结构统计零token秒出 + 八维精读按需 + 一维存灵感库 ──
+  teardown: {
+    /** 结构统计（不碰 LLM，秒出）；title 允许空串（主进程兜「未命名范文」） */
+    structure(
+      title: string,
+      text: string,
+    ): Promise<IpcInvokeMap['teardown:structure']['res']>;
+    /** 八维精读（live=模型产出 / demo=演示兜底，dims 里未精读维度标「演示·未精读」） */
+    read(reportId: string): Promise<IpcInvokeMap['teardown:read']['res']>;
+    /** 一维存灵感库（kind='teardown' 卡，回卡自带 id）；重复调用会落重复卡——UI 侧持会话防连点 */
+    saveDimension(
+      reportId: string,
+      dimension: string,
+    ): Promise<IpcInvokeMap['teardown:save-dimension']['res']>;
+  };
 }
 
 /** 全部 invoke 通道（与 shared/types/ipc.ts 同源，禁止手写字符串） */
@@ -352,6 +368,10 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'topic:create-from-card',
   // P2-C 灵感线（T4）：抽脑洞
   'idea:draw',
+  // P2-C 灵感线（T5）：拆书报告三通道
+  'teardown:structure',
+  'teardown:read',
+  'teardown:save-dimension',
 ];
 
 /** 全部订阅通道 */
