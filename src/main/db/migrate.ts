@@ -629,6 +629,56 @@ export const MIGRATIONS: Migration[] = [
       db.exec(`ALTER TABLE projects ADD COLUMN premise TEXT NOT NULL DEFAULT '';`);
     },
   },
+  {
+    version: 18,
+    name: 'add_export_publish',
+    /**
+     * ★ P2-D T1：导出与发布线三表（spec §2）。
+     * export_history 只记事实（成功/失败都落，fail 行 path/bytes null + error 真因）；
+     * publish_plans 记「哪本书按什么节奏发往哪个平台」；publish_staging 记
+     * 「哪章以哪份内容进过暂存」——**排期队列不存**（章会增删改，队列=纯函数推导）。
+     * 时间列 INTEGER（R1 口径）；append-only：v1..v17 不碰。
+     */
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS export_history (
+          id          TEXT PRIMARY KEY,
+          project_id  TEXT NOT NULL,
+          format      TEXT NOT NULL,
+          scope_json  TEXT NOT NULL,
+          dest        TEXT NOT NULL,
+          path        TEXT,
+          bytes       INTEGER,
+          status      TEXT NOT NULL,
+          error       TEXT,
+          created_at  INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_exhist_project ON export_history(project_id, created_at);
+        CREATE TABLE IF NOT EXISTS publish_plans (
+          id            TEXT PRIMARY KEY,
+          project_id    TEXT NOT NULL,
+          platform      TEXT NOT NULL,
+          cadence       TEXT NOT NULL,
+          interval_days INTEGER NOT NULL,
+          start_at      INTEGER NOT NULL,
+          status        TEXT NOT NULL DEFAULT 'active',
+          created_at    INTEGER NOT NULL,
+          updated_at    INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_plan_project ON publish_plans(project_id, status);
+        CREATE TABLE IF NOT EXISTS publish_staging (
+          id           TEXT PRIMARY KEY,
+          plan_id      TEXT NOT NULL,
+          chapter_id   TEXT NOT NULL,
+          content_hash TEXT NOT NULL,
+          staged_at    INTEGER NOT NULL,
+          published_at INTEGER,
+          UNIQUE(plan_id, chapter_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_stage_plan ON publish_staging(plan_id);
+      `);
+    },
+  },
 ];
 
 export function migrate(db: Database): void {
