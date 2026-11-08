@@ -22,8 +22,9 @@ import { dirname, join } from 'node:path';
 
 /* ── 类型与落点 ────────────────────────────────────────────────── */
 
-/** 覆盖层开放的三个角色（与 pipeline 三角色合成器一一对应，R42：不开假入口）。 */
-export type PromptOverlayRole = 'concept' | 'architect' | 'writer';
+/** 覆盖层开放的角色（concept/architect/writer 三合成器 + idea 脑洞发生器，R42：不开假入口）。
+ *  ★ P2-C T4：加 idea（抽脑洞）；teardown 留给 T5。与 ipc.ts OverlayRole 成员逐字同步。 */
+export type PromptOverlayRole = 'concept' | 'architect' | 'writer' | 'idea';
 
 /**
  * 一份覆盖层的解析结果。

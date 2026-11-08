@@ -90,6 +90,9 @@ const COMMANDS: Command[] = [
   // ★ P2-C T3：扫榜热榜转正为真 mode，进面板（id 集 16→17 与 shell-r1 A 组双向同步）。
   //   同样不占数字快捷键（⌘1–⌘4 纪律不变）。
   { id: 'mode:trends', label: `切换到 ${MODE_LABELS.trends}`, group: '模式', alias: 'trending charts 扫榜 热榜 sao bang re bang' },
+  // ★ P2-C T4：抽脑洞转正为真 mode，进面板（id 集 17→18 与 shell-r1 A 组双向同步）。
+  //   同样不占数字快捷键（⌘1–⌘4 纪律不变）。
+  { id: 'mode:idea', label: `切换到 ${MODE_LABELS.idea}`, group: '模式', alias: 'idea brainstorm 抽脑洞 chou nao dong' },
 
   { id: 'panel:tree', label: '显示 / 隐藏 章节树', group: '面板', keys: '⌘1', alias: 'tree chapter zhangjieshu' },
   { id: 'panel:rail', label: '显示 / 隐藏 AI 面板', group: '面板', keys: '⌘2', alias: 'rail ai panel' },

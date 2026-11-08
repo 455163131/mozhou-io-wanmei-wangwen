@@ -65,6 +65,8 @@ import { buildFlavorBaseline, DEFAULT_MIN_CHAPTERS, type BuildResult } from './f
 import type { WritePolicyConfig } from '@shared/types/tool';
 // P2-C 灵感线（T2）：卡片/选题 repo + 榜单数据源（礼貌直抓 + 演示兜底）
 import { InspirationRepo } from './db/repos/inspiration-repo';
+// P2-C 灵感线（T4）：抽脑洞依赖契约（生产装配 ideaDeps() 返回它）
+import type { IdeaDeps } from './inspiration/idea-service';
 import { TopicRepo } from './db/repos/topic-repo';
 import { DemoChartSource, LiveChartSource, makeChartSource, createRobotsTxtChecker, type ChartDataSource } from './inspiration/chart-source';
 
@@ -405,6 +407,20 @@ export class AppServices {
       // index.ts 把 userData 指到 exe 旁，桌面版保持 %APPDATA% 默认）。
       // loadOverlay 永不抛错：文件缺失/垃圾文件 → overlay=null，
       // tools 层据此回退内置温度与零追加（默认态）。
+      getOverlay: async (role) => (await loadOverlay(app.getPath('userData'), role)).overlay,
+    };
+  }
+
+  /**
+   * P2-C T4：抽脑洞依赖装配（照 pipelineDeps 形状）。llm 只暴露 chat 子集
+   * （stream:false——脑洞要完整 JSON）；repo 复用同一个 inspirationRepo（同库同表，
+   * ideaHistory 反重复与落库看同一份数据）；getOverlay 走 idea 角色，落点与生成链
+   * 同一数据目录。全是活闭包——重配 provider、改覆盖层都自动跟上，无陈旧快照。
+   */
+  ideaDeps(): IdeaDeps {
+    return {
+      llm: { chat: (req) => this.llm.chat({ ...req, stream: false }) },
+      repo: this.inspirationRepo,
       getOverlay: async (role) => (await loadOverlay(app.getPath('userData'), role)).overlay,
     };
   }

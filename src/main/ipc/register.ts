@@ -42,6 +42,8 @@ import * as canonIpc from '../pipeline/canon-ipc';
 import * as overlayIpc from '../pipeline/overlay-ipc';
 // ── P2-C 灵感线（T2）：业务语义全在 inspiration/inspiration-ipc.ts（zod 边界+premise 派生），这里只登记通道 ──
 import * as inspirationIpc from '../inspiration/inspiration-ipc';
+// ── P2-C 灵感线（T4）：抽脑洞业务语义全在 inspiration/idea-service.ts（反重复+演示兜底），这里只登记通道 ──
+import { drawIdea } from '../inspiration/idea-service';
 
 type Handler<K extends IpcChannel> = (
   payload: IpcInvokeMap[K]['req'],
@@ -744,6 +746,9 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
   handle('inspiration:collect', (p, s) => inspirationIpc.collectCard(inspDeps(s), p), services);
   handle('inspiration:remove', (p, s) => inspirationIpc.removeCard(inspDeps(s), p), services);
   handle('topic:create-from-card', (p, s) => inspirationIpc.createTopicFromCard(inspDeps(s), p), services);
+  // 抽脑洞（T4）：deps 由 services.ideaDeps() 装配（llm chat 子集 + inspirationRepo + idea 覆盖层），
+  // 业务口径（反重复选方向、zod 契约、演示兜底）全在 idea-service.ts，这里一行式委托。
+  handle('idea:draw', (_p, s) => drawIdea(s.ideaDeps()), services);
 }
 
 // ══════════════════════════════════════════════════════════════════════

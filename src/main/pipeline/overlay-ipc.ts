@@ -34,7 +34,7 @@ function invalid(message: string): MzError {
   return new MzError('E_INVALID_ARGS', message, { retryable: false });
 }
 
-const OVERLAY_ROLES: readonly string[] = ['concept', 'architect', 'writer'];
+const OVERLAY_ROLES: readonly string[] = ['concept', 'architect', 'writer', 'idea'];
 const SKILL_MATCH_ROLES: readonly string[] = ['writer', 'architect'];
 
 /**
@@ -43,7 +43,7 @@ const SKILL_MATCH_ROLES: readonly string[] = ['writer', 'architect'];
  */
 function assertOverlayRole(role: PromptOverlayRole): void {
   if (typeof role !== 'string' || !OVERLAY_ROLES.includes(role)) {
-    throw invalid(`覆盖层只开放 concept / architect / writer 三角色，收到 ${String(role)}`);
+    throw invalid(`覆盖层只开放 concept / architect / writer / idea 四角色，收到 ${String(role)}`);
   }
 }
 

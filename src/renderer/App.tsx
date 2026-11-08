@@ -45,6 +45,7 @@ import { PromptView } from './components/views/PromptView';
 import { ForeshadowView } from './components/views/ForeshadowView';
 import { CharacterView } from './components/views/CharacterView';
 import { TrendingView } from './components/views/TrendingView';
+import { IdeaDrawView } from './components/views/IdeaDrawView';
 import type { LlmStatus } from '@shared/types/provider';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
 import { MODE_LABELS, type WorkMode } from '@shared/constants/modes';
@@ -140,7 +141,8 @@ const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
     items: [
       // ★ P2-C T3：扫榜热榜从 soon 占位转正为真 mode（icon path 原样保留）。
       { kind: 'mode', id: 'trends', label: MODE_LABELS.trends, d: 'M5 20V10M12 20V4M19 20v-7' },
-      { kind: 'soon', id: 'soon-brainstorm', label: '抽脑洞', d: 'M9 18h6M10 21h4M12 3a6 6 0 00-4 10.5c.8.8 1.5 1.9 1.5 3H14.5c0-1.1.7-2.2 1.5-3A6 6 0 0012 3z' },
+      // ★ P2-C T4：抽脑洞从 soon 占位转正为真 mode（icon path 原样保留）。
+      { kind: 'mode', id: 'idea', label: MODE_LABELS.idea, d: 'M9 18h6M10 21h4M12 3a6 6 0 00-4 10.5c.8.8 1.5 1.9 1.5 3H14.5c0-1.1.7-2.2 1.5-3A6 6 0 0012 3z' },
       { kind: 'soon', id: 'soon-teardown', label: '拆书报告', d: 'M12 4v16M5 6a2 2 0 012-2h3v18H7a2 2 0 00-2 2V6m14 0a2 2 0 00-2-2h-3v18h3a2 2 0 012 2V6' },
       { kind: 'soon', id: 'soon-topics', label: '选题库', d: 'M4 6h16M4 12h16M4 18h10' },
     ],
@@ -586,6 +588,7 @@ export function App(): JSX.Element {
               {mode === 'foreshadow' && <ForeshadowView />}
               {mode === 'characters' && <CharacterView />}
               {mode === 'trends' && <TrendingView />}
+              {mode === 'idea' && <IdeaDrawView />}
             </main>
           )}
         </div>
@@ -627,6 +630,7 @@ export function App(): JSX.Element {
               case 'mode:write': case 'mode:plan': case 'mode:lore':
               case 'mode:review': case 'mode:dash': case 'mode:gen': case 'mode:prompt':
               case 'mode:foreshadow': case 'mode:characters': case 'mode:trends':
+              case 'mode:idea':
                 setMode(id.slice(5) as Mode);
                 break;
               case 'panel:tree':

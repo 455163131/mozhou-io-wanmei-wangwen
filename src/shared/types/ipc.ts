@@ -395,6 +395,13 @@ export interface IpcInvokeMap {
    * sourceCardId 记来源卡。
    */
   'topic:create-from-card': { req: { cardId: string }; res: Topic };
+  /**
+   * 抽脑洞（P2-C T4）：选方向（反重复）→ LLM 产出 → zod → 落 kind='idea' 卡。
+   * 无 Key/失败如实回落演示占位（source='demo'、payload.live=false），绝不冒充模型产出。
+   * 全局通道：不要求已打开项目。回卡自带 id，收藏/套用直接拿它走 inspiration:collect /
+   * topic:create-from-card。
+   */
+  'idea:draw': { req: void; res: { card: InspirationCard; source: 'live' | 'demo' } };
 }
 
 /**
@@ -402,7 +409,7 @@ export interface IpcInvokeMap {
  * shared 不 import main（分层纪律），同名口径靠 register.ts 的 Handler 类型
  * 在编译期钉死：两处任一侧漂移，三 typecheck 立红。
  */
-export type OverlayRole = 'concept' | 'architect' | 'writer';
+export type OverlayRole = 'concept' | 'architect' | 'writer' | 'idea';
 
 /** 覆盖层解析结果 DTO（同上映射：与 main 侧 PromptOverlay 结构同一） */
 export interface PromptOverlayInfo {
@@ -655,6 +662,8 @@ export const IPC_CHANNELS = [
   'inspiration:collect',
   'inspiration:remove',
   'topic:create-from-card',
+  // P2-C 灵感线（T4）：抽脑洞
+  'idea:draw',
 ] as const;
 
 export type IpcChannel = keyof IpcInvokeMap;

@@ -218,6 +218,9 @@ const bridge: MzBridge = {
   topic: {
     createFromCard: (cardId) => invoke('topic:create-from-card', { cardId }),
   },
+  idea: {
+    draw: () => invoke('idea:draw'),
+  },
 };
 
 contextBridge.exposeInMainWorld('mz', bridge);

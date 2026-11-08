@@ -138,10 +138,12 @@ describe('A. 命令面板：清单 → 分派 → 快捷键 → 使用历史', (
    * （mode:characters，同样不占数字快捷键；soon-memory 行原地替换后 soon 剩 6 条）。
    * ★ P2-C T3：灵感组「扫榜热榜」从 soon 占位转正为真 mode，id 集 16→17
    * （mode:trends，同样不占数字快捷键；soon-trends 行原地替换后 soon 剩 5 条）。
+   * ★ P2-C T4：灵感组「抽脑洞」从 soon 占位转正为真 mode，id 集 17→18
+   * （mode:idea，同样不占数字快捷键；soon-brainstorm 行原地替换后 soon 剩 4 条）。
    */
   it('★ T2 钉死清单：面板与分派逐字等于 id 集；soon 项不进面板', () => {
     const EXPECTED = [
-      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen', 'mode:prompt', 'mode:foreshadow', 'mode:characters', 'mode:trends',
+      'mode:write', 'mode:plan', 'mode:lore', 'mode:review', 'mode:dash', 'mode:gen', 'mode:prompt', 'mode:foreshadow', 'mode:characters', 'mode:trends', 'mode:idea',
       'panel:tree', 'panel:rail', 'panel:status',
       'view:focus', 'view:rail-width',
       'app:open', 'app:settings',

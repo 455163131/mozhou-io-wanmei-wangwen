@@ -247,6 +247,12 @@ export interface MzBridge {
     /** 卡片 → 待立项选题（premise 按 kind 派生，sourceCardId 挂钩） */
     createFromCard(cardId: string): Promise<IpcInvokeMap['topic:create-from-card']['res']>;
   };
+
+  // ── 抽脑洞（P2-C T4）：选方向→LLM→落 idea 卡；无 Key/失败如实回落演示占位 ──
+  idea: {
+    /** 抽一张脑洞卡（回卡自带 id，收藏/套用直接拿它）；source 明示 live/demo */
+    draw(): Promise<IpcInvokeMap['idea:draw']['res']>;
+  };
 }
 
 /** 全部 invoke 通道（与 shared/types/ipc.ts 同源，禁止手写字符串） */
@@ -344,6 +350,8 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'inspiration:collect',
   'inspiration:remove',
   'topic:create-from-card',
+  // P2-C 灵感线（T4）：抽脑洞
+  'idea:draw',
 ];
 
 /** 全部订阅通道 */

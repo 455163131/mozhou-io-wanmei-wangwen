@@ -22,7 +22,8 @@ import { join } from 'node:path';
 //   v15 章×人物快照的读写入口同样四处齐改，一个都不许漏。
 // ★ P2-C T2：灵感线五通道（trending:fetch / inspiration:list/collect/remove /
 //   topic:create-from-card）入列，总 24 通道——扫榜与卡片/选题池的入口同样四处齐改。
-const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove', 'overlay:get', 'overlay:save', 'overlay:remove', 'skills:list', 'skills:match', 'ledger:patch', 'ledger:remove', 'charstate:list', 'charstate:set', 'trending:fetch', 'inspiration:list', 'inspiration:collect', 'inspiration:remove', 'topic:create-from-card'];
+// ★ P2-C T4：抽脑洞通道（idea:draw）入列，总 25 通道——脑洞生成入口同样四处齐改，一个都不许漏。
+const CH = ['pipeline:run-concept', 'pipeline:run-outline', 'pipeline:write-draft', 'pipeline:list-drafts', 'pipeline:adopt-draft', 'pipeline:discard-draft', 'project:set-gen', 'canon:list', 'canon:add', 'canon:remove', 'overlay:get', 'overlay:save', 'overlay:remove', 'skills:list', 'skills:match', 'ledger:patch', 'ledger:remove', 'charstate:list', 'charstate:set', 'trending:fetch', 'inspiration:list', 'inspiration:collect', 'inspiration:remove', 'topic:create-from-card', 'idea:draw'];
 const FILES = ['src/shared/types/ipc.ts', 'src/preload/api.ts', 'src/preload/index.ts', 'src/main/ipc/register.ts'];
 
 describe('pipeline IPC 四处契约哨兵', () => {

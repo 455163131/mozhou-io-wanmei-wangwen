@@ -80,6 +80,20 @@ export const IdeaPayloadSchema = z.object({
 });
 export type IdeaPayload = z.infer<typeof IdeaPayloadSchema>;
 
+/**
+ * 脑洞 LLM 产出契约（T4）：direction/premise 必有，hook/genre 可选。
+ * 入库前过 IdeaSchema.safeParse，坏产出在门口拦下→演示兜底（绝不把垃圾当 live）。
+ * 与 IdeaPayload 的区别：payload 是落库形状（带 temperature/live 记录），
+ * IdeaOut 是模型该吐的纯内容形状（不含程序侧记账字段）。
+ */
+export const IdeaSchema = z.object({
+  direction: z.string(),
+  premise: z.string(),
+  hook: z.string().optional(),
+  genre: z.string().optional(),
+});
+export type IdeaOut = z.infer<typeof IdeaSchema>;
+
 /** 拆书卡片 payload（T5 拆书报告的摘要卡；reportId 指向 teardown_reports） */
 export const TeardownPayloadSchema = z.object({
   dimension: z.string(),

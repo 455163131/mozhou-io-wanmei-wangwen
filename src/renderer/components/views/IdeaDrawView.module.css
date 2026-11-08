@@ -1,0 +1,202 @@
+/**
+ * 抽脑洞页样式（P2-C T4）。
+ * 布局：头部（标题 + 计数 + 数据态徽标 + 抽卡 CTA）+ 一张大脑洞卡（方向/题材/前提/钩子 + 收藏/套用）。
+ * 色与间距一律只走 --mz- 令牌——theme-ink C 组钉死零裸色；design-tokens-usage A 组钉死
+ * 字号/圆角/间距不许裸 px。实底按钮仅 btnPrimary 一颗（金 × accent-ink），已登记进
+ * SOLID_BUTTON_CENSUS；卡内收藏/套用走描边档，非实底，不入台账。
+ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-4);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2h);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-h3);
+  color: var(--mz-text-primary);
+}
+
+.sub {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.drawCount {
+  font-family: var(--mz-font-numeric);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
+}
+
+/* ── 数据态徽标：实时（青）/ 演示（黄）——DRD §7 明示，绝不冒充真实模型产出 ── */
+
+.badgeLive {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-sem-con-fg);
+  background: var(--mz-sem-con-bg);
+  border: 1px solid var(--mz-sem-con-border);
+  border-radius: var(--mz-radius-xs);
+  padding: var(--mz-space-half) var(--mz-space-2);
+  letter-spacing: var(--mz-tracking-wide);
+}
+
+.badgeDemo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-sem-warn-fg);
+  background: var(--mz-sem-warn-bg);
+  border: 1px solid var(--mz-sem-warn-border);
+  border-radius: var(--mz-radius-xs);
+  padding: var(--mz-space-half) var(--mz-space-2);
+  letter-spacing: var(--mz-tracking-wide);
+}
+
+/* 演示真因：如实展示未配置模型/生成失败，不静默冒充实时脑洞 */
+.fallbackNote {
+  margin: 0;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-sem-warn-fg);
+  line-height: 1.8;
+}
+
+.err {
+  color: var(--mz-sem-err-fg);
+  font-size: var(--mz-fs-xs);
+  margin: 0;
+}
+
+.notice {
+  color: var(--mz-sem-pass-fg);
+  font-size: var(--mz-fs-xs);
+  margin: 0;
+}
+
+.empty {
+  background: var(--mz-bg-inset);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-4);
+  color: var(--mz-text-tertiary);
+  font-size: var(--mz-fs-sm);
+  line-height: 1.8;
+  margin: 0;
+}
+
+/* ── 一张大脑洞卡 ── */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-2);
+  background: var(--mz-bg-elevated);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-4);
+  min-width: 0;
+}
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+}
+
+.direction {
+  font-family: var(--mz-chrome-font-title);
+  font-size: var(--mz-fs-h3);
+  color: var(--mz-accent);
+  font-weight: var(--mz-fw-semibold);
+}
+
+.genre {
+  background: var(--mz-bg-inset);
+  color: var(--mz-text-secondary);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-xs);
+  padding: 0 var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+}
+
+.premise {
+  margin: var(--mz-space-2) 0 0;
+  font-family: var(--mz-font-serif);
+  font-size: var(--mz-fs-sm);
+  line-height: 2;
+  color: var(--mz-text-body);
+  overflow-wrap: anywhere;
+}
+
+.hook {
+  margin: var(--mz-space-2) 0 0;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+  line-height: 1.8;
+}
+
+.ops {
+  display: flex;
+  gap: var(--mz-space-2);
+  margin-top: var(--mz-space-3);
+}
+
+/* ── 按钮：btn 描边档（卡内收藏/套用）；btnPrimary 金实底（抽卡 CTA，入台账）── */
+
+.btn {
+  border: 1px solid var(--mz-border-subtle);
+  background: var(--mz-bg-surface);
+  color: var(--mz-text-primary);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--mz-text-link);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  /* 主 CTA = 金底深字（ink 档香槟金 × 深墨字，与 ForeshadowView/CharacterView/TrendingView 同档） */
+  border: 1px solid var(--mz-accent);
+  background: var(--mz-accent);
+  color: var(--mz-accent-ink);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-half) var(--mz-space-3);
+  cursor: pointer;
+  font-size: var(--mz-fs-xs);
+  font-weight: var(--mz-fw-semibold);
+}
+
+/* 特异性 (0,3,1) 严格压过 global.css 的 button:hover:not(:disabled) (0,2,1)，
+   hover 仍走实底档——p2ui-t4-smoke-fixes C 组台账里的 IdeaDrawView#btnPrimary */
+.btnPrimary:hover:not(:disabled) {
+  background: var(--mz-accent-hover);
+  border-color: var(--mz-accent-hover);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

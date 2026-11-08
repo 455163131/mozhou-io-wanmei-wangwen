@@ -264,6 +264,9 @@ const SOLID_BUTTON_CENSUS = [
   //   同族同档，hover 生效对 accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
   'components/views/ForeshadowView.module.css#btnPrimary',
   'components/views/GenView.module.css#btnPrimary',
+  // ★ P2-C T4：抽脑洞页「再抽一张」CTA（金实底 × accent-ink 反色字，与 ForeshadowView/
+  //   CharacterView/TrendingView 同族同档，hover 生效对 accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
+  'components/views/IdeaDrawView.module.css#btnPrimary',
   // ★ P2-A T4：PromptView 保存 CTA（金实底 × accent-ink 反色字，hover 生效对与
   //   GenView 同档——accent-hover|accent-ink 已在 HOVER_PAIR_BAR 定档）
   'components/views/PromptView.module.css#btnPrimary',
@@ -866,9 +869,10 @@ describe('D. §UI ·终审 Important-3（R40 soon 行宽度账 → R41 展开档
 
   it('soon 占位项确实存在，且标签逐条 ≤4 字（R40 裁决的契约）', () => {
     // ★ P2-B T4：伏笔台账转正，soon 行 8→7；★ P2-B T6：人物记忆转正，soon 行 7→6；
-    // ★ P2-C T3：扫榜热榜转正，soon 行 6→5（下限 5 的防呆哨保留——再有人删 soon 行就红）。
-    expect(SOON.length, '★ P2-C T3 后 NAV_GROUPS 的 soon 行应为 5 条').toBe(5);
-    expect(SOON.length, 'NAV_GROUPS 里一个 soon 项都没扫到，这条断言空转').toBeGreaterThanOrEqual(5);
+    // ★ P2-C T3：扫榜热榜转正，soon 行 6→5；★ P2-C T4：抽脑洞转正，soon 行 5→4
+    //   （下限 4 的防呆哨保留——再有人删 soon 行就红）。
+    expect(SOON.length, '★ P2-C T4 后 NAV_GROUPS 的 soon 行应为 4 条').toBe(4);
+    expect(SOON.length, 'NAV_GROUPS 里一个 soon 项都没扫到，这条断言空转').toBeGreaterThanOrEqual(4);
     for (const s of SOON) {
       const n = [...s.label].length;
       expect(n, `${s.id} 的标签「${s.label}」有 ${n} 字，超出 soon 行的预算（契约 ≤4）`).toBeLessThanOrEqual(4);

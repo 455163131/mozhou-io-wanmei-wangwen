@@ -157,6 +157,27 @@ export function composeConceptPrompt(ctx: PipelineCtx, overlay?: PromptOverlay |
     .join('\n'), overlay);
 }
 
+/* ── 抽脑洞（P2-C T4）────────────────────────────────────────────── */
+
+/**
+ * 脑洞发生器 system（T4）：围绕一个种子方向产出新鲜、可立项的脑洞。
+ * ★ 不进写手路径——composeWriterPrompt 的字节稳定钉（R45）原样不动；本合成器
+ *   只服务 idea-service 抽卡。措辞原创（AGPL 红线同本文件头），JSON 字段名
+ *   （direction/premise/hook/genre）由 IdeaSchema 契约强制规定，属功能性例外。
+ * 覆盖层收尾照 composeConceptPrompt 形状：withOverlay 把「附加要求」原样追加末尾。
+ */
+export function composeIdeaPrompt(direction: string, overlay?: PromptOverlay | null): string {
+  return withOverlay([
+    `你是网文脑洞发生器，围绕「${direction}」方向产出一个新鲜、可立项的脑洞：一句话 premise + 开篇 hook + 题材。`,
+    '反套路、反重复：避开被写烂的开局与金手指，避免与近期已抽方向雷同；脑洞要能撑起长篇，而不是一句话噱头。',
+    '【JSON 硬约束】direction（沿用给定方向）、premise（一句话核心前提）必有且非空；hook（开篇钩子）、genre（题材）可选。',
+    '输出 JSON：{"direction":"方向","premise":"一句话核心前提","hook":"开篇钩子","genre":"题材"}',
+    '只准输出纯 JSON——不要代码围栏、不要任何多余文字，严格照此执行。',
+  ]
+    .filter(Boolean)
+    .join('\n'), overlay);
+}
+
 /* ── 全书架构师 ────────────────────────────────────────────────── */
 
 /**
