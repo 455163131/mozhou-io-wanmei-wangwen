@@ -3,21 +3,16 @@
  *
  * publish_plans 记「哪本书按什么节奏发往哪个平台」。platform 存
  * PlatformRule.id（写侧过 PLATFORM_RULES 白名单，坏值不落库）；
- * cadence 非 custom 时 intervalDays 由 CADENCE_DAYS 派生（一处来源）。
+ * cadence 非 custom 时 intervalDays 由 CADENCE_DAYS 派生（一处来源，
+ * 常量单源见 @shared/publish/schedule.ts——P2D-T4 收编搬家）。
  * 生命周期：active↔paused 可来回，active|paused→archived 单向，
  * archived 是终态（口径同 topic-repo 的终态不可再转）。裸 SQL + 薄封装。
  */
 import type { Database } from 'better-sqlite3';
 import { MzError } from '@shared/types/ipc';
 import { PLATFORM_RULES } from '@shared/constants/platforms';
+import { CADENCE_DAYS } from '@shared/publish/schedule';
 import type { Cadence, PlanStatus, PublishPlan, PublishPlanInput } from '@shared/types/publish';
-
-/**
- * 节奏 → 间隔天数（一处来源）。
- * ★ P2D-T4 待迁：Task 4 会把本常量 relocate 到 @shared/publish/schedule.ts，
- * 届时 schedule.ts import 它、本文件改为转发 import，保持单源。
- */
-export const CADENCE_DAYS = { daily: 1, every2: 2, weekly: 7 } as const;
 
 interface PublishPlanRowRow {
   id: string;
