@@ -133,6 +133,51 @@ export interface ChatRequest {
    * 与 timeoutMs 同理：重试是给偶发抖动的，不是给黑洞端点放大等待的。
    */
   maxRetries?: number;
+  /**
+   * 流式增量回调（E批「模型思考过程可见」）。仅 stream:true 时生效：
+   * parseStream 每收到一片 delta 就转发一次——content 是正文增量，
+   * reasoning 是思考流增量（DeepSeek-R1 式 reasoning_content，部分代理
+   * 网关字段名是 reasoning，客户端两名都认）。回调在主进程内同步执行，
+   * **不经 IPC**（IPC 出口在服务层的 onProgress，见 LlmProgress）。
+   */
+  onDelta?: (d: { content?: string; reasoning?: string }) => void;
+}
+
+/**
+ * 短产出路径（抽脑洞 / 拆书精读）的等待进度事件（E批「模型思考过程可见」）。
+ *
+ * 老板报障：「只是按钮显示抽卡中，卡一晚上我也不知道他到底在干什么」。
+ * 本 DTO 就是答案：等了多久、第几次尝试、收到了多少字、模型正在思考还是
+ * 正在产出、以及——provider 真的回了 reasoning_content 时——思考的尾部片段。
+ *
+ * ★ 诚实纪律（DRD §7）：
+ *   - 每个字段都来自真实观测（elapsedMs 是测的、charsSeen 是数出来的），
+ *     没有任何推测值；
+ *   - thought 只是**尾部片段**（≤200 字，推送载荷限长），不是完整思考，
+ *     渲染层必须如实标注「片段」；
+ *   - provider 没回思考流时 thought 恒缺席，渲染层明示「该模型未返回思考
+ *     内容」，绝不编造；
+ *   - fallback 的 note 携带**真因**（异常原文），演示兜底不许看起来像模型产出。
+ */
+export interface LlmProgress {
+  /** 哪条短产出路径：抽脑洞 / 拆书精读 */
+  scope: 'idea' | 'teardown';
+  /**
+   * start=已发起等待模型 / thinking=reasoning 增量到达中 / writing=正文增量
+   * 到达中 / retry=一次重试开始 / done=live 产出完成 / error=出错（无兜底路径）
+   * / fallback=已如实回落演示数据（note 带真因）
+   */
+  phase: 'start' | 'thinking' | 'writing' | 'retry' | 'done' | 'error' | 'fallback';
+  /** 第几次尝试（从 1 起）。服务层经 PipelineLlm 看不到客户端内部重试时恒 1，不谎报 */
+  attempt: number;
+  /** 自发起调用起的实测毫秒数（不是估的） */
+  elapsedMs: number;
+  /** 已流回的字符数（思考 + 正文，收到多少数多少） */
+  charsSeen: number;
+  /** 思考流尾部片段（≤200 字）；provider 未返回 reasoning_content 时缺席 */
+  thought?: string;
+  /** 补充说明；fallback 时**必须**携带真因 */
+  note?: string;
 }
 
 export interface ChatResponse {

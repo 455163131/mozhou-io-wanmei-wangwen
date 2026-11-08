@@ -1,0 +1,50 @@
+/**
+ * 短产出路径等待状态条样式（E批「模型思考过程可见」）。
+ * 色与间距一律只走 --mz- 令牌——theme-ink C 组钉死零裸色；design-tokens-usage
+ * A 组钉死字号/圆角/间距不许裸 px（1px 边框除外）。无按钮，不入 SOLID_BUTTON_CENSUS。
+ */
+
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-1);
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-2) var(--mz-space-3);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-3);
+  flex-wrap: wrap;
+}
+
+.metric {
+  font-family: var(--mz-font-numeric);
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-secondary);
+}
+
+.phase {
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-accent);
+  font-weight: var(--mz-fw-semibold);
+  letter-spacing: var(--mz-tracking-wide);
+}
+
+.thought {
+  margin: 0;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: 0;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-sem-warn-fg);
+  line-height: 1.8;
+}

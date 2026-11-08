@@ -47,6 +47,13 @@ export interface PipelineLlm {
      */
     timeoutMs?: number;
     maxRetries?: number;
+    /**
+     * ★ E批「模型思考过程可见」：流式开关与增量回调（透传给 LlmClient）。
+     *   短产出路径用 stream:true + onDelta 把「模型正在干什么」逐片报出来；
+     *   生成流水线的三个写手不用（它们要完整 JSON，流式与否由装配层决定）。
+     */
+    stream?: boolean;
+    onDelta?: (d: { content?: string; reasoning?: string }) => void;
   }): Promise<{ content: string; usage: { input: number; output: number } }>;
 }
 

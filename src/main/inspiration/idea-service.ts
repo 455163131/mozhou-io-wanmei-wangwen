@@ -15,11 +15,13 @@
 import type { InspirationRepo } from '../db/repos/inspiration-repo';
 import { TEMPERATURE, type PipelineLlm } from '../pipeline/tools';
 import { SHORT_OUTPUT_BUDGET } from '../llm/client';
+import { createLlmProgressEmitter, progressCause } from './llm-progress';
 import type { PromptOverlay, PromptOverlayRole } from '../pipeline/overlay';
 import { composeIdeaPrompt } from '../pipeline/prompts';
 import { extractJson } from '../agent/host';
 import { drawDirection } from '@shared/inspiration/seed-pool';
 import { IdeaSchema, type IdeaPayload, type InspirationCard } from '@shared/types/inspiration';
+import type { LlmProgress } from '@shared/types/provider';
 
 /** 抽脑洞依赖契约（生产由 services.ideaDeps() 装配；测试可注入假 llm/repo/rand）。 */
 export interface IdeaDeps {
@@ -29,6 +31,11 @@ export interface IdeaDeps {
   getOverlay?: (role: PromptOverlayRole) => PromptOverlay | null | Promise<PromptOverlay | null>;
   /** 方向随机源（缺省 Math.random；测试注入定值验反重复）。 */
   rand?: () => number;
+  /**
+   * 等待进度播报（E批「模型思考过程可见」；生产接 push.send('llm:progress')）。
+   * 缺省不播——老调用方零影响。事件全部来自真实观测，见 LlmProgress 诚实纪律注。
+   */
+  onProgress?: (p: LlmProgress) => void;
 }
 
 export interface IdeaDrawResult {
@@ -55,6 +62,11 @@ export async function drawIdea(deps: IdeaDeps): Promise<IdeaDrawResult> {
   const system = composeIdeaPrompt(dir, overlay);
   const temperature = overlay?.temperature ?? TEMPERATURE.idea;
 
+  // E批「模型思考过程可见」：等待过程如实播报（start → thinking/writing → done/fallback），
+  // 全部字段来自真实观测——elapsedMs 实测、charsSeen 实数、thought 是 provider 真回了
+  // reasoning_content 才有的尾部片段（没回就缺席，绝不编造）。
+  const progress = createLlmProgressEmitter('idea', deps.onProgress);
+  progress.start();
   try {
     const res = await llm.chat({
       messages: [
@@ -66,6 +78,10 @@ export async function drawIdea(deps: IdeaDeps): Promise<IdeaDrawResult> {
       //   到点即抛 → 下面的演示兜底立刻接手，用户最多等半分钟就看到结果与真因。
       timeoutMs: SHORT_OUTPUT_BUDGET.timeoutMs,
       maxRetries: SHORT_OUTPUT_BUDGET.maxRetries,
+      // ★ E批：走流式——parseStream 照旧累积完整 content（JSON 完整性不变），
+      //   同时把增量经 onDelta 报出来，等待期不再是黑箱。
+      stream: true,
+      onDelta: (d) => progress.onDelta(d),
     });
     const parsed = IdeaSchema.safeParse(extractJson(res.content));
     if (!parsed.success) throw new Error('脑洞产出未过 IdeaSchema 契约');
@@ -79,9 +95,12 @@ export async function drawIdea(deps: IdeaDeps): Promise<IdeaDrawResult> {
       live: true,
     };
     const card = repo.insert({ kind: 'idea', title: out.premise, payload, sourceLabel: dir });
+    progress.done();
     return { card, source: 'live' };
-  } catch {
+  } catch (e) {
     // 诚实兜底：无 Key / 请求失败 / 产出坏 → 演示占位，明示 live:false，绝不虚报为模型产出。
+    // ★ E批：fallback 事件带真因（异常原文），界面上的「已回落演示数据」不再是黑箱。
+    progress.fallback(progressCause(e));
     const payload: IdeaPayload = {
       direction: dir,
       premise: `【演示】围绕「${dir}」的一句话故事（未配置模型，演示占位）`,

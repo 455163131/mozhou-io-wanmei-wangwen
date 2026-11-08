@@ -185,7 +185,7 @@ export class LlmClient {
       this.stats.totalMs += wallMs;
 
       if (req.stream) {
-        return await this.parseStream(res, wallMs);
+        return await this.parseStream(res, wallMs, req.onDelta);
       }
       const json = (await res.json()) as Record<string, unknown>;
       return this.parseJson(json, wallMs);
@@ -328,8 +328,19 @@ export class LlmClient {
     };
   }
 
-  /** 解析 SSE 流。累积 delta.content 与 delta.tool_calls */
-  private async parseStream(res: Response, wallMs: number): Promise<ChatResponse> {
+  /**
+   * 解析 SSE 流。累积 delta.content 与 delta.tool_calls。
+   * ★ E批「模型思考过程可见」：每片增量原样转发给 onDelta（调用方自选消费，
+   *   累积语义与既有完全一致，不传 onDelta 的老调用方零影响）。思考流字段
+   *   厂商有差异：DeepSeek 官方是 `reasoning_content`，部分代理网关转发成
+   *   `reasoning`——两名都认，但**绝不混进 content**（思考不是正文，混进去
+   *   会污染 extractJson 的输入）。
+   */
+  private async parseStream(
+    res: Response,
+    wallMs: number,
+    onDelta?: (d: { content?: string; reasoning?: string }) => void,
+  ): Promise<ChatResponse> {
     if (!res.body) {
       throw new LlmError('badResponse', '响应无 body，无法流式解析');
     }
@@ -368,6 +379,8 @@ export class LlmClient {
           const choice = (evt.choices as Array<{
             delta?: {
               content?: string;
+              reasoning_content?: string;
+              reasoning?: string;
               tool_calls?: Array<{
                 index?: number;
                 id?: string;
@@ -378,6 +391,18 @@ export class LlmClient {
           }>)?.[0];
 
           if (choice?.delta?.content) content += choice.delta.content;
+
+          // E批：增量转发（正文 + 思考流）。只转发本片真有的字段，不造空串。
+          if (onDelta) {
+            const dc = choice?.delta?.content;
+            const dr = choice?.delta?.reasoning_content ?? choice?.delta?.reasoning;
+            if (dc || dr) {
+              onDelta({
+                ...(dc ? { content: dc } : {}),
+                ...(dr ? { reasoning: dr } : {}),
+              });
+            }
+          }
 
           if (Array.isArray(choice?.delta?.tool_calls)) {
             for (const tc of choice.delta.tool_calls) {

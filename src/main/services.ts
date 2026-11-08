@@ -432,30 +432,45 @@ export class AppServices {
 
   /**
    * P2-C T4：抽脑洞依赖装配（照 pipelineDeps 形状）。llm 只暴露 chat 子集
-   * （stream:false——脑洞要完整 JSON）；repo 复用同一个 inspirationRepo（同库同表，
+   * （E批：stream 由服务层声明——流式增量只为播报进度，content 仍是完整 JSON；
+   * 端点声明不支持流式时压回 false）；repo 复用同一个 inspirationRepo（同库同表，
    * ideaHistory 反重复与落库看同一份数据）；getOverlay 走 idea 角色，落点与生成链
-   * 同一数据目录。全是活闭包——重配 provider、改覆盖层都自动跟上，无陈旧快照。
+   * 同一数据目录；onProgress 接 push.send('llm:progress')——等待过程可见（E批）。
+   * 全是活闭包——重配 provider、改覆盖层都自动跟上，无陈旧快照。
    */
   ideaDeps(): IdeaDeps {
     return {
-      llm: { chat: (req) => this.llm.chat({ ...req, stream: false }) },
+      // ★ E批：不再硬压 stream:false——服务层自己声明 stream:true 走流式播报进度，
+      //   parseStream 照旧累积完整 JSON（content 语义不变）；只对声明不支持流式的
+      //   端点压回 false（见 streamingSupported 注，不许拿功能换进度条）。
+      llm: {
+        chat: (req) => this.llm.chat(this.streamingSupported ? req : { ...req, stream: false }),
+      },
       repo: this.inspirationRepo,
       getOverlay: async (role) => (await loadOverlay(app.getPath('userData'), role)).overlay,
+      // E批「模型思考过程可见」：等待进度走唯一推送出口（渲染层 use-llm-progress 订阅）
+      onProgress: (p) => this.push.send('llm:progress', p),
     };
   }
 
   /**
    * P2-C T5：拆书报告依赖装配（照 ideaDeps 形状）。结构统计不碰 llm（零 token），
-   * llm chat 子集只供八维精读消费（stream:false——精读要完整 JSON）；td/ins 复用
-   * 同一对 repo（拆书卡与扫榜/脑洞卡同表异 kind）；getOverlay 走 teardown 角色，
-   * 落点与生成链同一数据目录。全是活闭包——重配 provider、改覆盖层都自动跟上。
+   * llm chat 子集只供八维精读消费（E批：stream 由服务层声明，同 ideaDeps 口径）；
+   * td/ins 复用同一对 repo（拆书卡与扫榜/脑洞卡同表异 kind）；getOverlay 走
+   * teardown 角色，落点与生成链同一数据目录；onProgress 接 push.send('llm:progress')
+   * ——精读等待过程可见（E批）。全是活闭包——重配 provider、改覆盖层都自动跟上。
    */
   teardownDeps(): TeardownIpcDeps {
     return {
       td: this.teardownRepo,
       ins: this.inspirationRepo,
-      llm: { chat: (req) => this.llm.chat({ ...req, stream: false }) },
+      // ★ E批：同 ideaDeps——stream 由服务层声明（进度播报），不支持流式的端点压回 false
+      llm: {
+        chat: (req) => this.llm.chat(this.streamingSupported ? req : { ...req, stream: false }),
+      },
       getOverlay: async (role) => (await loadOverlay(app.getPath('userData'), role)).overlay,
+      // E批「模型思考过程可见」：等待进度走唯一推送出口（渲染层 use-llm-progress 订阅）
+      onProgress: (p) => this.push.send('llm:progress', p),
     };
   }
 
@@ -543,6 +558,17 @@ export class AppServices {
 
   get effectiveContextTokens(): number {
     return this.capabilities?.maxContextTokens ?? this.provider.capabilities.maxContextTokens;
+  }
+
+  /**
+   * 有效流式能力（E批）：未探测时用 provider 声明值。
+   * 短产出路径（抽脑洞/拆书精读）要 stream:true 才能逐片播报进度，但对
+   * **声明不支持流式**的端点硬开 stream:true 是拿功能换进度条——不许。
+   * 不支持时装配层把 stream 压回 false：进度事件退化为 start → done/fallback，
+   * 等待秒数与回落真因仍如实可见。
+   */
+  get streamingSupported(): boolean {
+    return this.capabilities?.streaming ?? this.provider.capabilities.streaming;
   }
 
   async configureLlm(payload: {

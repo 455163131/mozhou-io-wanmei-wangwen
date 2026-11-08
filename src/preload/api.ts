@@ -433,4 +433,6 @@ export const SUBSCRIBE_CHANNELS: IpcPushChannel[] = [
   'checkpoint:rolled-back',
   // P0 生成流水线（T5）
   'pipeline:progress',
+  // E批：短产出路径的等待进度（模型思考过程可见）
+  'llm:progress',
 ];

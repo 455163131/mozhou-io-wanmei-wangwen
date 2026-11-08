@@ -21,6 +21,8 @@
  */
 import { useCallback, useRef, useState } from 'react';
 import { bridge, errorText } from '../../hooks/use-mz-bridge';
+import { useLlmProgress } from '../../hooks/use-llm-progress';
+import { LlmProgressStrip } from '../common/LlmProgressStrip';
 import { createSequencer } from '../../lib/sequenced';
 import { TEARDOWN_DEMO_MARK } from '@shared/types/inspiration';
 import type { TeardownDims, TeardownStructure } from '@shared/types/inspiration';
@@ -50,6 +52,10 @@ export function TeardownView(): JSX.Element {
   const structSeqRef = useRef(createSequencer());
   const readSeqRef = useRef(createSequencer());
   const importSeqRef = useRef(createSequencer());
+  /** ★ E批「模型思考过程可见」：精读 busy 期间订阅 llm:progress（scope='teardown'）——
+   *  等待秒数/阶段/已收字数/思考片段如实展示；fallbackNote 在 busy 结束后仍保留，
+   *  演示兜底说明旁一直看得到回落真因（下一轮精读才清空）。 */
+  const { progress, fallbackNote } = useLlmProgress('teardown', busyRead);
   /** ★ 终审修复波 T5①：当前报告 id 的实时镜像——saveDim 拿捕获值对账用。
    *  runStructure 一旦换报告，旧 saveDim 的迟到响应就不许再把新报告的该维标成「已存入」。 */
   const reportIdRef = useRef<string | null>(null);
@@ -222,6 +228,8 @@ export function TeardownView(): JSX.Element {
       {err && <p className={styles.err}>{err}</p>}
       {notice && <p className={styles.notice}>{notice}</p>}
 
+      {busyRead && progress && <LlmProgressStrip progress={progress} />}
+
       {!report && (
         <p className={styles.empty}>
           尚无拆书报告——给范文起个名、贴上正文，点「结构统计（秒出·零token）」。结构统计全程纯计算不调模型；
@@ -273,6 +281,7 @@ export function TeardownView(): JSX.Element {
           {read.source === 'demo' && (
             <p className={styles.fallbackNote}>
               本次未走模型：统计可确定的维度如实给统计句，其余维度标「演示·未精读」——配置 API Key 后重点「AI 精读八维」即得实时拆解。
+              {fallbackNote ? `本次回落真因：${fallbackNote}` : ''}
             </p>
           )}
           <div className={styles.dimGrid}>

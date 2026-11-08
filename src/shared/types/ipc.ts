@@ -4,7 +4,7 @@
  * **铁律**：通道名集中在此定义，preload/channels.ts 从中取值，
  * 禁止在业务代码里手写字符串通道名。契约先冻结再写实现，否则后面全返工（T02 是架构级卡点）。
  */
-import type { LlmStatus } from './provider';
+import type { LlmStatus, LlmProgress } from './provider';
 import type {
   Chapter,
   ChapterMeta,
@@ -838,6 +838,13 @@ export interface IpcPushMap {
     state: 'running' | 'done' | 'failed';
     detail?: string;
   };
+  /**
+   * 短产出路径（抽脑洞/拆书精读）的等待进度（E批「模型思考过程可见」）。
+   * 老板报障「卡一晚上不知道他在干什么」的答案：等待秒数/阶段/已收字数/
+   * 思考尾部片段全在这份 DTO 里，字段全部来自真实观测（见 LlmProgress 的
+   * 诚实纪律注）。服务层节流后推送（≤5 次/秒），不灌 IPC。
+   */
+  'llm:progress': LlmProgress;
 }
 
 export const IPC_PUSH_CHANNELS = [
@@ -859,6 +866,8 @@ export const IPC_PUSH_CHANNELS = [
   'checkpoint:rolled-back',
   // P0 生成流水线（T5）
   'pipeline:progress',
+  // E批：短产出路径的等待进度（模型思考过程可见）
+  'llm:progress',
 ] as const;
 
 export type IpcPushChannel = keyof IpcPushMap;

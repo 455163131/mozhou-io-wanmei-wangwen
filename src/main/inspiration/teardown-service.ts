@@ -31,10 +31,12 @@ import type { TeardownRepo } from '../db/repos/teardown-repo';
 import type { InspirationRepo } from '../db/repos/inspiration-repo';
 import { TEMPERATURE, type PipelineLlm } from '../pipeline/tools';
 import { SHORT_OUTPUT_BUDGET } from '../llm/client';
+import { createLlmProgressEmitter, progressCause } from './llm-progress';
 import type { PromptOverlay, PromptOverlayRole } from '../pipeline/overlay';
 import { composeTeardownPrompt } from '../pipeline/prompts';
 import { extractJson } from '../agent/host';
 import { distillReferenceWork } from '../tools/impl/digest';
+import type { LlmProgress } from '@shared/types/provider';
 
 /* 精读内置温度＝TEMPERATURE.teardown（唯一温度源在 pipeline/tools.ts，终审修复波 T5③
    删了本地 0.7 字面量；可被 teardown 覆盖层「温度：」行覆盖）。 */
@@ -111,6 +113,11 @@ export interface TeardownReadDeps {
   repo: TeardownRepo;
   /** teardown 角色覆盖层（缺省 null = 内置温度 + system 零追加）；容忍同步实现。 */
   getOverlay?: (role: PromptOverlayRole) => PromptOverlay | null | Promise<PromptOverlay | null>;
+  /**
+   * 等待进度播报（E批「模型思考过程可见」；生产接 push.send('llm:progress')）。
+   * 缺省不播——老调用方零影响。八维精读比抽卡更慢，「精读中…」黑箱等待更煎熬。
+   */
+  onProgress?: (p: LlmProgress) => void;
 }
 
 /** 结构统计 → user 消息摘要（八维精读的证据面：统计数字 + 钩子引文 + 人物粗提）。 */
@@ -195,6 +202,10 @@ export async function teardownRead(
   const overlay = (await deps.getOverlay?.('teardown')) ?? null;
   const system = composeTeardownPrompt(overlay);
   const temperature = overlay?.temperature ?? TEMPERATURE.teardown;
+  // E批「模型思考过程可见」：等待过程如实播报（同 drawIdea 口径——elapsedMs 实测、
+  // charsSeen 实数、thought 只在 provider 真回 reasoning_content 时携尾部片段）。
+  const progress = createLlmProgressEmitter('teardown', deps.onProgress);
+  progress.start();
   try {
     const res = await llm.chat({
       messages: [
@@ -205,13 +216,20 @@ export async function teardownRead(
       // ★ 紧预算（同 idea-service）：八维 JSON 是短产出，黑洞端点不许让用户等 8 分钟。
       timeoutMs: SHORT_OUTPUT_BUDGET.timeoutMs,
       maxRetries: SHORT_OUTPUT_BUDGET.maxRetries,
+      // ★ E批：走流式——parseStream 照旧累积完整 content（JSON 完整性不变），
+      //   同时把增量经 onDelta 报出来，等待期不再是黑箱。
+      stream: true,
+      onDelta: (d) => progress.onDelta(d),
     });
     const parsed = TeardownDimsSchema.safeParse(extractJson(res.content));
     if (!parsed.success) throw new Error('精读产出未过 TeardownDimsSchema 契约');
     repo.setDimensions(reportId, parsed.data);
+    progress.done();
     return { dims: parsed.data, source: 'live' };
-  } catch {
+  } catch (e) {
     // 诚实兜底：无 Key / 请求失败 / 产出坏 → 统计可确定维度 + 明示未精读，绝不冒充模型精读。
+    // ★ E批：fallback 事件带真因（异常原文），界面上的「已回落演示数据」不再是黑箱。
+    progress.fallback(progressCause(e));
     const dims = demoDims(structure);
     repo.setDimensions(reportId, dims);
     return { dims, source: 'demo' };
@@ -255,6 +273,8 @@ export interface TeardownIpcDeps {
   ins: InspirationRepo;
   llm: Pick<PipelineLlm, 'chat'>;
   getOverlay?: (role: PromptOverlayRole) => PromptOverlay | null | Promise<PromptOverlay | null>;
+  /** E批：等待进度播报（生产装配接 push.send('llm:progress')）；只被 teardown:read 消费。 */
+  onProgress?: (p: LlmProgress) => void;
 }
 
 const StructureArgsSchema = z.object({ title: z.string(), text: z.string().min(1) });
@@ -284,7 +304,7 @@ export async function teardownReadIpc(
 ): Promise<{ dims: TeardownDims; source: 'live' | 'demo' }> {
   const parsed = ReadArgsSchema.safeParse(args);
   if (!parsed.success) invalid('teardown:read', parsed.error);
-  return teardownRead({ reportId: parsed.data.reportId, llm: deps.llm, repo: deps.td, getOverlay: deps.getOverlay });
+  return teardownRead({ reportId: parsed.data.reportId, llm: deps.llm, repo: deps.td, getOverlay: deps.getOverlay, onProgress: deps.onProgress });
 }
 
 /** teardown:save-dimension —— 一维存灵感库，回卡（自带 id，收藏/套用直接拿它）。 */

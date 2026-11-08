@@ -16,6 +16,8 @@
  */
 import { useCallback, useRef, useState } from 'react';
 import { bridge, errorText } from '../../hooks/use-mz-bridge';
+import { useLlmProgress } from '../../hooks/use-llm-progress';
+import { LlmProgressStrip } from '../common/LlmProgressStrip';
 import { createSequencer } from '../../lib/sequenced';
 import type { IdeaPayload, InspirationCard } from '@shared/types/inspiration';
 import { MODE_LABELS } from '@shared/constants/modes';
@@ -37,6 +39,11 @@ export function IdeaDrawView(): JSX.Element {
   const [applied, setApplied] = useState(false);
 
   const drawSeqRef = useRef(createSequencer());
+
+  /** ★ E批「模型思考过程可见」：busy 期间订阅 llm:progress（scope='idea'）——
+   *  等待秒数/阶段/已收字数/思考片段如实展示；fallbackNote 在 busy 结束后
+   *  仍保留，演示徽标旁一直看得到回落真因（下一轮重抽才清空）。 */
+  const { progress, fallbackNote } = useLlmProgress('idea', busy);
 
   const draw = useCallback(async () => {
     const seq = drawSeqRef.current.next();
@@ -118,12 +125,14 @@ export function IdeaDrawView(): JSX.Element {
       {card && !isLive && (
         <p className={styles.fallbackNote}>
           演示占位 · 未配置模型或生成失败，非真实模型产出（live=false）。配置 API Key 后再抽即得实时脑洞。
+          {fallbackNote ? `本次回落真因：${fallbackNote}` : ''}
         </p>
       )}
       {err && <p className={styles.err}>{err}</p>}
       {notice && <p className={styles.notice}>{notice}</p>}
 
-      {busy && !card && <p className={styles.empty}>正在抽脑洞…</p>}
+      {busy && progress && <LlmProgressStrip progress={progress} />}
+      {busy && !progress && !card && <p className={styles.empty}>正在抽脑洞…</p>}
       {!card && !busy && (
         <p className={styles.empty}>
           尚未抽卡——点右上「抽一张脑洞」开始。方向避开近期已抽，连抽不重样；全抽过后自动重置种子池。
