@@ -44,6 +44,7 @@ import { GenView } from './components/views/GenView';
 import { PromptView } from './components/views/PromptView';
 import { ForeshadowView } from './components/views/ForeshadowView';
 import { CharacterView } from './components/views/CharacterView';
+import { TrendingView } from './components/views/TrendingView';
 import type { LlmStatus } from '@shared/types/provider';
 import { APP_BRAND_NAME } from '@shared/constants/brand';
 import { MODE_LABELS, type WorkMode } from '@shared/constants/modes';
@@ -57,7 +58,7 @@ type RailTab = 'expert' | 'agent' | 'flavor' | 'health' | 'history';
  *
  *   创作=[写作坊 / 大纲管理 / 生成·导演台 / 审稿报告(R36 回补)]  —— 产出与定稿的入口
  *   资产=[世界观设定 / 人物记忆(P2-B T6 转正) / 伏笔台账(P2-B T4 转正) / 长期记忆·设计中]
- *   灵感=[扫榜热榜 / 抽脑洞 / 拆书报告 / 选题库]（全部设计中）
+ *   灵感=[扫榜热榜(P2-C T3 转正) / 抽脑洞 / 拆书报告 / 选题库]（后三者设计中）
  *   输出=[统计账本 / 导出中心·设计中]
  *   系统=[提示词与技能]（★ P2-A T4 新增第 5 组，一条实项，不占数字快捷键）
  *
@@ -102,7 +103,8 @@ type NavItem =
  *   label、面板底栏「当前：」、面板命令名全部指同一个常量——加模式只改一处。
  *   双向钉在 tests/integration/shell-r1-wiring.test.ts A 组。
  *   （★ P2-B T4 伏笔台账转正后 soon 行剩 7 条；★ P2-B T6 人物记忆再转正，
- *   剩 6 条：长期记忆/扫榜热榜/抽脑洞/拆书报告/选题库/导出中心。）
+ *   剩 6 条；★ P2-C T3 扫榜热榜再转正，剩 5 条：长期记忆/抽脑洞/拆书报告/
+ *   选题库/导出中心。）
  */
 
 /** 导航条目（icon path 与品牌定稿的 SVG sprite 同源） */
@@ -136,7 +138,8 @@ const NAV_GROUPS: { id: string; label: string; items: NavItem[] }[] = [
     id: 'inspire',
     label: '灵感',
     items: [
-      { kind: 'soon', id: 'soon-trends', label: '扫榜热榜', d: 'M5 20V10M12 20V4M19 20v-7' },
+      // ★ P2-C T3：扫榜热榜从 soon 占位转正为真 mode（icon path 原样保留）。
+      { kind: 'mode', id: 'trends', label: MODE_LABELS.trends, d: 'M5 20V10M12 20V4M19 20v-7' },
       { kind: 'soon', id: 'soon-brainstorm', label: '抽脑洞', d: 'M9 18h6M10 21h4M12 3a6 6 0 00-4 10.5c.8.8 1.5 1.9 1.5 3H14.5c0-1.1.7-2.2 1.5-3A6 6 0 0012 3z' },
       { kind: 'soon', id: 'soon-teardown', label: '拆书报告', d: 'M12 4v16M5 6a2 2 0 012-2h3v18H7a2 2 0 00-2 2V6m14 0a2 2 0 00-2-2h-3v18h3a2 2 0 012 2V6' },
       { kind: 'soon', id: 'soon-topics', label: '选题库', d: 'M4 6h16M4 12h16M4 18h10' },
@@ -582,6 +585,7 @@ export function App(): JSX.Element {
               {mode === 'prompt' && <PromptView />}
               {mode === 'foreshadow' && <ForeshadowView />}
               {mode === 'characters' && <CharacterView />}
+              {mode === 'trends' && <TrendingView />}
             </main>
           )}
         </div>
@@ -622,7 +626,7 @@ export function App(): JSX.Element {
             switch (id) {
               case 'mode:write': case 'mode:plan': case 'mode:lore':
               case 'mode:review': case 'mode:dash': case 'mode:gen': case 'mode:prompt':
-              case 'mode:foreshadow': case 'mode:characters':
+              case 'mode:foreshadow': case 'mode:characters': case 'mode:trends':
                 setMode(id.slice(5) as Mode);
                 break;
               case 'panel:tree':
