@@ -18,8 +18,9 @@
  * ★ ToolContext 构造照 pipeline/ipc.ts 的 toolCtx() 同款最小形态：只读工具不
  *   走快照通道，requireCheckpoint 直报错而非静默；digest 的 DigestDeps 只要求
  *   currentProjectId()，按只读契约喂 () => null。
- * ★ 版权守卫在上游：distillReferenceWork 的 LCS≤20 合规检查原样生效，
- *   本模块只消费其产出，不另抄原文。
+ * ★ 版权守卫在上游，裁决不扔（B批⑤）：distillReferenceWork 的 LCS≤20 合规检查
+ *   产出的 compliance（passed/note）随 structure 一并落库上屏——passed=false 时
+ *   拆书页如实展示 note 真因警告；本模块只消费其产出，不另抄原文。
  */
 import { z } from 'zod';
 import { MzError } from '@shared/types/ipc';
@@ -93,6 +94,9 @@ export async function teardownStructure(
     struct: dr.ok && dr.data ? dr.data.struct : null,
     hooks: dr.ok && dr.data ? dr.data.hooks : [],
     roles: dr.ok && dr.data ? dr.data.roles : [],
+    // ★ B批⑤：LCS 合规裁决随 structure 落库——passed=false 由拆书页上屏 note 真因，
+    //   不再解构即扔（守卫算了就必须有人看）。
+    compliance: dr.ok && dr.data ? { passed: dr.data.compliance.passed, note: dr.data.compliance.note } : null,
     analyze: {
       chars: a.chars,
       paras: a.paras,
@@ -143,7 +147,8 @@ function structureBrief(bookTitle: string, s: TeardownStructure): string {
     );
   }
   if (s.hooks.length > 0) {
-    lines.push(`钩子样例（引文证据，各 ≤16 字）：${s.hooks.slice(0, 8).map((h) => `「${h.quote}」(${h.kind})`).join(' ')}`);
+    // ★ B批④：真界 ≤32 字——引文出自 snippetAround(radius=16) 双侧窗口，旧「16 字」标签失实。
+    lines.push(`钩子样例（引文证据，各 ≤32 字）：${s.hooks.slice(0, 8).map((h) => `「${h.quote}」(${h.kind})`).join(' ')}`);
   }
   if (s.roles.length > 0) {
     lines.push(`人物粗提：${s.roles.slice(0, 8).map((r) => `${r.name}×${r.mentions}`).join('、')}`);

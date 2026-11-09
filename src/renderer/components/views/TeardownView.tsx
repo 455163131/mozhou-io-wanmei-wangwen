@@ -114,21 +114,34 @@ export function TeardownView(): JSX.Element {
     }
   }, [title, text]);
 
-  /** ② 八维精读：按需 LLM；失败如实演示兜底（source='demo'）。 */
+  /** ② 八维精读：按需 LLM；失败如实演示兜底（source='demo'）。
+   *  ★ B批①：与 saveDim 同款 captured-reportId 时效闸（在 readSeq 之外**另加**一道，
+   *  T5① 同口径）——精读在飞时报告被「结构统计」换掉的，迟到的旧报告八维不许画到
+   *  新报告头上；丢弃如实告知（notice），不静默吞。 */
   const runRead = useCallback(async () => {
     if (!report) return;
     const seq = readSeqRef.current.next();
+    const capturedReadReportId = report.reportId;
     setBusyRead(true);
     setErr(null);
     setNotice(null);
     try {
-      const r = await bridge().teardown.read(report.reportId);
+      const r = await bridge().teardown.read(capturedReadReportId);
       if (!readSeqRef.current.isCurrent(seq)) return;
+      if (reportIdRef.current !== capturedReadReportId) {
+        setNotice('本次精读结果已丢弃：等待期间重跑了结构统计、报告已更换——旧报告的八维不许画到新报告上，请对新报告重新点「AI 精读八维」。');
+        return;
+      }
       setRead(r);
       setSavedDims(new Set());
       if (r.source === 'demo') setNotice('八维走了演示兜底（未配置模型或产出未过契约）——配置 API Key 后重点即得实时精读。');
     } catch (e) {
-      if (readSeqRef.current.isCurrent(seq)) setErr(errorText(e));
+      if (!readSeqRef.current.isCurrent(seq)) return;
+      if (reportIdRef.current !== capturedReadReportId) {
+        setNotice('本次精读已作废：等待期间重跑了结构统计、报告已更换（错误随旧报告一并丢弃）。');
+        return;
+      }
+      setErr(errorText(e));
     } finally {
       if (readSeqRef.current.isCurrent(seq)) setBusyRead(false);
     }
@@ -208,9 +221,12 @@ export function TeardownView(): JSX.Element {
           <button className={styles.btn} disabled={busyImport} onClick={() => void loadChapters()}>
             {busyImport ? '取文中…' : '载入当前项目正文（只读）'}
           </button>
+          {/* ★ B批②：两大 CTA 互斥禁用——精读在飞时「结构统计」不许点（正是「旧精读迟到
+              盖新报告」竞态的触发口），结构统计在飞时「精读」同样不许点；runRead 的
+              captured-reportId 时效闸做第二道兜底。 */}
           <button
             className={styles.btnPrimary}
-            disabled={busyStruct || text.trim().length === 0}
+            disabled={busyStruct || busyRead || text.trim().length === 0}
             onClick={() => void runStructure()}
           >
             {busyStruct ? '统计中…' : '结构统计（秒出 · 零token）'}
@@ -248,9 +264,14 @@ export function TeardownView(): JSX.Element {
               </div>
             ))}
           </div>
+          {/* ★ B批⑤：LCS 版权合规裁决不再算完即扔——passed=false 时真因原文如实上屏
+              （compliance.note 来自 digest 守卫，不另编法律话术；不新增阻断行为）。 */}
+          {s.compliance && !s.compliance.passed && (
+            <p className={styles.fallbackNote}>版权合规警告（LCS 守卫未过）：{s.compliance.note}</p>
+          )}
           {s.hooks.length > 0 && (
             <>
-              <h4 className={styles.subHead}>钩子样例（引文 ≤16 字，LCS 合规守卫在上游）</h4>
+              <h4 className={styles.subHead}>钩子样例（引文 ≤32 字，LCS 合规守卫在上游）</h4>
               <ul className={styles.hookList}>
                 {s.hooks.slice(0, 8).map((h, i) => (
                   <li key={`${h.chapterId}-${i}`} className={styles.hook}>
@@ -277,7 +298,11 @@ export function TeardownView(): JSX.Element {
 
       {read && (
         <section className={styles.section}>
-          <h3 className={styles.sectionHead}>八维精读（{read.source === 'live' ? '模型产出' : '演示兜底'}）</h3>
+          {/* ★ B批③：诚实标签——精读只喂 structureBrief（统计+引文+人名），模型从未读过
+              原文，旧标签言过其实，如实写「模型推断·未读原文」。 */}
+          <h3 className={styles.sectionHead}>
+            八维精读（{read.source === 'live' ? '模型推断·基于结构统计·未读原文' : '演示兜底'}）
+          </h3>
           {read.source === 'demo' && (
             <p className={styles.fallbackNote}>
               本次未走模型：统计可确定的维度如实给统计句，其余维度标「演示·未精读」——配置 API Key 后重点「AI 精读八维」即得实时拆解。

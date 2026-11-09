@@ -273,7 +273,7 @@ export interface MzBridge {
       title: string,
       text: string,
     ): Promise<IpcInvokeMap['teardown:structure']['res']>;
-    /** 八维精读（live=模型产出 / demo=演示兜底，dims 里未精读维度标「演示·未精读」） */
+    /** 八维精读（live=模型推断·仅凭结构统计未读原文 / demo=演示兜底，dims 里未精读维度标「演示·未精读」） */
     read(reportId: string): Promise<IpcInvokeMap['teardown:read']['res']>;
     /** 一维存灵感库（kind='teardown' 卡，回卡自带 id）；重复调用会落重复卡——UI 侧持会话防连点 */
     saveDimension(

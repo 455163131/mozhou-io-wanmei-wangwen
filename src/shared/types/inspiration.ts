@@ -200,7 +200,8 @@ export interface TeardownStructStat {
   hookDensity: number;
 }
 
-/** 钩子样例（digest hooks 切片，quote ≤16 字，LCS 合规守卫已在上游把关） */
+/** 钩子样例（digest hooks 切片，quote ≤32 字——snippetAround(radius=16) 双侧窗口，
+ *  LCS 合规守卫已在上游把关） */
 export interface TeardownHookStat {
   chapterId: string;
   at: number;
@@ -225,11 +226,19 @@ export interface TeardownAnalyzeSlice {
   openType: string;
 }
 
-/** teardown_reports.structure_json 的 T5 定形（R3 伪码逐字落地） */
+/** LCS 版权合规裁决（digest compliance 切片；null = 蒸馏失败如实缺席）。
+ *  ★ B批⑤：裁决不许算完即扔——passed=false 时拆书页把 note 真因原文如实上屏。 */
+export interface TeardownComplianceVerdict {
+  passed: boolean;
+  note: string;
+}
+
+/** teardown_reports.structure_json 的 T5 定形（R3 伪码逐字落地；B批⑤补 compliance 裁决） */
 export interface TeardownStructure {
   bench: TeardownBench | null;
   struct: TeardownStructStat | null;
   hooks: TeardownHookStat[];
   roles: TeardownRoleStat[];
   analyze: TeardownAnalyzeSlice;
+  compliance: TeardownComplianceVerdict | null;
 }
