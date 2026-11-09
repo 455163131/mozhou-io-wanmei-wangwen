@@ -160,7 +160,23 @@ export class LlmClient {
       if (req.signal.aborted) throw new LlmError('aborted', '调用方已取消');
       req.signal.addEventListener('abort', onAbort, { once: true });
     }
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    /**
+     * ★ 审查修复波 F1：计时器可续期（arm）。
+     * 修复前是一次性 `setTimeout(abort, timeoutMs)`，覆盖**整个**流式读取——
+     * A 批给短产出路径压的 30s 因此变成「总时长 30 秒」：健康的慢思考模型
+     * （reasoning 动辄超过 30s）会在流跑到一半时被腰斩 → timeout 可重试 →
+     * 第二次从零重发 → 约 61 秒必落演示兜底。E 批「想看见模型在想什么」的
+     * 那类模型，恰好是 A 批最先误杀的那类。
+     * 现在：流式路径每读到一个分片就 arm() 续命（口径=**多久没动静**），
+     * 黑洞/卡流仍按 timeoutMs 到点即失败（一个字节都没有时不会续期）；
+     * 非流式路径不续命（body 一次性读完，续命没有意义，保持总时长语义）。
+     */
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const arm = (): void => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => controller.abort(), timeoutMs);
+    };
+    arm();
 
     try {
       const body = this.buildBody(req);
@@ -185,15 +201,16 @@ export class LlmClient {
       this.stats.totalMs += wallMs;
 
       if (req.stream) {
-        return await this.parseStream(res, wallMs, req.onDelta);
+        return await this.parseStream(res, wallMs, req.onDelta, arm);
       }
       const json = (await res.json()) as Record<string, unknown>;
       return this.parseJson(json, wallMs);
     } catch (e) {
-      // controller.abort() 触发时区分「超时」与「调用方取消」
+      // controller.abort() 触发时区分「调用方取消」与「超时」；超时文案说空闲口径
+      // （流式路径的 timeoutMs 是「多久没动静」，非流式是总时长——两者都由这条抛出）
       if (e instanceof Error && e.name === 'AbortError') {
         if (req.signal?.aborted) throw new LlmError('aborted', '已被取消');
-        throw new LlmError('timeout', `请求超时（${timeoutMs}ms）`);
+        throw new LlmError('timeout', `请求超时（${timeoutMs}ms 内无响应）`);
       }
       if (e instanceof LlmError) throw e;
       throw new LlmError('network', e instanceof Error ? e.message : String(e));
@@ -340,6 +357,8 @@ export class LlmClient {
     res: Response,
     wallMs: number,
     onDelta?: (d: { content?: string; reasoning?: string }) => void,
+    /** ★ F1：读到任何分片就续命（空闲超时口径）；缺省不续命（总时长语义） */
+    onActivity?: () => void,
   ): Promise<ChatResponse> {
     if (!res.body) {
       throw new LlmError('badResponse', '响应无 body，无法流式解析');
@@ -358,6 +377,8 @@ export class LlmClient {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      // ★ F1：只要还在收到字节，就把超时计时器往后推——慢不等于死
+      onActivity?.();
       buffer += decoder.decode(value, { stream: true });
 
       // SSE 以空行分隔事件

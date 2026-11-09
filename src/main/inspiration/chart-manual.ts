@@ -10,9 +10,11 @@
  * ★ 失败说真话（原则#6）：识别不出任何书目 / 超上限 → 抛带真因的 Error，
  *   绝不静默回空数组让上层误以为「导入成功但没数据」。
  *
- * 输入形状：每行一本，分隔符逐行自适应（有 tab 按 TSV，否则按逗号 CSV）；
- * 列序固定 `排名,书名,作者,热度,链接,标签`，只有书名必填；含「书名/title」的
- * 表头行跳过；无分隔符的裸书名行按行序排名。上限 200 条 / 100000 字符。
+ * 输入形状：每行一本，分隔符逐行自适应（有 tab 按 TSV，否则按引号 CSV——
+ * 双引号包裹、"" 转义，Excel 导出含逗号字段不劈错列）；
+ * 列序固定 `排名,书名,作者,热度,链接,标签`，只有书名必填；表头只认首个非空行
+ * 且书名列恰为「书名/title」（数据行含这些字不误吞）；无分隔符的裸书名行按行序排名。
+ * 上限 200 条 / 100000 字符。
  */
 import type { ChartEntry, Platform } from '@shared/types/inspiration';
 
@@ -23,15 +25,51 @@ const MAX_CHARS = 100_000;
 
 /**
  * 中文计数换算（自写）：「27.7万」→277000、「1.2亿」→120000000、「3456」→3456。
- * 找不到数字 → null（宁缺毋假，不硬凑）。
+ * 全锚定匹配：整段必须是「数字+可选单位」，负号/杂质（跌2万/1万2/27.7万热度）
+ * 一律 null（宁缺毋假——旧口径未锚定会从「-3.2万」里捞出 +32000，属编造）。
  */
 function parseHeat(text: string): number | null {
-  const m = text.match(/(\d+(?:\.\d+)?)\s*(亿|万)?/);
+  const m = text.match(/^(-?\d+(?:\.\d+)?)\s*(亿|万)?$/);
   if (!m) return null;
   const n = Number(m[1]);
-  if (!Number.isFinite(n)) return null;
+  if (!Number.isFinite(n) || n < 0) return null;
   const unit = m[2] === '亿' ? 100_000_000 : m[2] === '万' ? 10_000 : 1;
   return Math.round(n * unit);
+}
+
+/**
+ * CSV 行切分（自写引号状态机）：Excel 导出含逗号字段必带双引号，
+ * 裸 split(',') 会把「"你好,世界"」劈成两列静默错位。双写 "" 转义为字面 "。
+ * 只用于逗号分隔；TSV（表格软件 tab 复制）不带引号，仍按 tab 直切。
+ */
+function splitCsvLine(line: string): string[] {
+  const cols: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line.charAt(i);
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line.charAt(i + 1) === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      cols.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  cols.push(cur);
+  return cols;
 }
 
 /** 书名剥《》并 trim（与榜单展示口径一致：《》是装饰不是书名的一部分） */
@@ -48,14 +86,23 @@ export function parseManualChart(platform: Platform, text: string): ChartEntry[]
     throw new Error(`手动导入超出上限：文本最长 ${MAX_CHARS} 字符`);
   }
   const out: ChartEntry[] = [];
+  let seenFirst = false;
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line) continue; // 空行跳过
-    // 表头行（含「书名」或 title）跳过——用户从表格软件复制常带表头
-    if (line.includes('书名') || /title/i.test(line)) continue;
+    // 表头只认首个非空行、且按列形状判定（书名列恰为「书名/title」且首列不是
+    // 整数排名）——旧口径逐行全文匹配会把《书名》、英文 "Title Fight" 等真实
+    // 书目静默吞掉；首列整数排除法保住「1,《书名》,甲」这种首行真数据。
+    if (!seenFirst) {
+      seenFirst = true;
+      const headCols = line.includes('\t') ? line.split('\t') : line.includes(',') ? splitCsvLine(line) : [line];
+      const headTitle = cleanTitle((headCols.length > 1 ? headCols[1] : headCols[0]) ?? '');
+      const rankIsInt = /^\d+$/.test((headCols[0] ?? '').trim());
+      if ((headTitle === '书名' || /^title$/i.test(headTitle)) && (headCols.length === 1 || !rankIsInt)) continue;
+    }
 
-    // 分隔符逐行自适应：有 tab 按 TSV，否则有逗号按 CSV，再否则整行当裸书名
-    const cols = line.includes('\t') ? line.split('\t') : line.includes(',') ? line.split(',') : [line];
+    // 分隔符逐行自适应：有 tab 按 TSV，否则有逗号按引号 CSV 切，再否则整行当裸书名
+    const cols = line.includes('\t') ? line.split('\t') : line.includes(',') ? splitCsvLine(line) : [line];
     const isBare = cols.length === 1;
     const title = cleanTitle(isBare ? (cols[0] ?? '') : (cols[1] ?? ''));
     if (!title) continue; // 只有书名必填；书名列空 → 该行不识别

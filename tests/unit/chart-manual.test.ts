@@ -88,6 +88,62 @@ describe('parseManualChart：url 与标签', () => {
   });
 });
 
+// ── 审查修复波（2026-11-09）：quoted CSV / 表头误吞 / 热度锚定 ──
+describe('parseManualChart：quoted CSV（Excel 导出含逗号字段必带引号）', () => {
+  it('引号内逗号不劈列：1,"你好,世界",作者,27.7万 → 完整书名/作者/热度', () => {
+    const entries = parseManualChart('番茄', '1,"你好,世界",作者,27.7万');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ rank: 1, title: '你好,世界', author: '作者', heat: 277000 });
+  });
+
+  it('无内逗号的 quoted 字段剥引号（"《书名》" → 书名，引号与《》都不残留）', () => {
+    const entries = parseManualChart('番茄', '1,"《书名》",甲');
+    expect(entries[0]!.title).toBe('书名');
+  });
+
+  it('双写引号转义："a""b" → a"b', () => {
+    const entries = parseManualChart('番茄', '1,"a""b",甲');
+    expect(entries[0]!.title).toBe('a"b');
+  });
+
+  it('quoted 空书名列 → 该行不识别（与裸空列同口径）', () => {
+    const entries = parseManualChart('番茄', '1,"",甲\n2,书B,乙');
+    expect(entries.map((e) => e.title)).toEqual(['书B']);
+  });
+});
+
+describe('parseManualChart：表头只认首个非空行且按列形状（不误吞真实书目）', () => {
+  it('数据行含「书名」二字不吞：2,《书名》,乙 是真实书目', () => {
+    const entries = parseManualChart('番茄', '1,正常的书,甲\n2,《书名》,乙');
+    expect(entries.map((e) => e.title)).toEqual(['正常的书', '书名']);
+  });
+
+  it('英文书名含 title 不吞：1,Title Fight,甲 是首行数据不是表头', () => {
+    const entries = parseManualChart('晋江', '1,Title Fight,甲');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.title).toBe('Title Fight');
+  });
+
+  it('表头在空行之后仍识别（首个非空行口径）', () => {
+    const entries = parseManualChart('番茄', '\n \n排名,书名,作者\n1,书A,甲');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.title).toBe('书A');
+  });
+
+  it('裸首行恰为「书名」/「title」按单列表头跳过', () => {
+    expect(parseManualChart('番茄', '书名\n书A').map((e) => e.title)).toEqual(['书A']);
+    expect(parseManualChart('晋江', 'title\n书B').map((e) => e.title)).toEqual(['书B']);
+  });
+});
+
+describe('parseManualChart：热度全锚定（负号/杂质宁缺毋假）', () => {
+  it('-3.2万 → null（负热度不编造成正数）；跌2万 / 1万2 / 27.7万热度 → null', () => {
+    const text = ['1,书A,a,-3.2万', '2,书B,b,跌2万', '3,书C,c,1万2', '4,书D,d,27.7万热度'].join('\n');
+    const entries = parseManualChart('番茄', text);
+    expect(entries.map((e) => e.heat)).toEqual([null, null, null, null]);
+  });
+});
+
 describe('parseManualChart：上限与失败真因（绝不静默回空）', () => {
   it('空输入/纯空白 → 抛「未识别到任何书目」真因', () => {
     expect(() => parseManualChart('番茄', '')).toThrowError('手动导入解析失败：未识别到任何书目（每行一本：排名,书名,作者,热度,链接,标签）');

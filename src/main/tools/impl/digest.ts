@@ -115,9 +115,13 @@ export async function distillReferenceWork(
         lcsMax,
         limit: DIGEST_LCS_LIMIT,
         passed,
+        // ★ 审查修复波 F5：守卫比对的是上方 report（bench + kb 两段拼接），钩子引文是
+        //   逐字摘录、不在其中。旧 note 不加范围地断言「未照抄原文」，与同屏的
+        //   ≤32 字逐字引文并存即成假账——口径改为只说自己覆盖的东西。
         note: passed
-          ? `最长公共子串 ${lcsMax} 字 < ${DIGEST_LCS_LIMIT}，未照抄原文。`
-          : `⚠️ 最长公共子串 ${lcsMax} 字 ≥ ${DIGEST_LCS_LIMIT}，参数卡疑似照抄原文。` +
+          ? `最长公共子串 ${lcsMax} 字 < ${DIGEST_LCS_LIMIT}，统计与参数卡未照抄原文` +
+            `（钩子引文是定位用的逐字摘录，不在本守卫覆盖范围内）。`
+          : `⚠️ 最长公共子串 ${lcsMax} 字 ≥ ${DIGEST_LCS_LIMIT}，统计与参数卡疑似照抄原文。` +
             `请检查是否把原文片段直接写进了报告。`,
       },
     },

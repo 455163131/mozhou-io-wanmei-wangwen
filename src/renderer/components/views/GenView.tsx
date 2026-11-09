@@ -204,19 +204,26 @@ export function GenView(): JSX.Element {
   /** 三执行按钮与参数保存共用的包装：busy 上锁 → 状态行 → 失败红字 → 成功刷草稿 */
   const run = useCallback(
     async (key: string, label: string, fn: () => Promise<void>, okMsg: string) => {
+      // ★ 审查修复波 F4：run() 用的是组件当时快照里的 pid。切项目后迟到的响应
+      //   若照常落地，会把**旧书**的草稿刷进**新书**草稿区，状态行还谎报「已生成」。
+      //   D 批只给 trace 加了这道闸（本文件 onDraft），回执与刷草稿同样要闸——
+      //   规则与全仓一致：await 回来后只有仍是最新的那一次才许落地，用户动作赢。
+      const startedAtPid = pid;
       setBusy(key, true);
       setProgress(`${label}：执行中…`);
       try {
         await fn();
+        if (useProjectStore.getState().project?.id !== startedAtPid) return;
         setProgress(okMsg);
         await refreshDrafts();
       } catch (e) {
+        if (useProjectStore.getState().project?.id !== startedAtPid) return;
         setProgress(`失败：${failText(e)}`, true);
       } finally {
         setBusy(key, false);
       }
     },
-    [refreshDrafts, setBusy, setProgress],
+    [pid, refreshDrafts, setBusy, setProgress],
   );
 
   const saveParams = (): void => {

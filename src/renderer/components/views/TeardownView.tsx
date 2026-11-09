@@ -271,7 +271,13 @@ export function TeardownView(): JSX.Element {
           )}
           {s.hooks.length > 0 && (
             <>
-              <h4 className={styles.subHead}>钩子样例（引文 ≤32 字，LCS 合规守卫在上游）</h4>
+              <h4 className={styles.subHead}>钩子样例（引文 ≤32 字）</h4>
+              {/* ★ 审查修复波 F5：旧 h4 声称引文有上游 LCS 守卫把关，是假账——那道
+                  守卫只比对 bench+参数卡（digest.ts），限值 20 还小于引文上界 32，
+                  逐字引文根本不在覆盖范围内。口径改成说清真话。 */}
+              <p className={styles.sub}>
+                引文是逐字摘录，供定位原文用；上游 LCS 合规守卫只查统计与参数卡，未纳入这些引文。
+              </p>
               <ul className={styles.hookList}>
                 {s.hooks.slice(0, 8).map((h, i) => (
                   <li key={`${h.chapterId}-${i}`} className={styles.hook}>
