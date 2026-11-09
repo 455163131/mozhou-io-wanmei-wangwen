@@ -39,6 +39,7 @@ interface FakeReq {
   maxRetries?: number;
   stream?: boolean;
   onDelta?: (d: { content?: string; reasoning?: string }) => void;
+  onRetry?: (n: number) => void;
 }
 
 describe('drawIdea onProgress（E批）', () => {
@@ -123,5 +124,28 @@ describe('drawIdea onProgress（E批）', () => {
     const llm = { chat: async () => ({ content: IDEA_JSON, usage: { input: 1, output: 1 } }) };
     const r = await drawIdea({ llm, repo });
     expect(r.source).toBe('live');
+  });
+
+  // ★ 裁决修复波 H2：drawIdea 必须把 progress.retry 接到 req.onRetry 上——
+  //   客户端重试发生在内部，不接线的话第二次的「已接收 N 字」会掺着第一次的字符。
+  it('H2：客户端回调 onRetry(2) 时播报 retry 相位、计数清零、attempt 报真值', async () => {
+    const llm = {
+      chat: async (req: FakeReq) => {
+        req.onDelta?.({ content: 'x'.repeat(400) }); // 第一次尝试收到 400 字后被 abort
+        req.onRetry?.(2); // 客户端告知：下面是第二次尝试
+        req.onDelta?.({ content: IDEA_JSON });
+        return { content: IDEA_JSON, usage: { input: 1, output: 1 } };
+      },
+    };
+    const events: LlmProgress[] = [];
+    await drawIdea({ llm, repo, onProgress: (p) => events.push(p) });
+    const retryEvent = events.find((e) => e.phase === 'retry');
+    expect(retryEvent, 'retry 相位定义了却永不发射 = 类型空头承诺').toBeDefined();
+    expect(retryEvent!.attempt).toBe(2);
+    expect(retryEvent!.charsSeen, '新尝试起点必须归零，不许带上第一次的 400 字').toBe(0);
+    const last = events.at(-1)!;
+    expect(last.phase).toBe('done');
+    expect(last.attempt).toBe(2);
+    expect(last.charsSeen, 'done 只数第二次收到的字').toBe(IDEA_JSON.length);
   });
 });

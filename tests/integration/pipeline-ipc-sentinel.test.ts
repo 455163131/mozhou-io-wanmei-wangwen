@@ -581,7 +581,7 @@ describe('G. D批：write-draft trace 透传（channel RESHAPE，CH 计数不动
     env.services.pipelineHandlers = () => ({ ...env.handlers, writeDraft: async () => result });
   }
 
-  it('成功：trace 原样透传（同一引用，不复制不改写）；res 只有 draftId+trace（retries/shortfall 不上浮）', async () => {
+  it('成功：trace 原样透传（同一引用，不复制不改写）；★ H4 起 retries/shortfall 一并上浮', async () => {
     const env = makeEnv();
     const trace = [
       { slot: 'synopsis', action: 'compressed' as const, before: 900, after: 300, reason: '超出栏位预算，截断保留前段' },
@@ -591,12 +591,51 @@ describe('G. D批：write-draft trace 透传（channel RESHAPE，CH 计数不动
     const r = await writeDraft(env.services, { projectId: env.pid, chapterNo: 1, planItem: PLAN_ITEM });
     expect(r.draftId).toBe('d1');
     expect(r.trace).toBe(trace);
-    expect(Object.keys(r).sort()).toEqual(['draftId', 'trace']);
+    // ★ 裁决修复波 H4：handler 早就回传 retries/shortfall（tools.ts 唯一 ok:true 出口），
+    //   IPC 不往上浮就是「能力存在却不暴露」；而「半章草稿交作者判断」这句话
+    //   在作者看不到 shortfall 时根本无从判断。旧钉只许 [draftId,trace]，本批改口径。
+    expect(Object.keys(r).sort()).toEqual(['draftId', 'retries', 'shortfall', 'trace']);
+    expect(r.retries).toBe(1);
+    expect(r.shortfall).toBe(true);
+  });
+
+  it('★ H4：trace 元素形护——畸形条目 = 契约破损 E_INTERNAL，不许把脏数组递给渲染层', async () => {
+    const env = makeEnv();
+    const cases: unknown[] = [
+      [{ slot: 'x' }], // 缺 action/before/after/reason
+      [{ slot: 'x', action: 'sliced', before: 1, after: 1, reason: 'r' }], // 未知 action
+      [{ slot: 1, action: 'kept', before: 1, after: 1, reason: 'r' }], // slot 非字符串
+      [null], // 元素非对象
+      [{ slot: 'x', action: 'kept', before: 'nine', after: 1, reason: 'r' }], // before 非数字
+    ];
+    for (const [i, trace] of cases.entries()) {
+      stubWriteDraft(env, { ok: true, durationMs: 1, data: { draftId: `d${i}`, trace } });
+      await expect(
+        writeDraft(env.services, { projectId: env.pid, chapterNo: 1, planItem: PLAN_ITEM }),
+      ).rejects.toMatchObject({ code: 'E_INTERNAL', message: 'trace 形状不合契约' });
+    }
+  });
+
+  it('★ H4：缺 retries/shortfall 或类型不对 → 同样 E_INTERNAL（与 trace 同一条纪律，不静默默认）', async () => {
+    const env = makeEnv();
+    const trace = [{ slot: 'x', action: 'kept' as const, before: 1, after: 1, reason: 'r' }];
+    for (const data of [
+      { draftId: 'a', trace }, // 两样都缺
+      { draftId: 'b', trace, retries: 1 }, // 缺 shortfall
+      { draftId: 'c', trace, shortfall: false }, // 缺 retries
+      { draftId: 'd', trace, retries: '1', shortfall: false }, // retries 非数字
+      { draftId: 'e', trace, retries: 1, shortfall: 'yes' }, // shortfall 非布尔
+    ]) {
+      stubWriteDraft(env, { ok: true, durationMs: 1, data });
+      await expect(
+        writeDraft(env.services, { projectId: env.pid, chapterNo: 1, planItem: PLAN_ITEM }),
+      ).rejects.toMatchObject({ code: 'E_INTERNAL', message: 'write-draft 缺 retries/shortfall' });
+    }
   });
 
   it('handler 显式返回空 trace 数组 → 原样透传 []（合法值，不拒）', async () => {
     const env = makeEnv();
-    stubWriteDraft(env, { ok: true, durationMs: 1, data: { draftId: 'd2', trace: [] } });
+    stubWriteDraft(env, { ok: true, durationMs: 1, data: { draftId: 'd2', trace: [], retries: 0, shortfall: false } });
     const r = await writeDraft(env.services, { projectId: env.pid, chapterNo: 1, planItem: PLAN_ITEM });
     expect(r.trace).toEqual([]);
   });
@@ -642,13 +681,15 @@ describe('G. D批：write-draft trace 透传（channel RESHAPE，CH 计数不动
     }
   });
 
-  it('P1B-T2 降级续写路径：同一份装配 trace 照常回传（续写不重新装配，trace 不丢）', async () => {
-    // llm 固定回 '短'：首稿不足半章 → 续写一次仍不足（retries=1/shortfall=true 在 handler data 里），
-    // 但 ok:true 出口只有一个，trace 必须随 res 上浮；retries/shortfall 不在 IPC res 出现。
+  it('P1B-T2 降级续写路径：同一份装配 trace 照常回传，且 retries/shortfall 如实上浮（★H4）', async () => {
+    // llm 固定回 '短'：首稿不足半章 → 续写一次仍不足。旧钉要 [draftId,trace] 两键，
+    // 裁决修复波 H4 改口径：这两样正是「半章草稿交作者判断」的判断依据，必须上屏。
     const { services, pid } = makeEnv({ llmContent: '短' });
     const r = await writeDraft(services, { projectId: pid, chapterNo: 1, planItem: PLAN_ITEM });
     expect(r.trace.length).toBeGreaterThan(0);
-    expect(Object.keys(r).sort()).toEqual(['draftId', 'trace']);
+    expect(Object.keys(r).sort()).toEqual(['draftId', 'retries', 'shortfall', 'trace']);
+    expect(r.retries).toBe(1);
+    expect(r.shortfall, '续写后仍不足目标一半必须报 true，不许静默当完整稿').toBe(true);
   });
 
   it('concept/outline 的 res 保持 {draftId} 不变（unwrapDraftId 不动）', async () => {

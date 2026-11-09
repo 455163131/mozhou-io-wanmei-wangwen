@@ -82,6 +82,8 @@ export async function drawIdea(deps: IdeaDeps): Promise<IdeaDrawResult> {
       //   同时把增量经 onDelta 报出来，等待期不再是黑箱。
       stream: true,
       onDelta: (d) => progress.onDelta(d),
+      // ★ H2：重试边界清零计数（否则第二次的「已接收 N 字」里掺着第一次没收成的字）
+      onRetry: (n) => progress.retry(n),
     });
     const parsed = IdeaSchema.safeParse(extractJson(res.content));
     if (!parsed.success) throw new Error('脑洞产出未过 IdeaSchema 契约');

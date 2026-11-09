@@ -34,8 +34,10 @@ const genCss = read('src/renderer/components/views/GenView.module.css');
 const promptSrc = read('src/renderer/components/views/PromptView.tsx');
 
 describe('A. D1：write-draft res  reshape 带 trace（TrimTrace 单源在 shared）', () => {
-  it('shared/types/ipc.ts：write-draft res = { draftId; trace: TrimTrace[] }，且 import 自 ./pipeline', () => {
-    expect(ipcSrc).toMatch(/'pipeline:write-draft':\s*\{\s*req:[\s\S]*?res:\s*\{\s*draftId:\s*string;\s*trace:\s*TrimTrace\[\]\s*\}/);
+  it('shared/types/ipc.ts：write-draft res = { draftId; trace: TrimTrace[]; retries; shortfall }，且 import 自 ./pipeline', () => {
+    // ★ 裁决修复波 H4 改口径：retries/shortfall 从「不上浮」改为上浮（handler 早已回传，
+    //   IPC 不浮就是能力可见性破口）。通道名与三本账不变。
+    expect(ipcSrc).toMatch(/'pipeline:write-draft':\s*\{\s*req:[\s\S]*?res:\s*\{\s*draftId:\s*string;\s*trace:\s*TrimTrace\[\];\s*retries:\s*number;\s*shortfall:\s*boolean\s*\}/);
     expect(ipcSrc).toMatch(/import type \{[^}]*TrimTrace[^}]*\} from '\.\/pipeline'/);
   });
 
@@ -62,9 +64,15 @@ describe('A. D1：write-draft res  reshape 带 trace（TrimTrace 单源在 share
     expect(assembleSrc).toMatch(/export type \{ TrimTrace \}/);
   });
 
-  it('main/pipeline/ipc.ts：专用 unwrapDraftTrace 校验 draftId + trace；缺 trace 诚实失败，不静默补 []', () => {
-    expect(mainIpcSrc).toMatch(/function unwrapDraftTrace\(res: ToolResult\): \{ draftId: string; trace: TrimTrace\[\] \}/);
+  it('main/pipeline/ipc.ts：unwrapDraftTrace 校验 draftId + trace + retries/shortfall；破损诚实失败，不静默默认', () => {
+    // ★ H4：签名改多行（返回四字段），并加逐元素形护与 retries/shortfall 形护
+    expect(mainIpcSrc).toMatch(
+      /function unwrapDraftTrace\(\s*res: ToolResult,\s*\): \{ draftId: string; trace: TrimTrace\[\]; retries: number; shortfall: boolean \}/,
+    );
     expect(mainIpcSrc).toContain('生成成功但未返回 trace');
+    expect(mainIpcSrc).toContain('trace 形状不合契约');
+    expect(mainIpcSrc).toContain('write-draft 缺 retries/shortfall');
+    expect(mainIpcSrc).toMatch(/function isTrimTraceElement\(x: unknown\): x is TrimTrace/);
     // writeDraft 改用 unwrapDraftTrace；concept/outline 仍走 unwrapDraftId
     const wdAt = mainIpcSrc.indexOf('export function writeDraft');
     expect(wdAt).toBeGreaterThan(-1);
@@ -73,6 +81,8 @@ describe('A. D1：write-draft res  reshape 带 trace（TrimTrace 单源在 share
     expect(wdBody).not.toMatch(/unwrapDraftId\(/);
     // 负对照：任何「trace 缺席就兜空数组」的静默默认都不许出现
     expect(mainIpcSrc).not.toMatch(/trace\s*(\?\?|\|\|)\s*\[\]/);
+    // 负对照：retries/shortfall 也不许静默兜 0/false
+    expect(mainIpcSrc).not.toMatch(/(?:retries|shortfall)\s*(\?\?|\|\|)\s*(?:0|false)/);
   });
 
   it('preload/api.ts：writeDraft 签名仍从 IpcInvokeMap 推导（类型自动跟上，无需手改）', () => {
@@ -80,29 +90,39 @@ describe('A. D1：write-draft res  reshape 带 trace（TrimTrace 单源在 share
   });
 });
 
-describe('B. D1：GenView 捕获 r.trace 并渲染「装配裁剪审计」details', () => {
-  it('draftTrace 状态（TrimTrace[] | null）；onDraft 捕获 r.trace，run 起手清空', () => {
+describe('B. D1+H4：GenView 捕获审计载荷并渲染「装配裁剪审计」details', () => {
+  it('draftAudit 状态（{no,trace,retries,shortfall} | null）；onDraft 捕获整包，run 起手清空', () => {
     expect(genSrc).toMatch(/import type \{[^}]*TrimTrace[^}]*\} from '@shared\/types\/pipeline'/);
-    expect(genSrc).toMatch(/useState<TrimTrace\[\] \| null>\(null\)/);
-    expect(genSrc).toMatch(/setDraftTrace\(null\);\s*\n\s*const r = await bridge\(\)\.pipeline\.writeDraft\(pid, no, \{ title, hook \}\);/);
-    expect(genSrc).toMatch(/setDraftTrace\(r\.trace\)/);
+    expect(genSrc).toMatch(/useState<DraftAudit \| null>\(null\)/);
+    expect(genSrc).toMatch(/interface DraftAudit \{[\s\S]*?no: number;[\s\S]*?trace: TrimTrace\[\];[\s\S]*?retries: number;[\s\S]*?shortfall: boolean;[\s\S]*?\}/);
+    expect(genSrc).toMatch(/setDraftAudit\(null\);\s*\n\s*const r = await bridge\(\)\.pipeline\.writeDraft\(pid, no, \{ title, hook \}\);/);
+    expect(genSrc).toMatch(/setDraftAudit\(\{ no, trace: r\.trace, retries: r\.retries, shortfall: r\.shortfall \}\)/);
     // 迟到守卫：await 回来先对当前项目 id，切书后的旧响应不许落面板
-    expect(genSrc).toMatch(/useProjectStore\.getState\(\)\.project\?\.id !== pid\) return;\s*\n\s*setDraftTrace\(r\.trace\)/);
+    expect(genSrc).toMatch(/useProjectStore\.getState\(\)\.project\?\.id !== pid\) return;\s*\n\s*setDraftAudit\(/);
   });
 
   it('切换项目清空审计（pid 键控，不许把 A 书的裁剪记录挂到 B 书名下）', () => {
-    expect(genSrc).toMatch(/useEffect\(\(\) => \{\s*setDraftTrace\(null\);\s*\}, \[pid\]\)/);
+    expect(genSrc).toMatch(/useEffect\(\(\) => \{\s*setDraftAudit\(null\);\s*\}, \[pid\]\)/);
   });
 
-  it('原生 <details> 折叠面板：summary 带栏数；action 三档中文标签；before→after tokens；reason 原文', () => {
+  it('原生 <details> 折叠面板：summary 带章号 + 栏数；action 三档中文标签；before→after tokens；reason 原文', () => {
     expect(genSrc).toMatch(/<details className=\{styles\.traceAudit\}>/);
-    expect(genSrc).toMatch(/装配裁剪审计（\{draftTrace\.length\} 栏）/);
+    // ★ H4 建议#3：连写多章时面板必须自证属于哪一章
+    expect(genSrc).toMatch(/第\{draftAudit\.no\}章·装配裁剪审计（\{draftAudit\.trace\.length\} 栏）/);
     expect(genSrc).toMatch(/kept: '全文保留'/);
     expect(genSrc).toMatch(/compressed: '截断'/);
     expect(genSrc).toMatch(/dropped: '整条丢弃'/);
     expect(genSrc).toMatch(/\{t\.before\}→\{t\.after\} tokens/);
     expect(genSrc).toMatch(/\{t\.reason\}/);
     expect(genSrc).toContain('本次生成无装配裁剪记录');
+  });
+
+  it('★ H4 建议#4：shortfall 与降级续写次数如实上屏（「交作者判断」得有可判断的信息）', () => {
+    expect(genSrc).toMatch(/draftAudit\.shortfall &&/);
+    expect(genSrc).toContain('仍不足目标字数一半');
+    expect(genSrc).toContain('可能是半章草稿');
+    expect(genSrc).toMatch(/draftAudit\.retries > 0 && !draftAudit\.shortfall/);
+    expect(genSrc).toContain('已降级续写');
   });
 
   it('负对照：审计面板不新增按钮（原生 summary 即折叠开关，实底台账保持 19）', () => {

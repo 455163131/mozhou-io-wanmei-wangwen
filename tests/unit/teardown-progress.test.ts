@@ -100,4 +100,30 @@ describe('teardownRead onProgress（E批）', () => {
     const r = await teardownRead({ reportId, llm, repo: td });
     expect(r.source).toBe('live');
   });
+
+  // ★ 裁决修复波 H2：teardownRead 同样要把 progress.retry 接到 req.onRetry
+  it('H2：onRetry(2) → retry 相位 + 计数清零 + attempt 真值', async () => {
+    const { reportId } = await teardownStructure(SAMPLE, '范文', td);
+    const llm = {
+      chat: async (req: {
+        onDelta?: (d: { content?: string; reasoning?: string }) => void;
+        onRetry?: (n: number) => void;
+      }) => {
+        req.onDelta?.({ reasoning: '想'.repeat(300) });
+        req.onRetry?.(2);
+        req.onDelta?.({ content: DIMS_JSON });
+        return { content: DIMS_JSON, usage: { input: 1, output: 1 } };
+      },
+    };
+    const events: LlmProgress[] = [];
+    await teardownRead({ reportId, llm, repo: td, onProgress: (p) => events.push(p) });
+    const retryEvent = events.find((e) => e.phase === 'retry');
+    expect(retryEvent, 'retry 相位必须真发').toBeDefined();
+    expect(retryEvent!.attempt).toBe(2);
+    expect(retryEvent!.charsSeen, '第一次尝试的思考字数不许带进第二次').toBe(0);
+    expect(retryEvent!.thought, '第二次不该再掺着第一次的思考尾').toBeUndefined();
+    const last = events.at(-1)!;
+    expect(last.attempt).toBe(2);
+    expect(last.charsSeen).toBe(DIMS_JSON.length);
+  });
 });

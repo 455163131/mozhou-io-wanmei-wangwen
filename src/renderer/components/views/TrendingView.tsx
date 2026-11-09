@@ -85,7 +85,11 @@ export function TrendingView(): JSX.Element {
       const r = await bridge().trending.importChart(platform, importText);
       if (!loadSeqRef.current.isCurrent(seq)) return;
       setResult(r);
-      setNotice(`已导入 ${r.entries.length} 条（手动导入·非实时抓取）`);
+      // ★ H3：计数口径如实——旧写法把 dedup 命中的旧卡也算「已导入」，重复贴
+      //   同一份榜单会报「已导入 200 条」而实际新增 0 条。
+      setNotice(
+        `新增 ${r.inserted ?? 0} 条，命中已存在 ${r.deduped ?? 0} 条（手动导入·非实时抓取；命中项不改写旧卡）`,
+      );
     } catch (e) {
       if (loadSeqRef.current.isCurrent(seq)) setErr(errorText(e));
     } finally {

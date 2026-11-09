@@ -51,6 +51,21 @@ const TRACE_ACTION_LABEL: Record<TrimTrace['action'], string> = {
   dropped: '整条丢弃',
 };
 
+/**
+ * ★ 裁决修复波 H4：一次正文起草的审计载荷。
+ * - `no`：章号——连写多章后面板要能自证是哪一章的裁剪记录；
+ * - `retries`：降级续写次数（P1B-T2 口径，最多 1）；
+ * - `shortfall`：续写后**仍**不足目标字数一半。handler 一直在算，此前 IPC 不
+ *   上浮、UI 不显示，于是「半章草稿交作者判断」这句裁决落空——作者看不到
+ *   任何可判断的信息。
+ */
+interface DraftAudit {
+  no: number;
+  trace: TrimTrace[];
+  retries: number;
+  shortfall: boolean;
+}
+
 /** 失败文案：直报「code: message」。preload 已把 __mzError 转成带 code 的 Error。 */
 function failText(e: unknown): string {
   if (e instanceof Error) {
@@ -97,15 +112,17 @@ export function GenView(): JSX.Element {
   const [canonText, setCanonText] = useState('');
   // 失败红字（code: message）；retry 仅在 detail.retryable!==false 时给出
   const [canonErr, setCanonErr] = useState<{ text: string; retry?: () => void } | null>(null);
-  // D批 D1：最近一次正文起草的装配裁剪 trace（null = 本次会话还没跑过/刚清空；
-  // 空数组 = 跑过但装配无裁剪记录——两者语义不同，面板只在非 null 时出现）
-  const [draftTrace, setDraftTrace] = useState<TrimTrace[] | null>(null);
+  // D批 D1 + 裁决修复波 H4：最近一次正文起草的**审计载荷**（null = 本次会话还没
+  // 跑过/刚清空；trace 空数组 = 跑过但装配无裁剪记录——两者语义不同，面板只在非
+  // null 时出现）。★ H4 带章号：连写多章后面板要能自证属于哪一章；带 retries/
+  // shortfall：P1-B 的裁决是「半章草稿交作者判断」，不浮上来作者就无从判断。
+  const [draftAudit, setDraftAudit] = useState<DraftAudit | null>(null);
 
   const pid = project?.id ?? null;
 
   // 切换项目清空审计：A 书的裁剪记录不许挂到 B 书名下（与 R13 progress 守卫同族）
   useEffect(() => {
-    setDraftTrace(null);
+    setDraftAudit(null);
   }, [pid]);
 
   const refreshDrafts = useCallback(async () => {
@@ -278,11 +295,11 @@ export function GenView(): JSX.Element {
     }
     void run('draft', `写第${no}章草稿`, async () => {
       // 起手清空上一次审计：失败时面板消失（本次没有记录），不拿旧书旧章的 trace 充数
-      setDraftTrace(null);
+      setDraftAudit(null);
       const r = await bridge().pipeline.writeDraft(pid, no, { title, hook });
       // 迟到的响应不许挂到别的书名下：await 期间切了项目就如实丢弃（pid 效果已清面板）
       if (useProjectStore.getState().project?.id !== pid) return;
-      setDraftTrace(r.trace);
+      setDraftAudit({ no, trace: r.trace, retries: r.retries, shortfall: r.shortfall });
     }, '正文草稿已生成，请在草稿区采纳');
   };
 
@@ -538,16 +555,27 @@ export function GenView(): JSX.Element {
             {busy.draft ? `第${chapterNo || '?'}章写作中…` : `写第${chapterNo || 'N'}章草稿`}
           </button>
         </div>
-        {/* D批 D1：装配裁剪审计——后端 trace 真源的 UI 入口（能力可见红线）。
-            原生 details/summary 折叠，不新增按钮；逐条直报装配器原文，不改写不摘要。 */}
-        {draftTrace !== null && (
+        {/* D批 D1 + H4：装配裁剪审计——后端 trace/retries/shortfall 真源的 UI 入口
+            （能力可见红线）。原生 details/summary 折叠，不新增按钮；逐条直报装配器
+            原文，不改写不摘要。shortfall 如实警示：作者据此判断是否采纳。 */}
+        {draftAudit !== null && (
           <details className={styles.traceAudit}>
-            <summary className={styles.traceSummary}>装配裁剪审计（{draftTrace.length} 栏）</summary>
-            {draftTrace.length === 0 ? (
+            <summary className={styles.traceSummary}>
+              第{draftAudit.no}章·装配裁剪审计（{draftAudit.trace.length} 栏）
+            </summary>
+            {draftAudit.shortfall && (
+              <p className={styles.traceWarn}>
+                降级续写后仍不足目标字数一半——这**可能是半章草稿**，请先通读再决定是否采纳。
+              </p>
+            )}
+            {draftAudit.retries > 0 && !draftAudit.shortfall && (
+              <p className={styles.traceNote}>首稿不足目标一半，已降级续写 {draftAudit.retries} 次补足。</p>
+            )}
+            {draftAudit.trace.length === 0 ? (
               <p className={styles.traceEmpty}>本次生成无装配裁剪记录</p>
             ) : (
               <ul className={styles.traceList}>
-                {draftTrace.map((t, i) => (
+                {draftAudit.trace.map((t, i) => (
                   <li key={`${t.slot}-${i}`} className={styles.traceRow}>
                     <span className={styles.traceSlot}>{t.slot}</span>
                     <span className={styles.traceAction}>{TRACE_ACTION_LABEL[t.action]}</span>

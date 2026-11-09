@@ -118,6 +118,37 @@ export class InspirationRepo {
   }
 
   /**
+   * 批量幂等落 trend 卡（★ 裁决修复波 H3）：整批**一个事务**。
+   * 修复前 import/fetch 都是逐条 autocommit 调 upsertTrend——第 150 条抛错时
+   * 前 149 张卡已经落库，而 UI 只看到一条失败红字，用户以为全没落（半截状态
+   * 就是数据状态错）。现在要么全落、要么一张不留。
+   * ★ 同时回报 inserted/deduped 两个计数：重复导入 200 条旧数据时「已导入 200 条」
+   *   是误导（实则 0 新增），口径必须区分新增与命中。
+   * 返回的 cards 与入参**同序**（调用方按位回填 cardId）。
+   */
+  upsertTrends(
+    items: { title: string; payload: TrendPayload; sourceLabel: string }[],
+  ): { cards: InspirationCard[]; inserted: number; deduped: number } {
+    return this.db.transaction(() => {
+      const cards: InspirationCard[] = [];
+      let inserted = 0;
+      let deduped = 0;
+      for (const it of items) {
+        const key = it.payload.sourceKey;
+        const existing = key ? this.findTrendBySourceKey(key) : null;
+        if (existing) {
+          cards.push(existing);
+          deduped++;
+          continue;
+        }
+        cards.push(this.insert({ kind: 'trend', title: it.title, payload: it.payload, sourceLabel: it.sourceLabel }));
+        inserted++;
+      }
+      return { cards, inserted, deduped };
+    })();
+  }
+
+  /**
    * 历史脑洞摘要（direction+premise）——T4 抽脑洞的**反重复**取数口：
    * 已抽过的方向+前提拼进 prompt，让下一抽避开旧脑洞。新在前。
    */

@@ -279,6 +279,47 @@ describe('importTrending（C批手动导入）', () => {
     expect(deps.inspiration.listByKind('trend')).toHaveLength(3);
   });
 
+  it('② ‐b H3 计数如实：首导 inserted=条数/deduped=0，重复导 inserted=0/deduped=条数', async () => {
+    const r1 = await importTrending(deps, { platform: '起点', text: CSV });
+    expect(r1.inserted).toBe(2);
+    expect(r1.deduped).toBe(0);
+    const r2 = await importTrending(deps, { platform: '起点', text: CSV });
+    expect(r2.inserted, '重复导入不许把命中算成新增').toBe(0);
+    expect(r2.deduped).toBe(2);
+    expect(deps.inspiration.listByKind('trend')).toHaveLength(2);
+  });
+
+  it('② ‐c H3 中途抛错不留半批：库里 0 张卡（真 :memory: 库，事务在 repo 层）', async () => {
+    // 三条里第三条的 tags 塞进一个不可 JSON 序列化的循环引用 → insert 抛
+    const badCsv = '1,书甲,甲\n2,书乙,乙\n3,书丙,丙';
+    const realUpsert = deps.inspiration.upsertTrends.bind(deps.inspiration);
+    let calls = 0;
+    deps.inspiration.upsertTrends = ((items: { title: string; payload: TrendPayload; sourceLabel: string }[]) => {
+      calls++;
+      if (calls === 1) {
+        // 模拟批内第 3 步炸：第三条 payload 造**真**循环引用（JSON.stringify 必抛）
+        const poisoned = items.map((it, i) => {
+          const payload = { ...it.payload };
+          if (i === 2) (payload as unknown as { self?: unknown }).self = payload;
+          return { ...it, payload };
+        });
+        return realUpsert(poisoned);
+      }
+      return realUpsert(items);
+    }) as typeof deps.inspiration.upsertTrends;
+    await expect(importTrending(deps, { platform: '番茄', text: badCsv })).rejects.toThrowError();
+    expect(deps.inspiration.listByKind('trend'), '半截落库：前两条留下了').toHaveLength(0);
+  });
+
+  it('② ‐d fetchTrending 也回报 inserted/deduped（同一口径，不厚此薄彼）', async () => {
+    const a = await fetchTrending(deps, { platform: '番茄' });
+    expect(a.inserted).toBe(a.entries.length);
+    expect(a.deduped).toBe(0);
+    const b = await fetchTrending(deps, { platform: '番茄' });
+    expect(b.inserted).toBe(0);
+    expect(b.deduped).toBe(b.entries.length);
+  });
+
   it('③ 非法入参 → E_INVALID_ARGS（platform 枚举 / text 非空 / ≤100000 字符）', async () => {
     await expect(importTrending(deps, { platform: '刺猬猫', text: CSV })).rejects.toMatchObject({ code: 'E_INVALID_ARGS' });
     await expect(importTrending(deps, { platform: '番茄', text: '' })).rejects.toMatchObject({ code: 'E_INVALID_ARGS' });

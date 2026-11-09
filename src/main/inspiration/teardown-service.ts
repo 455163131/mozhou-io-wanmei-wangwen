@@ -225,6 +225,8 @@ export async function teardownRead(
       //   同时把增量经 onDelta 报出来，等待期不再是黑箱。
       stream: true,
       onDelta: (d) => progress.onDelta(d),
+      // ★ H2：重试边界清零计数（被 abort 那次的字符不许算进下一次）
+      onRetry: (n) => progress.retry(n),
     });
     const parsed = TeardownDimsSchema.safeParse(extractJson(res.content));
     if (!parsed.success) throw new Error('精读产出未过 TeardownDimsSchema 契约');

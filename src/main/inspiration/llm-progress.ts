@@ -28,10 +28,16 @@ export const THOUGHT_TAIL_CAP = 200;
 export const EMIT_MIN_INTERVAL_MS = 200;
 
 export interface LlmProgressEmitter {
-  /** 发起调用：attempt 1、elapsedMs 0（服务层看不到客户端内部重试，不谎报次数） */
+  /** 发起调用：attempt 1、elapsedMs 0 */
   start(): void;
   /** 流式增量（LlmClient onDelta 原样喂入） */
   onDelta(d: { content?: string; reasoning?: string }): void;
+  /**
+   * ★ 裁决修复波 H2：客户端告知「即将发起第 n 次尝试」。清零计数再播报——
+   *   被 abort 的那一次收到的字符**不许**算进下一次（旧口径是跨尝试累加，
+   *   「已接收 8200 字」里 8000 字其实没收到过）。
+   */
+  retry(n: number): void;
   /** live 产出完成（携最终计数与思考尾片段） */
   done(): void;
   /** 如实回落演示数据：note 必须是真因 */
@@ -52,13 +58,13 @@ export function createLlmProgressEmitter(
   let thoughtBuf = '';
   let lastPhase: LlmProgress['phase'] | null = null;
   let lastEmitAt = 0;
+  // ★ H2：真实尝试号——由 retry() 推进，没重试就恒 1（不编造也不谎报）
+  let attemptNow = 1;
 
   const snapshot = (phase: LlmProgress['phase'], note?: string): LlmProgress => ({
     scope,
     phase,
-    // 服务层经 PipelineLlm 单发一次 chat，客户端内部重试它看不到——attempt 恒 1，
-    // 不编造重试次数（诚实纪律：看不到就不报）。
-    attempt: 1,
+    attempt: attemptNow,
     elapsedMs: t0 ? Date.now() - t0 : 0,
     charsSeen,
     ...(thoughtBuf ? { thought: thoughtBuf.slice(-THOUGHT_TAIL_CAP) } : {}),
@@ -94,6 +100,14 @@ export function createLlmProgressEmitter(
       if (isFirst || phaseChanged || now - lastEmitAt >= EMIT_MIN_INTERVAL_MS) {
         emit(snapshot(phase));
       }
+    },
+    retry(n): void {
+      // 清零是这条修复的全部要点：下一次尝试的字数与思考只属于下一次
+      charsSeen = 0;
+      thoughtBuf = '';
+      attemptNow = n;
+      lastEmitAt = 0; // 新尝试的第一片必发，不受上一轮的节流窗口压制
+      emit(snapshot('retry', `第 ${n} 次尝试`));
     },
     done(): void {
       emit(snapshot('done'));

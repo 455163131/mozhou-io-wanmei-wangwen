@@ -73,8 +73,8 @@ describe('B. F4：GenView run() 成功/失败回执带项目闸（用户动作�
     expect(body).not.toMatch(/btnPrimary/);
   });
 
-  it('D 批 trace 守卫仍在原位（本批不回收已落地的闸）', () => {
-    expect(genSrc).toMatch(/if \(useProjectStore\.getState\(\)\.project\?\.id !== pid\) return;\s*\n\s*setDraftTrace\(r\.trace\)/);
+  it('D 批迟到守卫仍在原位（★H4 换成 setDraftAudit 整包落地，闸本身不许回收）', () => {
+    expect(genSrc).toMatch(/if \(useProjectStore\.getState\(\)\.project\?\.id !== pid\) return;\s*\n\s*setDraftAudit\(\{ no, trace: r\.trace, retries: r\.retries, shortfall: r\.shortfall \}\)/);
   });
 });
 

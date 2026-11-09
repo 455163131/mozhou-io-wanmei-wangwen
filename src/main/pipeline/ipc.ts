@@ -106,14 +106,46 @@ function unwrapDraftId(res: ToolResult): { draftId: string } {
  * 无装配」的合法路径：trace 缺席/非数组 = 契约破损，E_INTERNAL 诚实失败，
  * 绝不静默补 []。handler **显式**返回的空数组是合法值（本次装配无裁剪记录），
  * Array.isArray 放行、原样透传。
+ *
+ * ★ 裁决修复波 H4 追加两条纪律：
+ *   1. **逐元素形护**——旧口径只 `Array.isArray`，畸形元素（缺字段/未知 action/
+ *      slot 非字符串）会原样递给渲染层炸视图，与本函数自设的「契约破损=诚实失败」
+ *      不自洽。产出方是内部装配器，概率低，但破了就该报 E_INTERNAL。
+ *   2. **retries/shortfall 一并上浮**——handler 恒回传这两样（降级续写的真结果），
+ *      缺了或类型不对同样是契约破损，不静默默认成 0/false。
  */
-function unwrapDraftTrace(res: ToolResult): { draftId: string; trace: TrimTrace[] } {
+const TRIM_ACTIONS: readonly string[] = ['kept', 'compressed', 'dropped'];
+
+function isTrimTraceElement(x: unknown): x is TrimTrace {
+  if (typeof x !== 'object' || x === null) return false;
+  const t = x as Record<string, unknown>;
+  return (
+    typeof t.slot === 'string' &&
+    typeof t.action === 'string' &&
+    TRIM_ACTIONS.includes(t.action) &&
+    typeof t.before === 'number' &&
+    Number.isFinite(t.before) &&
+    typeof t.after === 'number' &&
+    Number.isFinite(t.after) &&
+    typeof t.reason === 'string'
+  );
+}
+
+function unwrapDraftTrace(
+  res: ToolResult,
+): { draftId: string; trace: TrimTrace[]; retries: number; shortfall: boolean } {
   const { draftId } = unwrapDraftId(res);
-  const data = res.data as { trace?: unknown };
+  const data = res.data as { trace?: unknown; retries?: unknown; shortfall?: unknown };
   if (!Array.isArray(data.trace)) {
     throw new MzError('E_INTERNAL', '生成成功但未返回 trace');
   }
-  return { draftId, trace: data.trace as TrimTrace[] };
+  if (!data.trace.every(isTrimTraceElement)) {
+    throw new MzError('E_INTERNAL', 'trace 形状不合契约');
+  }
+  if (typeof data.retries !== 'number' || !Number.isFinite(data.retries) || typeof data.shortfall !== 'boolean') {
+    throw new MzError('E_INTERNAL', 'write-draft 缺 retries/shortfall');
+  }
+  return { draftId, trace: data.trace, retries: data.retries, shortfall: data.shortfall };
 }
 
 /** running/done/failed 三态包裹：failed 的 detail 带真因（code+message），随后原样上抛 */
@@ -167,7 +199,7 @@ export function runOutline(
 export function writeDraft(
   s: PipelineIpcServices,
   p: { projectId: string; chapterNo: number; planItem: { title: string; hook: string } },
-): Promise<{ draftId: string; trace: TrimTrace[] }> {
+): Promise<{ draftId: string; trace: TrimTrace[]; retries: number; shortfall: boolean }> {
   return withProgress(s, p.projectId, 'draft', async () => {
     assertCurrentProject(s, p.projectId);
     // Carry-2（chapterNo 正整数校验 → E_INVALID_ARGS retryable:false）在 handler 内，

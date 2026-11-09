@@ -327,7 +327,13 @@ export interface IpcInvokeMap {
    */
   'pipeline:write-draft': {
     req: { projectId: string; chapterNo: number; planItem: { title: string; hook: string } };
-    res: { draftId: string; trace: TrimTrace[] };
+    /**
+     * ★ D批 RESHAPE 带 trace；★ 裁决修复波 H4 再上浮 retries/shortfall：
+     *   handler（tools.ts 唯一 ok:true 出口）早就算好了「降级续写几次」「续写后
+     *   是否仍不足目标一半」，IPC 不往上浮就是**能力存在却不暴露**——而 P1-B 的
+     *   裁决写着「半章草稿交作者判断」，作者看不到 shortfall 就无从判断。
+     */
+    res: { draftId: string; trace: TrimTrace[]; retries: number; shortfall: boolean };
   };
   'pipeline:list-drafts': { req: { projectId: string; status?: DraftStatus }; res: Draft[] };
   /**

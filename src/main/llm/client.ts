@@ -141,6 +141,9 @@ export class LlmClient {
         attempt++;
         this.stats.retries++;
         if (attempt > maxRetries) break;
+        // ★ H2：告诉调用方「下一次是第 attempt+1 次尝试」——重试发生在客户端内部，
+        //   不告知的话进度播报器会把被 abort 的尝试字符也累加进来（谎报「已接收」）。
+        req.onRetry?.(attempt + 1);
         // 指数退避：500ms / 1s / 2s
         const delay = 500 * Math.pow(2, attempt - 1);
         await sleep(delay);
@@ -374,75 +377,106 @@ export class LlmClient {
     // tool_calls 分片累积：index -> {id, name, args}
     const pending = new Map<number, { id: string; name: string; args: string }>();
 
-    while (true) {
+    // ★ H1：事件体解析抽成闭包——读流循环与尾缓冲 flush 走同一套口径（不复制第二份）
+    let sawDone = false;
+    const consumeEvent = (chunk: string): void => {
+      for (const line of chunk.split('\n')) {
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        // ★ H1-2：[DONE] 是终帧，直接断流。旧口径 continue 下去，keep-alive 网关
+        //   不关连接时只能干等到超时→重试→落演示兜底——正文其实早就到手了。
+        if (payload === '[DONE]') {
+          sawDone = true;
+          return;
+        }
+        let evt: Record<string, unknown>;
+        try {
+          evt = JSON.parse(payload) as Record<string, unknown>;
+        } catch {
+          // 厂商偶发发非 JSON 心跳帧，跳过而不中断整个流
+          continue;
+        }
+        // ★ H1-3：流中 error 帧不是心跳。吞掉它只会让上屏的回落真因变成「未过
+        //   Schema 契约」这种假话——provider 说了什么就报什么（server 口径，
+        //   与 http 层同一条重试规则）。
+        const streamErr = evt.error as { message?: unknown; code?: unknown } | undefined;
+        if (streamErr !== undefined && streamErr !== null) {
+          const raw = typeof streamErr.message === 'string' && streamErr.message ? streamErr.message : JSON.stringify(streamErr);
+          throw new LlmError('server', `流式响应报错：${raw}`);
+        }
+        const choice = (evt.choices as Array<{
+          delta?: {
+            content?: string;
+            reasoning_content?: string;
+            reasoning?: string;
+            tool_calls?: Array<{
+              index?: number;
+              id?: string;
+              function?: { name?: string; arguments?: string };
+            }>;
+          };
+          finish_reason?: string;
+        }>)?.[0];
+
+        if (choice?.delta?.content) content += choice.delta.content;
+
+        // E批：增量转发（正文 + 思考流）。只转发本片真有的字段，不造空串。
+        if (onDelta) {
+          const dc = choice?.delta?.content;
+          const dr = choice?.delta?.reasoning_content ?? choice?.delta?.reasoning;
+          if (dc || dr) {
+            onDelta({
+              ...(dc ? { content: dc } : {}),
+              ...(dr ? { reasoning: dr } : {}),
+            });
+          }
+        }
+
+        if (Array.isArray(choice?.delta?.tool_calls)) {
+          for (const tc of choice.delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            const cur = pending.get(idx) ?? { id: '', name: '', args: '' };
+            if (tc.id) cur.id = tc.id;
+            if (tc.function?.name) cur.name = tc.function.name;
+            if (tc.function?.arguments) cur.args += tc.function.arguments;
+            pending.set(idx, cur);
+          }
+        }
+
+        if (choice?.finish_reason) finishReason = choice.finish_reason;
+
+        const u = evt.usage as { prompt_tokens?: number; completion_tokens?: number } | undefined;
+        if (u?.prompt_tokens) usageIn = u.prompt_tokens;
+        if (u?.completion_tokens) usageOut = u.completion_tokens;
+      }
+    };
+
+    while (!sawDone) {
       const { done, value } = await reader.read();
       if (done) break;
       // ★ F1：只要还在收到字节，就把超时计时器往后推——慢不等于死
       onActivity?.();
       buffer += decoder.decode(value, { stream: true });
+      // ★ H1-1：行尾归一。SSE 规范承认 \r\n，旧口径只认 \n\n，CRLF 端点整条流
+      //   一个事件都解析不出来（content 恒空 → 假回落）。在**整段 buffer** 上做，
+      //   所以一片尾裸 \r + 下片头 \n 这种跨片切分也能补齐。
+      buffer = buffer.replace(/\r\n/g, '\n');
 
-      // SSE 以空行分隔事件
       let sep: number;
-      while ((sep = buffer.indexOf('\n\n')) >= 0) {
+      while ((sep = buffer.indexOf('\n\n')) >= 0 && !sawDone) {
         const chunk = buffer.slice(0, sep);
         buffer = buffer.slice(sep + 2);
-        for (const line of chunk.split('\n')) {
-          if (!line.startsWith('data:')) continue;
-          const payload = line.slice(5).trim();
-          if (payload === '[DONE]') continue;
-          let evt: Record<string, unknown>;
-          try {
-            evt = JSON.parse(payload) as Record<string, unknown>;
-          } catch {
-            // 厂商偶发发非 JSON 心跳帧，跳过而不中断整个流
-            continue;
-          }
-          const choice = (evt.choices as Array<{
-            delta?: {
-              content?: string;
-              reasoning_content?: string;
-              reasoning?: string;
-              tool_calls?: Array<{
-                index?: number;
-                id?: string;
-                function?: { name?: string; arguments?: string };
-              }>;
-            };
-            finish_reason?: string;
-          }>)?.[0];
-
-          if (choice?.delta?.content) content += choice.delta.content;
-
-          // E批：增量转发（正文 + 思考流）。只转发本片真有的字段，不造空串。
-          if (onDelta) {
-            const dc = choice?.delta?.content;
-            const dr = choice?.delta?.reasoning_content ?? choice?.delta?.reasoning;
-            if (dc || dr) {
-              onDelta({
-                ...(dc ? { content: dc } : {}),
-                ...(dr ? { reasoning: dr } : {}),
-              });
-            }
-          }
-
-          if (Array.isArray(choice?.delta?.tool_calls)) {
-            for (const tc of choice.delta.tool_calls) {
-              const idx = tc.index ?? 0;
-              const cur = pending.get(idx) ?? { id: '', name: '', args: '' };
-              if (tc.id) cur.id = tc.id;
-              if (tc.function?.name) cur.name = tc.function.name;
-              if (tc.function?.arguments) cur.args += tc.function.arguments;
-              pending.set(idx, cur);
-            }
-          }
-
-          if (choice?.finish_reason) finishReason = choice.finish_reason;
-
-          const u = evt.usage as { prompt_tokens?: number; completion_tokens?: number } | undefined;
-          if (u?.prompt_tokens) usageIn = u.prompt_tokens;
-          if (u?.completion_tokens) usageOut = u.completion_tokens;
-        }
+        consumeEvent(chunk);
       }
+    }
+
+    // ★ H1-4：收尾。decoder 冲掉跨片切开的半个多字节字符，剩下的尾帧（服务端发完
+    //   最后一帧直接关流、没补空行，很常见）也必须解析，否则最后一段正文静默丢失。
+    if (!sawDone) {
+      buffer += decoder.decode();
+      buffer = buffer.replace(/\r\n/g, '\n');
+      const rest = buffer.trim();
+      if (rest) consumeEvent(rest);
     }
 
     await reader.cancel().catch(() => undefined);

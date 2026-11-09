@@ -141,6 +141,13 @@ export interface ChatRequest {
    * **不经 IPC**（IPC 出口在服务层的 onProgress，见 LlmProgress）。
    */
   onDelta?: (d: { content?: string; reasoning?: string }) => void;
+  /**
+   * 重试边界回调（裁决修复波 H2）：客户端即将发起**第 N 次尝试**时调用（N 从 2 起，
+   * 首 attempt 不回调）。修复前重试住在客户端内部，服务层的进度播报器只能把
+   * `charsSeen`/`thought` 跨尝试累加——第一次尝试被 abort 前收到的字也被算进
+   * 「已接收 N 字」，是谎报。有了这个边界，播报器就能清零并把 attempt 报成真值。
+   */
+  onRetry?: (attempt: number) => void;
 }
 
 /**
@@ -168,7 +175,8 @@ export interface LlmProgress {
    * / fallback=已如实回落演示数据（note 带真因）
    */
   phase: 'start' | 'thinking' | 'writing' | 'retry' | 'done' | 'error' | 'fallback';
-  /** 第几次尝试（从 1 起）。服务层经 PipelineLlm 看不到客户端内部重试时恒 1，不谎报 */
+  /** 第几次尝试（从 1 起）。★ H2 起是**真值**：客户端经 ChatRequest.onRetry 告知边界；
+   *  没重试就恒 1——既不编造次数，也不再把被 abort 的尝试字符算进下一次。 */
   attempt: number;
   /** 自发起调用起的实测毫秒数（不是估的） */
   elapsedMs: number;

@@ -54,6 +54,13 @@ export interface ChartFetchResult {
   entries: ChartEntry[];
   source: 'live' | 'demo' | 'manual';
   error?: string;
+  /**
+   * ★ 裁决修复波 H3：落库计数如实拆分——「已导入 N 条」在旧口径里把 dedup
+   * 命中的旧卡也算成导入，重复贴同一份榜单会报「新增 200 条」实则 0 条。
+   * inserted=本次新落库的卡数，deduped=命中已存在卡（未改写）的条数。
+   */
+  inserted?: number;
+  deduped?: number;
 }
 
 /* ── 卡片 ──────────────────────────────────────────────────────── */

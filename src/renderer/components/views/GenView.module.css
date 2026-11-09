@@ -371,3 +371,19 @@
   color: var(--mz-text-tertiary);
   line-height: 1.7;
 }
+
+/* ★ H4：shortfall 警示走既有语义色（与 progressFail 同一档），降级续写说明用三级灰。
+   面板不新增按钮，台账保持 19——这两行只是 details 内的说明。 */
+.traceWarn {
+  margin: var(--mz-space-2) 0 0;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-sem-ai-fg);
+  line-height: 1.7;
+}
+
+.traceNote {
+  margin: var(--mz-space-2) 0 0;
+  font-size: var(--mz-fs-xs);
+  color: var(--mz-text-tertiary);
+  line-height: 1.7;
+}

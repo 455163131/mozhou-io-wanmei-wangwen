@@ -54,6 +54,12 @@ export interface PipelineLlm {
      */
     stream?: boolean;
     onDelta?: (d: { content?: string; reasoning?: string }) => void;
+    /**
+     * ★ H2：重试边界回调（透传给 LlmClient）。客户端内部重试时告知服务层
+     *   「下一次是第 n 次尝试」，进度播报器据此清零计数——不把被 abort 的尝试
+     *   收到的字符算进下一次。
+     */
+    onRetry?: (n: number) => void;
   }): Promise<{ content: string; usage: { input: number; output: number } }>;
 }
 

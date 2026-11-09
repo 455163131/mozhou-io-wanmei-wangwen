@@ -52,25 +52,34 @@ export async function fetchTrending(deps: InspirationIpcDeps, args: unknown): Pr
   if (!parsed.success) invalid('trending:fetch', parsed.error);
   const platform = parsed.data.platform as Platform;
   const result = await deps.charts.fetch(platform);
-  for (const entry of result.entries) {
-    const sourceKey = `${platform}|${entry.url || `${entry.title}|${entry.author}`}`;
-    const card = deps.inspiration.upsertTrend({
-      title: entry.title,
-      sourceLabel: platform,
-      payload: {
-        platform,
-        author: entry.author,
-        heat: entry.heat ?? undefined,
-        rank: entry.rank,
-        tags: entry.tags,
-        url: entry.url || undefined,
-        live: entry.live,
-        sourceKey,
-      },
-    });
+  // ★ H3：整批走 upsertTrends（一个事务 + 新增/命中计数）。旧口径逐条 autocommit，
+  //   中途抛错会留下半截榜单卡，而 UI 只报失败。
+  const batch = deps.inspiration.upsertTrends(
+    result.entries.map((entry) => {
+      const sourceKey = `${platform}|${entry.url || `${entry.title}|${entry.author}`}`;
+      return {
+        title: entry.title,
+        sourceLabel: platform,
+        payload: {
+          platform,
+          author: entry.author,
+          heat: entry.heat ?? undefined,
+          rank: entry.rank,
+          tags: entry.tags,
+          url: entry.url || undefined,
+          live: entry.live,
+          sourceKey,
+        },
+      };
+    }),
+  );
+  result.entries.forEach((entry, i) => {
+    const card = batch.cards.at(i);
+    // 事务返回与入参同序同长是 repo 的契约；破了就是 E_INTERNAL，不静默漏回填 cardId
+    if (!card) throw new MzError('E_INTERNAL', '落库返回条数与榜单条目数不一致，无法回填 cardId');
     entry.cardId = card.id;
-  }
-  return result;
+  });
+  return { ...result, inserted: batch.inserted, deduped: batch.deduped };
 }
 
 /* ── trending:import（C批手动导入）──────────────────────────────── */
@@ -88,26 +97,34 @@ export async function importTrending(deps: InspirationIpcDeps, args: unknown): P
   if (!parsed.success) invalid('trending:import', parsed.error);
   const { platform, text } = parsed.data;
   const entries = parseManualChart(platform as Platform, text);
-  for (const entry of entries) {
-    const sourceKey = `manual|${platform}|${entry.title}|${entry.author}`;
-    const card = deps.inspiration.upsertTrend({
-      title: entry.title,
-      sourceLabel: `${platform}·手动导入`,
-      payload: {
-        platform,
-        author: entry.author,
-        heat: entry.heat ?? undefined,
-        rank: entry.rank,
-        tags: entry.tags,
-        url: entry.url || undefined,
-        live: false,
-        manual: true,
-        sourceKey,
-      },
-    });
+  // ★ H3：整批一个事务（要么全落要么一张不留）+ 新增/命中计数如实上浮
+  const batch = deps.inspiration.upsertTrends(
+    entries.map((entry) => {
+      const sourceKey = `manual|${platform}|${entry.title}|${entry.author}`;
+      return {
+        title: entry.title,
+        sourceLabel: `${platform}·手动导入`,
+        payload: {
+          platform,
+          author: entry.author,
+          heat: entry.heat ?? undefined,
+          rank: entry.rank,
+          tags: entry.tags,
+          url: entry.url || undefined,
+          live: false,
+          manual: true,
+          sourceKey,
+        },
+      };
+    }),
+  );
+  entries.forEach((entry, i) => {
+    const card = batch.cards.at(i);
+    // 同 fetchTrending：同序同长是契约，破了就 E_INTERNAL
+    if (!card) throw new MzError('E_INTERNAL', '落库返回条数与导入条目数不一致，无法回填 cardId');
     entry.cardId = card.id;
-  }
-  return { entries, source: 'manual' };
+  });
+  return { entries, source: 'manual', inserted: batch.inserted, deduped: batch.deduped };
 }
 
 /* ── inspiration:list / collect / remove ───────────────────────── */
