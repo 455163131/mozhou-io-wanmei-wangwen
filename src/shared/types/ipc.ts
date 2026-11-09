@@ -20,7 +20,7 @@ import type { LedgerQuery, LedgerConflict, CharacterProfile, LedgerEntries, Ledg
 import type { Checkpoint, RollbackResult } from './checkpoint';
 import type { RunState, RunBudget, TerminationReason, RunStats, StepRecord } from './agent';
 import type { ToolDanger, WritePolicy, WritePolicyConfig } from './tool';
-import type { Draft, DraftStatus, CanonEntry } from './pipeline';
+import type { Draft, DraftStatus, CanonEntry, TrimTrace } from './pipeline';
 import type { CardKind, ChartFetchResult, InspirationCard, Platform, TeardownDims, TeardownStructure, Topic, TopicStatus } from './inspiration';
 import type { ExportHistoryRow, ExportPreviewRes, ExportRunReq, ExportRunRes } from './export';
 import type { PublishPlan, PublishPlanSaveReq, PublishQueueRes, StageOutcome, StagingRow } from './publish';
@@ -318,10 +318,16 @@ export interface IpcInvokeMap {
     req: { projectId: string; volumeIndex?: number };
     res: { draftId: string };
   };
-  /** 正文起草：chapterNo 必须是正整数（从 1 起算）；产出只进草稿区 */
+  /**
+   * 正文起草：chapterNo 必须是正整数（从 1 起算）；产出只进草稿区。
+   * ★ D批 D1（channel RESHAPE，照 publish:queue res 加 staged 真源先例，CH 计数不动）：
+   *   res 带上装配裁剪 trace——handler 唯一 ok:true 出口恒回传 TrimTrace[]
+   *   （含 P1B-T2 降级续写路径：续写复用同一份装配，trace 不变），渲染层据此
+   *   展示「装配裁剪审计」。retries/shortfall 仍只在 handler data 里，不上浮。
+   */
   'pipeline:write-draft': {
     req: { projectId: string; chapterNo: number; planItem: { title: string; hook: string } };
-    res: { draftId: string };
+    res: { draftId: string; trace: TrimTrace[] };
   };
   'pipeline:list-drafts': { req: { projectId: string; status?: DraftStatus }; res: Draft[] };
   /**

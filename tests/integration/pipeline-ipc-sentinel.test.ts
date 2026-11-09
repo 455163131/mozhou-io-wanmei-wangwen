@@ -70,7 +70,7 @@ import {
   type PipelineIpcServices,
 } from '@main/pipeline/ipc';
 import { MzError } from '@shared/types/ipc';
-import type { ToolContext } from '@shared/types/tool';
+import type { ToolContext, ToolResult } from '@shared/types/tool';
 import type { OutlineOut, PipelineCtx } from '@shared/types/pipeline';
 // ★ P2-A T3：覆盖层与技能表五通道的业务实现（register.ts 只做一行式委托，
 //   行为用例直调这些函数——与 B/C/D 组"测 ipc 业务函数、不 mock ipcMain"同款口径）。
@@ -570,5 +570,93 @@ describe('F. P2-A T3 覆盖层与技能表五通道（行为）', () => {
       expect(e!.code).toBe('E_INVALID_ARGS');
       expect((e!.detail as { retryable: boolean }).retryable).toBe(false);
     }
+  });
+});
+
+/* ── G 组：D批 D1 write-draft res 带 trace（装配裁剪审计真源） ─────── */
+
+describe('G. D批：write-draft trace 透传（channel RESHAPE，CH 计数不动）', () => {
+  /** 把 services.pipelineHandlers 换成可控 stub（concept/outline 沿用真实现） */
+  function stubWriteDraft(env: ReturnType<typeof makeEnv>, result: ToolResult): void {
+    env.services.pipelineHandlers = () => ({ ...env.handlers, writeDraft: async () => result });
+  }
+
+  it('成功：trace 原样透传（同一引用，不复制不改写）；res 只有 draftId+trace（retries/shortfall 不上浮）', async () => {
+    const env = makeEnv();
+    const trace = [
+      { slot: 'synopsis', action: 'compressed' as const, before: 900, after: 300, reason: '超出栏位预算，截断保留前段' },
+      { slot: 'hooks', action: 'kept' as const, before: 120, after: 120, reason: '预算内全文保留' },
+    ];
+    stubWriteDraft(env, { ok: true, durationMs: 1, data: { draftId: 'd1', trace, retries: 1, shortfall: true } });
+    const r = await writeDraft(env.services, { projectId: env.pid, chapterNo: 1, planItem: PLAN_ITEM });
+    expect(r.draftId).toBe('d1');
+    expect(r.trace).toBe(trace);
+    expect(Object.keys(r).sort()).toEqual(['draftId', 'trace']);
+  });
+
+  it('handler 显式返回空 trace 数组 → 原样透传 []（合法值，不拒）', async () => {
+    const env = makeEnv();
+    stubWriteDraft(env, { ok: true, durationMs: 1, data: { draftId: 'd2', trace: [] } });
+    const r = await writeDraft(env.services, { projectId: env.pid, chapterNo: 1, planItem: PLAN_ITEM });
+    expect(r.trace).toEqual([]);
+  });
+
+  it('ok:true 但缺 trace → E_INTERNAL「生成成功但未返回 trace」（不静默补 []）；failed detail 带真因', async () => {
+    const env = makeEnv();
+    stubWriteDraft(env, { ok: true, durationMs: 1, data: { draftId: 'd3' } });
+    const e = await writeDraft(env.services, { projectId: env.pid, chapterNo: 1, planItem: PLAN_ITEM }).catch((x) => x);
+    expect(e).toBeInstanceOf(MzError);
+    expect(e.code).toBe('E_INTERNAL');
+    expect(e.message).toBe('生成成功但未返回 trace');
+    expect(env.progress().find((p) => p.state === 'failed')!.detail).toContain('生成成功但未返回 trace');
+  });
+
+  it('trace 非数组（坏形状）→ 同样 E_INTERNAL 诚实失败', async () => {
+    const env = makeEnv();
+    stubWriteDraft(env, { ok: true, durationMs: 1, data: { draftId: 'd4', trace: 'bogus' } });
+    await expect(
+      writeDraft(env.services, { projectId: env.pid, chapterNo: 1, planItem: PLAN_ITEM }),
+    ).rejects.toMatchObject({ code: 'E_INTERNAL', message: '生成成功但未返回 trace' });
+  });
+
+  it('失败仍映射 MzError 且 retryable 进 detail（真路径：planItem 空标题 → retryable:true）', async () => {
+    const { services, pid, progress } = makeEnv();
+    const e = await writeDraft(services, { projectId: pid, chapterNo: 1, planItem: { title: '', hook: 'h' } }).catch((x) => x);
+    expect(e).toBeInstanceOf(MzError);
+    expect(e.code).toBe('E_INVALID_ARGS');
+    expect((e.detail as { retryable: boolean }).retryable).toBe(true);
+    expect(progress().find((p) => p.state === 'failed')!.detail).toContain('E_INVALID_ARGS');
+  });
+
+  it('真装配路径：trace 非空且逐条形状齐全（slot/action/before/after/reason）', async () => {
+    const { services, pid } = makeEnv({ llmContent: '雾从江面上漫过来。' });
+    const r = await writeDraft(services, { projectId: pid, chapterNo: 1, planItem: PLAN_ITEM });
+    expect(Array.isArray(r.trace)).toBe(true);
+    expect(r.trace.length).toBeGreaterThan(0);
+    for (const t of r.trace) {
+      expect(typeof t.slot).toBe('string');
+      expect(['kept', 'compressed', 'dropped']).toContain(t.action);
+      expect(typeof t.before).toBe('number');
+      expect(typeof t.after).toBe('number');
+      expect(typeof t.reason).toBe('string');
+    }
+  });
+
+  it('P1B-T2 降级续写路径：同一份装配 trace 照常回传（续写不重新装配，trace 不丢）', async () => {
+    // llm 固定回 '短'：首稿不足半章 → 续写一次仍不足（retries=1/shortfall=true 在 handler data 里），
+    // 但 ok:true 出口只有一个，trace 必须随 res 上浮；retries/shortfall 不在 IPC res 出现。
+    const { services, pid } = makeEnv({ llmContent: '短' });
+    const r = await writeDraft(services, { projectId: pid, chapterNo: 1, planItem: PLAN_ITEM });
+    expect(r.trace.length).toBeGreaterThan(0);
+    expect(Object.keys(r).sort()).toEqual(['draftId', 'trace']);
+  });
+
+  it('concept/outline 的 res 保持 {draftId} 不变（unwrapDraftId 不动）', async () => {
+    const env = makeEnv();
+    const c = await runConcept(env.services, env.pid);
+    expect(Object.keys(c)).toEqual(['draftId']);
+    const env2 = makeEnv({ llmContent: OUTLINE_JSON });
+    const o = await runOutline(env2.services, { projectId: env2.pid });
+    expect(Object.keys(o)).toEqual(['draftId']);
   });
 });

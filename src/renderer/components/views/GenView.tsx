@@ -18,7 +18,9 @@
  *     按钮（空文本重试一万次还是空文本，minor-1 口径）。
  *  ③ 执行卡：三按钮直调 T5 六通道；busy 各键独立；订阅 pipeline:progress
  *     推送（SUBSCRIBE_CHANNELS 已含），失败红字直报 e.message（含 error code，
- *     不拟人化、不含糊）。
+ *     不拟人化、不含糊）。D批 D1：正文起草成功后把 res.trace 收进本地态，
+ *     草稿表单下方以原生 details 展示「装配裁剪审计」（每栏动作/裁前裁后
+ *     tokens/原因原文）——装配透明原则的 UI 落点，切项目/重跑即清空。
  *  ④ 草稿卡：pending 列表（kind/role/时间/前 80 字预览）+ 采纳/丢弃。
  *     采纳 chapter 草稿 = 正文入正稿唯一入口，成功后刷新章节树
  *     （setChapters → App 挂在 chapters 上的 dash 重算订阅会跟着走）。
@@ -30,7 +32,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { bridge, errorText, hasBridge } from '../../hooks/use-mz-bridge';
 import { useProjectStore } from '../../store';
 import { usePipelineStore } from '../../store/pipeline';
-import type { CanonEntry, Draft } from '@shared/types/pipeline';
+import type { CanonEntry, Draft, TrimTrace } from '@shared/types/pipeline';
 import { PLATFORM_RULES } from '@shared/constants/platforms';
 import styles from './GenView.module.css';
 
@@ -41,6 +43,12 @@ const STEP_LABEL: Record<string, string> = {
   outline: '卷纲章纲',
   draft: '正文草稿',
   adopt: '采纳',
+};
+/** D批 D1：裁剪动作三档的中文标签（与 shared TrimTrace.action 联合逐字对应） */
+const TRACE_ACTION_LABEL: Record<TrimTrace['action'], string> = {
+  kept: '全文保留',
+  compressed: '截断',
+  dropped: '整条丢弃',
 };
 
 /** 失败文案：直报「code: message」。preload 已把 __mzError 转成带 code 的 Error。 */
@@ -89,8 +97,16 @@ export function GenView(): JSX.Element {
   const [canonText, setCanonText] = useState('');
   // 失败红字（code: message）；retry 仅在 detail.retryable!==false 时给出
   const [canonErr, setCanonErr] = useState<{ text: string; retry?: () => void } | null>(null);
+  // D批 D1：最近一次正文起草的装配裁剪 trace（null = 本次会话还没跑过/刚清空；
+  // 空数组 = 跑过但装配无裁剪记录——两者语义不同，面板只在非 null 时出现）
+  const [draftTrace, setDraftTrace] = useState<TrimTrace[] | null>(null);
 
   const pid = project?.id ?? null;
+
+  // 切换项目清空审计：A 书的裁剪记录不许挂到 B 书名下（与 R13 progress 守卫同族）
+  useEffect(() => {
+    setDraftTrace(null);
+  }, [pid]);
 
   const refreshDrafts = useCallback(async () => {
     if (!pid || !hasBridge()) return;
@@ -254,7 +270,12 @@ export function GenView(): JSX.Element {
       return;
     }
     void run('draft', `写第${no}章草稿`, async () => {
-      await bridge().pipeline.writeDraft(pid, no, { title, hook });
+      // 起手清空上一次审计：失败时面板消失（本次没有记录），不拿旧书旧章的 trace 充数
+      setDraftTrace(null);
+      const r = await bridge().pipeline.writeDraft(pid, no, { title, hook });
+      // 迟到的响应不许挂到别的书名下：await 期间切了项目就如实丢弃（pid 效果已清面板）
+      if (useProjectStore.getState().project?.id !== pid) return;
+      setDraftTrace(r.trace);
     }, '正文草稿已生成，请在草稿区采纳');
   };
 
@@ -510,6 +531,27 @@ export function GenView(): JSX.Element {
             {busy.draft ? `第${chapterNo || '?'}章写作中…` : `写第${chapterNo || 'N'}章草稿`}
           </button>
         </div>
+        {/* D批 D1：装配裁剪审计——后端 trace 真源的 UI 入口（能力可见红线）。
+            原生 details/summary 折叠，不新增按钮；逐条直报装配器原文，不改写不摘要。 */}
+        {draftTrace !== null && (
+          <details className={styles.traceAudit}>
+            <summary className={styles.traceSummary}>装配裁剪审计（{draftTrace.length} 栏）</summary>
+            {draftTrace.length === 0 ? (
+              <p className={styles.traceEmpty}>本次生成无装配裁剪记录</p>
+            ) : (
+              <ul className={styles.traceList}>
+                {draftTrace.map((t, i) => (
+                  <li key={`${t.slot}-${i}`} className={styles.traceRow}>
+                    <span className={styles.traceSlot}>{t.slot}</span>
+                    <span className={styles.traceAction}>{TRACE_ACTION_LABEL[t.action]}</span>
+                    <span className={styles.traceTokens}>{t.before}→{t.after} tokens</span>
+                    <span className={styles.traceReason}>{t.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </details>
+        )}
       </section>
 
       {/* ④ 草稿卡 */}

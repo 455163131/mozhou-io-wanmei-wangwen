@@ -2,8 +2,9 @@
  * 提示词与技能（P2-A T4，DRD §4.1 系统组 / §3.2「提示词 = 内置基线 + 覆盖层」）。
  *
  * 三区块把已融进代码的资产摆到明面：
- *  ① 角色覆盖层列表：concept/architect/writer 三行可编辑（已覆盖/默认徽标 +
- *     温度值）；其余 6 角色（总编/扫榜/审稿/史官/润色/记忆管家）灰显说明行 +
+ *  ① 角色覆盖层列表：concept/architect/writer/idea/teardown 五行可编辑（已覆盖/默认徽标 +
+ *     温度值；★ D批 D2：idea/teardown 后端早已接入，补上前端入口——能力可见）；
+ *     其余 6 角色（总编/扫榜/审稿/史官/润色/记忆管家）灰显说明行 +
  *     「待质检闭环接入后开放」——不画假入口（计划 Global Constraints 第 2 条）。
  *     soon 行走 **div + aria-disabled**，不用 disabled 属性：它是说明态不是死
  *     按钮，读屏器应能读到注记文本（disabled 会把子树移出无障碍树）。
@@ -28,11 +29,14 @@ import { useConfirm } from '../common/ConfirmDialog';
 import type { CraftSkillInfo, OverlayRole } from '@shared/types/ipc';
 import styles from './PromptView.module.css';
 
-/** 覆盖层开放的三角色（与 shared OverlayRole 联合逐字一致），label 与 GenView ROLE_LABEL 同词 */
+/** 覆盖层开放的五角色（与 shared OverlayRole 联合逐字一致），label 与 GenView ROLE_LABEL 同词；
+ *  idea/teardown 用页面短称 脑洞/拆书（D批 D2：后端 P2-C 已接入，此处补 UI 入口） */
 const EDIT_ROLES: { role: OverlayRole; label: string }[] = [
   { role: 'concept', label: '构思' },
   { role: 'architect', label: '架构' },
   { role: 'writer', label: '写手' },
+  { role: 'idea', label: '脑洞' },
+  { role: 'teardown', label: '拆书' },
 ];
 
 /** 尚未接入覆盖层的 6 角色（灰显说明行，不画可点入口） */
@@ -99,7 +103,7 @@ export function PromptView(): JSX.Element {
   const { confirm, node: confirmNode } = useConfirm();
 
   /**
-   * 首帧：三行覆盖层摘要 + 技能表一起拉。
+   * 首帧：五行覆盖层摘要 + 技能表一起拉。
    * ★ I-1：迟到的首帧不许盖掉用户已选角色——领号后判最新才回填。
    */
   useEffect(() => {
@@ -110,14 +114,16 @@ export function PromptView(): JSX.Element {
     void (async () => {
       const seq = seqRef.current.next();
       try {
-        const [concept, architect, writer, list] = await Promise.all([
+        const [concept, architect, writer, idea, teardown, list] = await Promise.all([
           fetchRole('concept'),
           fetchRole('architect'),
           fetchRole('writer'),
+          fetchRole('idea'),
+          fetchRole('teardown'),
           bridge().skills.list(),
         ]);
         if (!seqRef.current.isCurrent(seq)) return;
-        setStates({ concept, architect, writer });
+        setStates({ concept, architect, writer, idea, teardown });
         setSkills(list);
         setTempText(writer.temperature === null ? '' : String(writer.temperature));
         setAdditional(writer.additional);
@@ -208,7 +214,7 @@ export function PromptView(): JSX.Element {
     const ok = await confirm({
       title: `恢复「${label}」默认提示词`,
       body: '将删除该角色的覆盖层文件，回到内置基线。你保存过的附加要求与温度覆盖会一并丢失。',
-      warn: '这是有意变更：写手 prompt cache 会因此失效。',
+      warn: selected === 'writer' ? '这是有意变更：写手 prompt cache 会因此失效。' : '这是有意变更：该角色的附加要求与温度覆盖将被删除。',
       confirmText: '恢复默认',
       danger: true,
     });
@@ -306,12 +312,12 @@ export function PromptView(): JSX.Element {
               <textarea
                 className={styles.textarea}
                 value={additional}
-                placeholder="写手/架构/构思之外没有的固定要求，每次生成都带上这段…"
+                placeholder="该角色内置基线之外的固定要求，每次生成都带上这段…"
                 onChange={(e) => setAdditional(e.target.value)}
               />
             </label>
             <p className={styles.hintLine}>
-              覆盖层会追加到该角色 system 末尾；改动会使写手 prompt cache 失效。
+              覆盖层会追加到该角色 system 末尾；写手角色的改动会使其 prompt cache 失效。
             </p>
             <div className={styles.actions}>
               <button type="button" className={styles.btnPrimary} disabled={busy} onClick={() => void onSave()}>

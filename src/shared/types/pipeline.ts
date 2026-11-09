@@ -95,6 +95,26 @@ export interface Draft {
   createdAt: number;
 }
 
+/* ── 装配裁剪留痕（D批 D1 上移到 shared：IPC 契约 pipeline:write-draft 的 res） ── */
+
+/**
+ * 一次裁剪动作的留痕：装配透明原则的载体，逐条可回查。
+ * 定义放 shared 的原因与 Draft 相同：既是主进程装配器（assemble.ts）的产出类型，
+ * 也是 IPC 契约的载荷类型——契约只有一份，两侧 import 同一处。
+ */
+export type TrimTrace = {
+  /** 栏位名（prevEnding / synopsis / hooks / craftSkills / foreshadow / cast） */
+  slot: string;
+  /** kept=全文保留；compressed=被截断；dropped=被整条丢弃 */
+  action: 'kept' | 'compressed' | 'dropped';
+  /** 裁剪前该栏位的 token 估算 */
+  before: number;
+  /** 裁剪后该栏位的 token 估算 */
+  after: number;
+  /** 为什么裁、怎么裁的——说真话，不拟人化 */
+  reason: string;
+};
+
 /* ── 构思产出 ──────────────────────────────────────────────────── */
 
 export interface ConceptOut {

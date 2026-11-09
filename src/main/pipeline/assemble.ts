@@ -16,26 +16,16 @@
  *   裁剪留痕这三件机制参照了行业内公开的上下文预算做法；本文件的代码、注释与全部
  *   块文案均为原创中文措辞，未复制任何受版权保护的文本。
  */
-import type { PipelineCtx } from '@shared/types/pipeline';
+import type { PipelineCtx, TrimTrace } from '@shared/types/pipeline';
 import { MzError } from '@shared/types/ipc';
 import { matchSkills } from '@main/pipeline/craft-skills';
 import { WEIGHT_VALUE } from '@shared/ledger-metrics';
 
 /* ── 对外类型 ──────────────────────────────────────────────────── */
 
-/** 一次裁剪动作的留痕：装配透明原则的载体，逐条可回查。 */
-export type TrimTrace = {
-  /** 栏位名（prevEnding / synopsis / hooks / craftSkills / foreshadow / cast） */
-  slot: string;
-  /** kept=全文保留；compressed=被截断；dropped=被整条丢弃 */
-  action: 'kept' | 'compressed' | 'dropped';
-  /** 裁剪前该栏位的 token 估算 */
-  before: number;
-  /** 裁剪后该栏位的 token 估算 */
-  after: number;
-  /** 为什么裁、怎么裁的——说真话，不拟人化 */
-  reason: string;
-};
+// ★ D批 D1：TrimTrace 单源上移到 @shared/types/pipeline（IPC 契约 write-draft res
+//   与装配器产出共用同一份定义）。这里 re-export 保持既有 importer（tools.ts）兼容。
+export type { TrimTrace };
 
 /** 装配预算：模型上下文窗口与单次输出预留。 */
 export interface WriterBudget {

@@ -27,7 +27,7 @@ import type { Database } from 'better-sqlite3';
 import { MzError } from '@shared/types/ipc';
 import type { IpcPushChannel, IpcPushMap } from '@shared/types/ipc';
 import type { ToolContext, ToolResult } from '@shared/types/tool';
-import type { Draft, DraftStatus } from '@shared/types/pipeline';
+import type { Draft, DraftStatus, TrimTrace } from '@shared/types/pipeline';
 import type { ChapterRepo } from '../db/repos/chapter-repo';
 import { DraftRepo } from '../db/repos/draft-repo';
 import type { PipelineHandlers } from './tools';
@@ -81,7 +81,7 @@ function assertCurrentProject(s: PipelineIpcServices, projectId: string): void {
   }
 }
 
-/** ToolResult → {draftId}；失败转 MzError（retryable 放进 detail，渲染层据此决定是否给重试按钮） */
+/** ToolResult → {draftId}（concept/outline 用；write-draft 走 unwrapDraftTrace 另带 trace）；失败转 MzError（retryable 放进 detail，渲染层据此决定是否给重试按钮） */
 function unwrapDraftId(res: ToolResult): { draftId: string } {
   if (!res.ok || !res.data) {
     const e = res.error;
@@ -94,6 +94,26 @@ function unwrapDraftId(res: ToolResult): { draftId: string } {
     throw new MzError('E_INTERNAL', '生成成功但未返回 draftId');
   }
   return { draftId: data.draftId };
+}
+
+/**
+ * ★ D批 D1：write-draft 专用 unwrap——draftId 校验沿用 unwrapDraftId 口径，
+ *   另把装配裁剪 trace 原样提取上浮（channel RESHAPE，不开新通道）。
+ *
+ * 降级续写路径裁决（P1B-T2）：tools.ts writeDraft 只有**一个** ok:true 出口，
+ * trace 在 LLM 调用前就从 assembleWriterContext 拿到并随 data 恒回传——续写
+ * 复用同一份装配结果（同一个 user），trace 不变也不丢。因此不存在「成功但
+ * 无装配」的合法路径：trace 缺席/非数组 = 契约破损，E_INTERNAL 诚实失败，
+ * 绝不静默补 []。handler **显式**返回的空数组是合法值（本次装配无裁剪记录），
+ * Array.isArray 放行、原样透传。
+ */
+function unwrapDraftTrace(res: ToolResult): { draftId: string; trace: TrimTrace[] } {
+  const { draftId } = unwrapDraftId(res);
+  const data = res.data as { trace?: unknown };
+  if (!Array.isArray(data.trace)) {
+    throw new MzError('E_INTERNAL', '生成成功但未返回 trace');
+  }
+  return { draftId, trace: data.trace as TrimTrace[] };
 }
 
 /** running/done/failed 三态包裹：failed 的 detail 带真因（code+message），随后原样上抛 */
@@ -147,12 +167,12 @@ export function runOutline(
 export function writeDraft(
   s: PipelineIpcServices,
   p: { projectId: string; chapterNo: number; planItem: { title: string; hook: string } },
-): Promise<{ draftId: string }> {
+): Promise<{ draftId: string; trace: TrimTrace[] }> {
   return withProgress(s, p.projectId, 'draft', async () => {
     assertCurrentProject(s, p.projectId);
     // Carry-2（chapterNo 正整数校验 → E_INVALID_ARGS retryable:false）在 handler 内，
     // IPC 层不另立一套口径。
-    return unwrapDraftId(
+    return unwrapDraftTrace(
       await s.pipelineHandlers().writeDraft({ chapterNo: p.chapterNo, planItem: p.planItem }, toolCtx()),
     );
   });
