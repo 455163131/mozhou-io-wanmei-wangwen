@@ -5,9 +5,12 @@
  *   · 取数：`trending.fetch(platform)` → {entries,source,error?}；T3/R9 起每条 entry
  *     已由主进程幂等落 kind='trend' 卡并回填 cardId——本页收藏/套用直接拿它走
  *     `inspiration.collect(cardId)` / `topic.createFromCard(cardId)`，无需再入库。
- *   · 诚实纪律（DRD §7）：source==='live' 打「实时」青标，否则「演示数据」黄标；
- *     回落时 error 带真因（robots 禁止 / 非 200 / 解析失败 / 网络错），如实展示不静默；
- *     heat===null 显「热度未提供」，绝不编造热度数字。
+ *   · 诚实纪律（DRD §7）：source==='live' 打「实时」青标，source==='manual' 打
+ *     「手动导入」中性标（C批：用户粘贴的真榜单，既没实时抓取、也不是演示集），
+ *     其余「演示数据」黄标；回落时 error 带真因（robots 禁止 / 非 200 / 解析失败 /
+ *     网络错），如实展示不静默；heat===null 显「热度未提供」，绝不编造热度数字。
+ *   · 手动导入（C批）：`trending.importChart(platform, text)` 粘贴文本/CSV 诚实入库，
+ *     导入目标=当前选中平台 Tab；与 load 共用一条 sequencer——迟到的导入不许盖新抓取。
  *
  * ★ 全局子系统：灵感卡片在书籍立项之前就存在，本页不键 project?.id、不随 openProject
  *   重载（spec §4）；初始抓一次默认平台，切 Tab 即重抓。
@@ -35,6 +38,8 @@ export function TrendingView(): JSX.Element {
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** C批手动导入：粘贴框文本（导入目标=当前平台 Tab；空文本禁点导入） */
+  const [importText, setImportText] = useState('');
   /** cardId → 'collect' | 'apply'：该卡正在进行的动作（禁用按钮防连点） */
   const [pending, setPending] = useState<Record<string, 'collect' | 'apply'>>({});
   /** 已收藏的 cardId 集（本会话内即时反馈，避免重复点收藏） */
@@ -66,6 +71,27 @@ export function TrendingView(): JSX.Element {
     // 全局子系统：只键平台，不键 project——切 Tab 重抓，换书不重挂载本页。
     void load(platform);
   }, [platform, load]);
+
+  /** C批手动导入：粘贴文本/CSV → trending.importChart（导入目标=当前平台 Tab）。
+   *  与 load 共用 loadSeqRef 一条 sequencer——迟到的导入不许盖更新的抓取（反之亦然），
+   *  每个 await（含 catch/finally）回来判 isCurrent 才许落状态（I-1 同族）。 */
+  async function importChart(): Promise<void> {
+    if (busy || importText.trim().length === 0) return;
+    const seq = loadSeqRef.current.next();
+    setBusy(true);
+    setErr(null);
+    setNotice(null);
+    try {
+      const r = await bridge().trending.importChart(platform, importText);
+      if (!loadSeqRef.current.isCurrent(seq)) return;
+      setResult(r);
+      setNotice(`已导入 ${r.entries.length} 条（手动导入·非实时抓取）`);
+    } catch (e) {
+      if (loadSeqRef.current.isCurrent(seq)) setErr(errorText(e));
+    } finally {
+      if (loadSeqRef.current.isCurrent(seq)) setBusy(false);
+    }
+  }
 
   /** 收藏进选题池：拿 R9 回填的 cardId 走 inspiration.collect；成功即时打标。 */
   async function collect(entry: ChartEntry): Promise<void> {
@@ -121,11 +147,11 @@ export function TrendingView(): JSX.Element {
     <div className={styles.wrap}>
       <div className={styles.head}>
         <span className={styles.title}>{MODE_LABELS.trends}</span>
-        <span className={styles.sub}>三站公开榜单 · 礼貌直抓 · 收藏进选题池 / 套用为选题</span>
+        <span className={styles.sub}>三站公开榜单 · 礼貌直抓 · 支持手动导入 · 收藏进选题池 / 套用为选题</span>
         <span className={styles.spacer} />
         {result && (
-          <span className={isLive ? styles.badgeLive : styles.badgeDemo}>
-            {isLive ? '实时' : '演示数据'}
+          <span className={result.source === 'manual' ? styles.badgeManual : isLive ? styles.badgeLive : styles.badgeDemo}>
+            {result.source === 'manual' ? '手动导入' : isLive ? '实时' : '演示数据'}
           </span>
         )}
         <button className={styles.btnPrimary} disabled={busy} onClick={() => void load(platform)}>
@@ -146,7 +172,28 @@ export function TrendingView(): JSX.Element {
         ))}
       </div>
 
-      {result && !isLive && result.error && (
+      {/* C批手动导入面板：粘贴文本/CSV → 当前平台 Tab；描边按钮（不新增实底 CTA，台账保持 19） */}
+      <div className={styles.importPanel}>
+        <textarea
+          className={styles.importText}
+          value={importText}
+          disabled={busy}
+          placeholder={'手动导入榜单（每行一本）：排名,书名,作者,热度,链接,标签\nCSV/TSV 均可，只有书名必填；示例：1,《长河渡口》,驿舟子,27.7万,https://…,现实|群像\n也可直接粘贴裸书名，一行一本（排名按行序，热度如实留空）'}
+          onChange={(e) => setImportText(e.target.value)}
+        />
+        <div className={styles.importOps}>
+          <span className={styles.importHint}>导入到当前平台「{platform}」· 诚实标注「手动导入」，非实时抓取</span>
+          <button
+            className={styles.btn}
+            disabled={busy || importText.trim().length === 0}
+            onClick={() => void importChart()}
+          >
+            导入为榜单
+          </button>
+        </div>
+      </div>
+
+      {result && result.source === 'demo' && result.error && (
         <p className={styles.fallbackNote}>已回落演示集 · 真因：{result.error}</p>
       )}
       {err && <p className={styles.err}>{err}</p>}

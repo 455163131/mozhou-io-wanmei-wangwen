@@ -24,6 +24,8 @@ export type Platform = '番茄' | '晋江' | '起点';
  * ★ heat 只在页面**确有可信热度数字**时才填（如番茄「在读：27.7万」），
  *   否则一律 null——DRD §7 拒绝无依据的热度数字，宁缺毋假。
  * ★ live 区分实时抓取（true）与演示兜底（false），UI 据此打「演示数据」徽标。
+ * ★ manual（C批）：手动导入条目；live 恒 false，UI 标「手动导入」而非「演示」——
+ *   数据是用户自己贴的真榜单，既没实时抓取、也不是演示集，两头都不许冒领。
  * ★ cardId（P2-C T3/R9）：parse/demo 产出不填；trending:fetch 幂等落库
  *   kind='trend' 卡后回填——UI 收藏/套用直接拿它走 inspiration:collect /
  *   topic:create-from-card。可选字段，旧调用方向后兼容。
@@ -37,16 +39,20 @@ export interface ChartEntry {
   tags: string[];
   url: string;
   live: boolean;
+  /** 手动导入条目（C批）；live 恒 false，UI 标「手动导入」而非「演示」 */
+  manual?: boolean;
   cardId?: string;
 }
 
 /**
  * 榜单抓取结果。回落演示集时 source='demo' 且 error 带**真因**
  * （robots 禁止 / 非 200 / 解析失败 / 网络错），绝不静默换数据。
+ * C批：source='manual' 为手动导入（用户粘贴文本/CSV），entries 全部
+ * live:false + manual:true——诚实第三态，不冒充 live 也不混同 demo。
  */
 export interface ChartFetchResult {
   entries: ChartEntry[];
-  source: 'live' | 'demo';
+  source: 'live' | 'demo' | 'manual';
   error?: string;
 }
 
@@ -55,7 +61,7 @@ export interface ChartFetchResult {
 /** 卡片种类：扫榜热榜 / 抽脑洞 / 拆书报告 */
 export type CardKind = 'trend' | 'idea' | 'teardown';
 
-/** 扫榜卡片 payload（T2 抓取产出；live=false 为演示兜底数据） */
+/** 扫榜卡片 payload（T2 抓取产出；live=false 为演示兜底或手动导入，manual 区分两者） */
 export const TrendPayloadSchema = z.object({
   platform: z.string(),
   author: z.string().optional(),
@@ -64,6 +70,8 @@ export const TrendPayloadSchema = z.object({
   tags: z.array(z.string()).optional(),
   url: z.string().optional(),
   live: z.boolean(),
+  /** C批：手动导入条目；live 恒 false，UI 标「手动导入」而非「演示」；旧卡可无 */
+  manual: z.boolean().optional(),
   /** P2-C T3/R9：幂等去重键 `platform|url`（url 空 → `platform|title|author`）；旧卡可无 */
   sourceKey: z.string().optional(),
 });

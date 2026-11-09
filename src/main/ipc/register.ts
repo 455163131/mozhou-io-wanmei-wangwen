@@ -740,6 +740,8 @@ export function registerAllIpc(services: AppServices, getWindow: () => BrowserWi
     charts: s.chartSource,
   });
   handle('trending:fetch', async (p, s) => inspirationIpc.fetchTrending(inspDeps(s), p), services);
+  // C批：榜单手动导入——粘贴文本/CSV 诚实落库（source='manual'，解析失败抛真因）
+  handle('trending:import', async (p, s) => inspirationIpc.importTrending(inspDeps(s), p), services);
   handle('inspiration:list', (p, s) => inspirationIpc.listCards(inspDeps(s), p), services);
   handle('inspiration:collect', (p, s) => inspirationIpc.collectCard(inspDeps(s), p), services);
   handle('inspiration:remove', (p, s) => inspirationIpc.removeCard(inspDeps(s), p), services);

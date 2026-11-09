@@ -156,6 +156,16 @@
   color: var(--mz-sem-warn-fg);
 }
 
+/* 手动导入（C批）：中性灰档——用户贴的真榜单，不冒黄（演示）也不冒青（实时） */
+.manualTag {
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-sm);
+  padding: 0 var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-secondary);
+}
+
 /* 内容摘要：衬线正文档，长句折行不炸卡 */
 .cardSummary {
   margin: 0;

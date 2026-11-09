@@ -211,6 +211,8 @@ const bridge: MzBridge = {
   // ── P2-C 灵感线（T2）：扫榜 + 卡片池 + 选题套用 ──
   trending: {
     fetch: (platform) => invoke('trending:fetch', { platform }),
+    // C批：手动导入（req 原样转发；解析/上限/诚实标记全在主进程 inspiration-ipc）
+    importChart: (platform, text) => invoke('trending:import', { platform, text }),
   },
   inspiration: {
     list: (kind) => invoke('inspiration:list', { kind }),

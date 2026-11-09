@@ -233,6 +233,11 @@ export interface MzBridge {
   // ── 扫榜热榜（P2-C T2）：礼貌直抓，失败如实回落演示集（source/error 说明真因）──
   trending: {
     fetch(platform: IpcInvokeMap['trending:fetch']['req']['platform']): Promise<IpcInvokeMap['trending:fetch']['res']>;
+    /** C批：手动导入榜单文本/CSV → source='manual'（live:false + manual:true，UI 标「手动导入」） */
+    importChart(
+      platform: IpcInvokeMap['trending:import']['req']['platform'],
+      text: IpcInvokeMap['trending:import']['req']['text'],
+    ): Promise<IpcInvokeMap['trending:import']['res']>;
   };
 
   // ── 灵感卡片池（P2-C T2）：全局子系统，不要求已打开项目 ──
@@ -391,6 +396,8 @@ export const INVOKE_CHANNELS: IpcChannel[] = [
   'skills:match',
   // P2-C 灵感线（T2）
   'trending:fetch',
+  // C批：榜单手动导入（诚实第三态 manual，契约见 IpcInvokeMap 同名条目）
+  'trending:import',
   'inspiration:list',
   'inspiration:collect',
   'inspiration:remove',

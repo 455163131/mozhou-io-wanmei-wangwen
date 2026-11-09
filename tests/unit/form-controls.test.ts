@@ -208,8 +208,13 @@ describe('F. 禁用态：能被禁用的标签，必须有长得不一样的禁�
    *   宿主集合多了 `select`。样式侧 global.css:95-97 的 `select:disabled`
    *   （color+background+cursor）早已就位（B 组要求 select 有基础态时一并写的），
    *   这里把台账补齐即可满足 ①②，非"加标签不补样式"的欠账。
+   *
+   * ★ C批：TrendingView 手动导入面板的粘贴框 `<textarea disabled={busy}>`——
+   *   宿主集合多了 `textarea`。样式侧 global.css:95-98 的 `textarea:disabled`
+   *   （color 禁用档）早已就位，组件侧 .importText:disabled 另有 opacity+cursor，
+   *   台账补齐即满足 ①②，非欠账。
    */
-  const DISABLED_HOSTS = ['button', 'input', 'select'];
+  const DISABLED_HOSTS = ['button', 'input', 'select', 'textarea'];
 
   const hostsFound = (): string[] => {
     const found = new Set<string>();

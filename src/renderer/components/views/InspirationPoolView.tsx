@@ -9,7 +9,8 @@
  *   · 删除走 danger 二次确认（useConfirm），per-card pending 防连点；
  *     删除在途同时禁 tab——否则尾部 load(旧tab闭包) 会反超新分类的 load，
  *     把旧列表盖进新分类的高亮下（终审 Important，I-1 族）。
- *   · 演示兜底卡如实打「演示数据」徽标（payload.live===false），不冒充真抓取。
+ *   · 演示兜底卡如实打「演示数据」徽标（payload.live===false），不冒充真抓取；
+ *     C批手动导入卡（payload.manual===true）打「手动导入」中性徽标——不冒领演示。
  *
  * 异步纪律（I-1 同族）：load/action 各持一条 sequencer，每个 await（含 catch/finally）
  *   回来判 isCurrent 才许落状态。本页无实底 CTA（删除只描边 .btnDanger），不入台账。
@@ -57,9 +58,18 @@ function summary(c: InspirationCard): string {
   return `${p.bookTitle} · ${p.dimension}：${p.summary}`;
 }
 
-/** 演示兜底如实标注：trend/idea 的 payload.live 是权威记录；teardown 无 live 字段不猜 */
+/** 手动导入如实标注（C批）：trend 卡 payload.manual 是权威记录——用户贴的真榜单，
+ *  既非实时抓取也非演示集，标「手动导入」独立一档，两头都不许冒领。 */
+function isManual(c: InspirationCard): boolean {
+  if (c.kind !== 'trend') return false;
+  return (c.payload as TrendPayload).manual === true;
+}
+
+/** 演示兜底如实标注：trend/idea 的 payload.live 是权威记录；teardown 无 live 字段不猜。
+ *  ★ C批：manual 卡先排除——live 虽也是 false，但它是手动导入不是演示，不许误标。 */
 function isDemo(c: InspirationCard): boolean {
   if (c.kind === 'teardown') return false;
+  if (isManual(c)) return false;
   return (c.payload as TrendPayload | IdeaPayload).live === false;
 }
 
@@ -164,6 +174,7 @@ export function InspirationPoolView(): JSX.Element {
                 <span className={styles.kindTag}>{KIND_LABELS[c.kind]}</span>
                 <span className={styles.cardTitle}>{c.title}</span>
                 {c.collected === 1 && <span className={styles.collectedTag}>已收藏</span>}
+                {isManual(c) && <span className={styles.manualTag}>手动导入</span>}
                 {isDemo(c) && <span className={styles.demoTag}>演示数据</span>}
               </div>
               <p className={styles.cardSummary}>{summary(c)}</p>

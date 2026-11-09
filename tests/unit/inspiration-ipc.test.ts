@@ -8,6 +8,7 @@ import { InspirationRepo } from '@main/db/repos/inspiration-repo';
 import { TopicRepo } from '@main/db/repos/topic-repo';
 import {
   fetchTrending,
+  importTrending,
   listCards,
   collectCard,
   removeCard,
@@ -224,5 +225,85 @@ describe('fetchTrending 落库 + 幂等（R9/T3a）', () => {
     const r2 = await fetchTrending(deps, { platform: '晋江' });
     expect(r2.entries[0].cardId).not.toBe(r1.entries[0].cardId);
     expect(deps.inspiration.listByKind('trend')).toHaveLength(2);
+  });
+});
+
+/* ── C批「榜单手动导入」：trending:import 诚实落库（真 :memory: 库，不碰网络）──
+ * 口径：source='manual'；每条 entry 落 kind='trend' 卡（live:false + manual:true），
+ * dedup key = `manual|platform|title|author`（url 不入键——手动输入的链接不可信）；
+ * 解析失败原样抛真因；套用 premise 带【手动导入】前缀（先于演示分支判定）。 */
+describe('importTrending（C批手动导入）', () => {
+  const CSV = '排名,书名,作者,热度,链接,标签\n1,《长河渡口》,驿舟子,27.7万,https://example.com/a,现实|群像\n2,守夜灯塔修补匠,迟迟雨,,,悬疑';
+
+  it('① happy path：source=manual；cards 落库 + cardId 回填；sourceLabel/payload 诚实标记', async () => {
+    const r = await importTrending(deps, { platform: '晋江', text: CSV });
+    expect(r.source).toBe('manual');
+    expect(r.entries).toHaveLength(2);
+    for (const e of r.entries) {
+      expect(e.live).toBe(false);
+      expect(e.manual).toBe(true);
+      expect(typeof e.cardId).toBe('string');
+      const card = deps.inspiration.get(e.cardId!);
+      expect(card).not.toBeNull();
+      expect(card!.kind).toBe('trend');
+      expect(card!.sourceLabel).toBe('晋江·手动导入');
+      const p = card!.payload as TrendPayload;
+      expect(p.manual).toBe(true);
+      expect(p.live).toBe(false);
+      expect(p.platform).toBe('晋江');
+      expect(p.sourceKey).toBe(`manual|晋江|${e.title}|${e.author}`);
+    }
+    const pa = deps.inspiration.get(r.entries[0]!.cardId!)!.payload as TrendPayload;
+    const pb = deps.inspiration.get(r.entries[1]!.cardId!)!.payload as TrendPayload;
+    expect(pa.heat).toBe(277000);
+    expect(pa.url).toBe('https://example.com/a');
+    expect(pb.heat).toBeUndefined(); // heat null → 不落（宁缺毋假）
+    expect(pb.url).toBeUndefined(); // url 空 → 不落
+  });
+
+  it('② 重复导入同书 → 同卡不增；url 不入 dedup 键（换链接仍是同一张卡）', async () => {
+    const r1 = await importTrending(deps, { platform: '番茄', text: CSV });
+    const ids1 = r1.entries.map((e) => e.cardId);
+    const r2 = await importTrending(deps, { platform: '番茄', text: CSV });
+    expect(r2.entries.map((e) => e.cardId)).toEqual(ids1);
+    expect(deps.inspiration.listByKind('trend')).toHaveLength(2);
+    // 同书名同作者、链接变了 → 仍是同一张卡（manual url 不可信，不入键）
+    const moved = CSV.replace('https://example.com/a', 'https://elsewhere.example/zzz');
+    const r3 = await importTrending(deps, { platform: '番茄', text: moved });
+    expect(r3.entries[0]!.cardId).toBe(ids1[0]);
+    expect(deps.inspiration.listByKind('trend')).toHaveLength(2);
+    // 与 trending:fetch 的卡互不串键（前缀 manual| 隔离）
+    const liveEntry: ChartEntry = { rank: 1, title: '长河渡口', author: '驿舟子', platform: '番茄', heat: null, tags: [], url: '', live: true };
+    deps.charts = { async fetch() { return { entries: [liveEntry], source: 'live' as const }; } };
+    await fetchTrending(deps, { platform: '番茄' });
+    expect(deps.inspiration.listByKind('trend')).toHaveLength(3);
+  });
+
+  it('③ 非法入参 → E_INVALID_ARGS（platform 枚举 / text 非空 / ≤100000 字符）', async () => {
+    await expect(importTrending(deps, { platform: '刺猬猫', text: CSV })).rejects.toMatchObject({ code: 'E_INVALID_ARGS' });
+    await expect(importTrending(deps, { platform: '番茄', text: '' })).rejects.toMatchObject({ code: 'E_INVALID_ARGS' });
+    await expect(importTrending(deps, { platform: '番茄', text: '书'.repeat(100_001) })).rejects.toMatchObject({ code: 'E_INVALID_ARGS' });
+    expect(deps.inspiration.listByKind('trend')).toHaveLength(0); // 坏值没有落库
+  });
+
+  it('④ 解析失败 → 真因原样上抛（不静默回空、不冒充演示）', async () => {
+    await expect(importTrending(deps, { platform: '番茄', text: '排名,书名,作者\n1,,甲' })).rejects.toThrowError(/手动导入解析失败：未识别到任何书目/);
+    const over = Array.from({ length: 201 }, (_, i) => `${i + 1},书${i},a`).join('\n');
+    await expect(importTrending(deps, { platform: '番茄', text: over })).rejects.toThrowError(/手动导入超出上限：最多 200 条/);
+    expect(deps.inspiration.listByKind('trend')).toHaveLength(0);
+  });
+
+  it('⑤ createTopicFromCard：manual 卡 premise 带【手动导入】（先于演示分支）；非 manual 的 live=false 仍【演示数据】', async () => {
+    const r = await importTrending(deps, { platform: '晋江', text: CSV });
+    const t = createTopicFromCard(deps, { cardId: r.entries[0]!.cardId! });
+    expect(t.premise).toBe('【手动导入】榜单观察：《长河渡口》（现实、群像）——从晋江手动导入榜单套用的趋势选题');
+    expect(t.premise).not.toContain('【演示数据】');
+    // 演示卡（live=false 且无 manual）口径不变
+    const demo = deps.inspiration.insert({
+      kind: 'trend', title: '演示书',
+      payload: { platform: '番茄', tags: ['悬疑'], live: false },
+      sourceLabel: '番茄',
+    });
+    expect(createTopicFromCard(deps, { cardId: demo.id }).premise).toContain('【演示数据】');
   });
 });

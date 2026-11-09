@@ -384,6 +384,13 @@ export interface IpcInvokeMap {
    */
   'trending:fetch': { req: { platform: Platform }; res: ChartFetchResult };
   /**
+   * 手动导入榜单（C批）：粘贴文本/CSV（每行一本：排名,书名,作者,热度,链接,标签）。
+   * 诚实第三态：res.source='manual'，entries 全部 live:false + manual:true——
+   * UI 标「手动导入」，绝不标「实时/演示」。解析失败/超上限抛真因，不静默回空。
+   * 全局通道：不要求已打开项目（灵感卡片在立项之前就存在）。
+   */
+  'trending:import': { req: { platform: Platform; text: string }; res: ChartFetchResult };
+  /**
    * 卡片列表：kind=三类 → 按类取；kind='collected' → 选题池取数口；
    * 缺省 → 三类合并（新在前）。
    */
@@ -714,6 +721,8 @@ export const IPC_CHANNELS = [
   'skills:match',
   // P2-C 灵感线（T2）
   'trending:fetch',
+  // C批：榜单手动导入（诚实第三态 manual，契约见 IpcInvokeMap 同名条目）
+  'trending:import',
   'inspiration:list',
   'inspiration:collect',
   'inspiration:remove',

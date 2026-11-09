@@ -3,7 +3,7 @@
  * 布局照原型（平台 Tab / 数据态徽标 / 3×3 书卡网格），色与间距一律只走 --mz- 令牌——
  * theme-ink C 组钉死零裸色；design-tokens-usage A 组钉死字号/圆角/间距不许裸 px。
  * 实底按钮仅 btnPrimary 一颗（金 × accent-ink），已登记进 SOLID_BUTTON_CENSUS；
- * 平台 Tab 与卡内收藏/套用走描边/淡晕档，非实底，不入台账。
+ * 平台 Tab、卡内收藏/套用与 C批手动导入按钮走描边/淡晕档，非实底，不入台账。
  */
 
 .wrap {
@@ -34,7 +34,8 @@
   flex: 1;
 }
 
-/* ── 数据态徽标：实时（青）/ 演示数据（黄）——DRD §7 明示，绝不冒充真实榜单 ── */
+/* ── 数据态徽标：实时（青）/ 演示数据（黄）/ 手动导入（中性灰，C批）——
+   DRD §7 明示，绝不冒充真实榜单；手动导入既非实时也非演示，独立一档不混用 ── */
 
 .badgeLive {
   display: inline-flex;
@@ -57,6 +58,21 @@
   color: var(--mz-sem-warn-fg);
   background: var(--mz-sem-warn-bg);
   border: 1px solid var(--mz-sem-warn-border);
+  border-radius: var(--mz-radius-xs);
+  padding: var(--mz-space-half) var(--mz-space-2);
+  letter-spacing: var(--mz-tracking-wide);
+}
+
+/* 手动导入（C批）：中性灰档——用户自己贴的真榜单，不冒青（实时）也不冒黄（演示）。
+   形制照 badgeDemo，色走中性令牌，全令牌零裸色。 */
+.badgeManual {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mz-space-1);
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-secondary);
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-subtle);
   border-radius: var(--mz-radius-xs);
   padding: var(--mz-space-half) var(--mz-space-2);
   letter-spacing: var(--mz-tracking-wide);
@@ -124,6 +140,50 @@
   background: var(--mz-accent-soft);
   border-color: var(--mz-border-accent);
   color: var(--mz-text-primary);
+}
+
+/* ── 手动导入面板（C批）：粘贴框 + 描边导入按钮（styles.btn，非实底不入台账）── */
+
+.importPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mz-space-2);
+  background: var(--mz-bg-inset);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-md);
+  padding: var(--mz-space-3);
+}
+
+.importText {
+  min-height: 6em;
+  width: 100%;
+  font-family: inherit;
+  font-size: var(--mz-fs-xs);
+  line-height: var(--mz-lh-body);
+  color: var(--mz-text-primary);
+  background: var(--mz-bg-surface);
+  border: 1px solid var(--mz-border-subtle);
+  border-radius: var(--mz-radius-sm);
+  padding: var(--mz-space-2);
+  resize: vertical;
+}
+
+.importText:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.importOps {
+  display: flex;
+  align-items: center;
+  gap: var(--mz-space-2);
+  flex-wrap: wrap;
+}
+
+.importHint {
+  flex: 1;
+  font-size: var(--mz-fs-2xs);
+  color: var(--mz-text-tertiary);
 }
 
 /* ── 3×3 书卡网格 ── */
